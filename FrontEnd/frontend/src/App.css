@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────────────────────── */
+/* Base Layout Fixes (IMPORTANT) */
+/* ───────────────────────────── */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #ffffff;
+  color: #111827;
+  overflow-x: hidden;
+}
+
+/* Prevent any element from causing horizontal overflow */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Fix modal centering issues globally */
+.modal-open {
+  overflow: hidden;
+}
+
+/* ───────────────────────────── */
+/* Editor + Content Styles */
+/* ───────────────────────────── */
+
+.ql-editor {
+  font-size: 1.05rem;
+}
+
+.post-content p {
+  margin-bottom: 0.5rem;
+}
+
+.post-content h1 {
+  font-size: clamp(1.25rem, 4vw, 1.5rem); /* was fixed 1.5rem */
+  font-weight: 600;
+  font-family: sans-serif;
+  margin: 1.5rem 0;
+}
+
+.post-content h2 {
+  font-size: clamp(1.1rem, 3.5vw, 1.4rem); /* was fixed 1.4rem */
+  font-family: sans-serif;
+  margin: 1.5rem 0;
+}
+
+.post-content a {
+  color: rgb(73, 149, 199);
+  text-decoration: none;
+}
+
+.post-content a:hover {
+  text-decoration: underline;
+}
+
+/* Images inside posts never overflow on small screens */
+.post-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tables inside posts scroll horizontally instead of breaking layout */
+.post-content table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Code blocks scroll internally */
+.post-content pre,
+.post-content code {
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: pre;
+}
+
+/* ───────────────────────────── */
+/* Dark Mode */
+/* ───────────────────────────── */
+
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: rgb(17, 24, 39);
+  color: rgb(243, 244, 246);
+}
+
+.dark .post-content a {
+  color: rgb(59, 130, 246);
+}
+
+/* ───────────────────────────── */
+/* Scrollbar (optional but nice) */
+/* ───────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* ───────────────────────────── */
+/* Smooth Transitions */
+/* ───────────────────────────── */
+
+* {
+  transition: background-color 0.2s ease-in-out,
+              color 0.2s ease-in-out,
+              border-color 0.2s ease-in-out;
+}
