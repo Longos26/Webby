@@ -1,6 +1,6 @@
 from openai import OpenAI
 import logging
-from typing import List
+from typing import List, Union
 from dotenv import load_dotenv
 import os
 
@@ -19,17 +19,22 @@ You are a precise information extraction system. Extract the requested informati
 Be concise and only return the extracted information without any additional commentary.
 """
 
-def parse_with_openrouter(dom_content: str, parse_description: str) -> str:
+def parse_with_openrouter(dom_content: Union[str, List[str]], parse_description: str) -> str:
     """
     Parse DOM content using OpenRouter (NVIDIA model) to extract specific information
     
     Args:
-        dom_content: The scraped content to parse
+        dom_content: The scraped content to parse (can be string or list of strings/chunks)
         parse_description: Description of what to extract
     
     Returns:
         Extracted information as string
     """
+    # Handle if dom_content is a list (from split_dom_content)
+    if isinstance(dom_content, list):
+        # If it's a list, join the chunks
+        dom_content = '\n\n'.join(dom_content)
+    
     if not dom_content or not dom_content.strip():
         logger.warning("Empty DOM content provided for parsing")
         return ""
@@ -102,11 +107,15 @@ def parse_with_openrouter(dom_content: str, parse_description: str) -> str:
         logger.error(f"Error parsing with OpenRouter: {str(e)}")
         raise Exception(f"Failed to parse content: {str(e)}")
 
-def parse_with_openrouter_streaming(dom_content: str, parse_description: str) -> str:
+def parse_with_openrouter_streaming(dom_content: Union[str, List[str]], parse_description: str) -> str:
     """
     Parse DOM content using OpenRouter with streaming support
     This allows you to see reasoning tokens as they come
     """
+    # Handle if dom_content is a list (from split_dom_content)
+    if isinstance(dom_content, list):
+        dom_content = '\n\n'.join(dom_content)
+    
     if not dom_content or not dom_content.strip():
         logger.warning("Empty DOM content provided for parsing")
         return ""
@@ -174,10 +183,14 @@ def _chunk_content(content: str, chunk_size: int) -> List[str]:
     return chunks
 
 # Example usage with streaming (like your original JavaScript code)
-async def parse_with_reasoning_tokens(dom_content: str, parse_description: str):
+async def parse_with_reasoning_tokens(dom_content: Union[str, List[str]], parse_description: str):
     """
     Async version that shows reasoning tokens (like the original JS example)
     """
+    # Handle if dom_content is a list
+    if isinstance(dom_content, list):
+        dom_content = '\n\n'.join(dom_content)
+    
     try:
         stream = client.chat.completions.create(
             model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -212,35 +225,3 @@ async def parse_with_reasoning_tokens(dom_content: str, parse_description: str):
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise
-
-# Simple test
-if __name__ == "__main__":
-    # Configure logging
-    logging.basicConfig(level=logging.INFO)
-    
-    # Test the function
-    test_content = """
-    <html>
-        <body>
-            <h1>Product Information</h1>
-            <div class="product">
-                <span class="name">iPhone 15 Pro</span>
-                <span class="price">$999</span>
-                <span class="description">Latest Apple smartphone with A17 chip</span>
-            </div>
-        </body>
-    </html>
-    """
-    
-    # Non-streaming version
-    result = parse_with_openrouter(
-        test_content,
-        "Extract the product name and price from this HTML"
-    )
-    print(f"Extracted: {result}")
-    
-    # For streaming version (uncomment to test)
-    # async def test_stream():
-    #     result = await parse_with_reasoning_tokens(test_content, "Extract product name")
-    #     return result
-    # asyncio.run(test_stream())

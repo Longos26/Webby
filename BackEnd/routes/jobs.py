@@ -1,4 +1,3 @@
-# backend/routes/jobs.py
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from typing import Optional
 from datetime import datetime
@@ -7,6 +6,7 @@ import logging
 import asyncio
 from mongodb.database import get_database
 from routes.auth import get_current_user
+from services.scraper_utils import scrape_website, extract_body_content, clean_body_content  # Add these imports
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
@@ -56,17 +56,19 @@ async def validate_job_access(job_id: str, user_id_str: str, db) -> dict:
     return job
 
 async def execute_scraping_job(job_id: str, user_id: str):
-    """Background task to execute scraping job"""
+    """Background task to execute actual scraping job"""
     db = await get_database()
     
     try:
         logger.info(f"Starting scraping job {job_id}")
         
+        # Update status to running
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
             {"$set": {"status": "running", "progress": 10, "updated_at": datetime.utcnow()}}
         )
         
+        # Get job details
         job = await db.jobs.find_one({"_id": ObjectId(job_id)})
         if not job:
             raise Exception("Job not found")
@@ -75,13 +77,95 @@ async def execute_scraping_job(job_id: str, user_id: str):
         if not url:
             raise Exception("No URL provided")
         
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)  # Small delay for status update
+        
+        # Update progress - starting scrape
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
-            {"$set": {"progress": 50, "updated_at": datetime.utcnow()}}
+            {"$set": {"progress": 30, "updated_at": datetime.utcnow()}}
         )
         
-        await asyncio.sleep(2)
+        # ACTUAL SCRAPING - Get real content from the website
+        logger.info(f"Scraping actual content from {url}")
+        html = scrape_website(url, use_selenium=False)  # Use requests by default
+        
+        await db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": {"progress": 60, "updated_at": datetime.utcnow()}}
+        )
+        
+        # Extract and clean the body content
+        body = extract_body_content(html)
+        cleaned_content = clean_body_content(body)
+        
+        if not cleaned_content or len(cleaned_content.strip()) < 50:
+            logger.warning(f"Scraped content too small for {url}, trying with Selenium...")
+            # Try with Selenium if content is too small
+            html = scrape_website(url, use_selenium=True)
+            body = extract_body_content(html)
+            cleaned_content = clean_body_content(body)
+        
+        if not cleaned_content or len(cleaned_content.strip()) < 50:
+            raise Exception("Failed to extract meaningful content from the website")
+        
+        await db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": {"progress": 85, "updated_at": datetime.utcnow()}}
+        )
+        
+        # Calculate records (rough estimate - lines of meaningful text)
+        records = len([line for line in cleaned_content.splitlines() if line.strip() and len(line.strip()) > 20])
+        
+        # Store the ACTUAL scraped content (not mock data)
+        await db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {
+                "$set": {
+                    "status": "success",
+                    "progress": 100,
+                    "records": records,
+                    "scraped_content": cleaned_content[:500000],  # Store up to 500k chars
+                    "scraped_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                    "error_message": None
+                }
+            }
+        )
+        
+        # Add activity log
+        await db.activities.insert_one({
+            "type": "success",
+            "title": "Job Completed",
+            "description": f"Successfully scraped {url} - Extracted {records} records",
+            "user_id": user_id,
+            "created_at": datetime.utcnow()
+        })
+        
+        logger.info(f"Job {job_id} completed successfully with {records} records")
+        
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Job {job_id} failed: {error_message}")
+        
+        await db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {
+                "$set": {
+                    "status": "failed",
+                    "progress": 0,
+                    "error_message": error_message,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        await db.activities.insert_one({
+            "type": "error",
+            "title": "Job Failed",
+            "description": f"Failed to scrape: {error_message[:200]}",
+            "user_id": user_id,
+            "created_at": datetime.utcnow()
+        })
         
         scraped_content = f"""
 Scraped content from {url}
