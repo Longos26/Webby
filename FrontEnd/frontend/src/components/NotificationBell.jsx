@@ -44,12 +44,6 @@ const STYLES = `
   .notification-bell-ring {
     animation: ring 0.4s ease-in-out;
   }
-  .notification-item {
-    animation: slideIn 0.2s ease forwards;
-  }
-  .notification-item-exit {
-    animation: slideOut 0.15s ease forwards;
-  }
   .notification-badge {
     position: absolute;
     top: -2px;
@@ -72,8 +66,8 @@ const STYLES = `
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    width: 360px;
-    max-height: 480px;
+    width: 380px;
+    max-height: 500px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
@@ -84,13 +78,14 @@ const STYLES = `
     flex-direction: column;
   }
   .notification-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--color-border);
-    background: rgba(255, 255, 255, 0.02);
-  }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.02);
+  gap: 12px;
+}
   .notification-header h3 {
     font-size: 13px;
     font-weight: 600;
@@ -99,7 +94,7 @@ const STYLES = `
   .notification-list {
     flex: 1;
     overflow-y: auto;
-    max-height: 380px;
+    max-height: 400px;
   }
   .notification-item {
     padding: 14px 18px;
@@ -153,30 +148,42 @@ const STYLES = `
     justify-content: space-between;
     background: rgba(255, 255, 255, 0.02);
   }
-  .notification-footer button {
-    background: none;
-    border: none;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    transition: all var(--transition-fast);
-    font-family: var(--font-sans);
-  }
+  .notification-header button {
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
   .mark-read-btn {
-    color: var(--color-text-muted);
-  }
-  .mark-read-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--color-text-primary);
-  }
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.mark-read-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-text-primary);
+  border-color: rgba(59, 130, 246, 0.3);
+}
   .clear-all-btn {
-    color: #ef4444;
-  }
-  .clear-all-btn:hover {
-    background: rgba(239, 68, 68, 0.12);
-  }
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.clear-all-btn:hover {
+  background: rgba(239, 68, 68, 0.16);
+  color: #ffffff;
+  border-color: rgba(239, 68, 68, 0.35);
+}
   @media (max-width: 480px) {
     .notification-dropdown {
       width: calc(100vw - 32px);
@@ -186,14 +193,20 @@ const STYLES = `
 `;
 
 function getNotificationIcon(type) {
-  switch (type) {
-    case 'success': return <CheckCircle size={14} style={{ color: '#10b981' }} />;
-    case 'error': return <AlertCircle size={14} style={{ color: '#ef4444' }} />;
-    default: return <Bell size={14} style={{ color: '#3b82f6' }} />;
+  switch (type?.toLowerCase()) {
+    case 'success':
+    case 'job_completed':
+      return <CheckCircle size={14} style={{ color: '#10b981' }} />;
+    case 'error':
+    case 'job_failed':
+      return <AlertCircle size={14} style={{ color: '#ef4444' }} />;
+    default:
+      return <Bell size={14} style={{ color: '#3b82f6' }} />;
   }
 }
 
 function formatTimeAgo(dateString) {
+  if (!dateString) return 'Just now';
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now - date;
@@ -216,12 +229,14 @@ const NotificationBell = () => {
   const dropdownRef = useRef(null);
   const bellRef = useRef(null);
   const ringTimeoutRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/notifications');
-      setNotifications(response.data);
+      // FIXED: Removed /api prefix
+      const response = await api.get('/notifications?limit=50');
+      setNotifications(response.data || []);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     } finally {
@@ -231,19 +246,28 @@ const NotificationBell = () => {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const response = await api.get('/api/notifications/unread/count');
-      const newCount = response.data.count;
+      // FIXED: Removed /api prefix
+      const response = await api.get('/notifications/unread/count');
+      const newCount = response.data.unread_count || 0;
       const previousCount = unreadCount;
       setUnreadCount(newCount);
 
       if (newCount > previousCount && newCount > 0) {
         if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-        const bellElement = document.querySelector('.notification-bell-button');
+        const bellElement = bellRef.current;
         if (bellElement) {
           bellElement.classList.add('notification-bell-ring');
           ringTimeoutRef.current = setTimeout(() => {
             bellElement.classList.remove('notification-bell-ring');
           }, 400);
+        }
+        
+        // Optional: Show browser notification
+        if (Notification.permission === 'granted') {
+          new Notification('New Notification', {
+            body: `You have ${newCount} unread notification${newCount > 1 ? 's' : ''}`,
+            icon: '/favicon.ico'
+          });
         }
       }
     } catch (error) {
@@ -251,19 +275,30 @@ const NotificationBell = () => {
     }
   }, [unreadCount]);
 
+  // Request notification permission
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     fetchNotifications();
     fetchUnreadCount();
 
-    const interval = setInterval(() => {
+    // Poll for new notifications every 15 seconds
+    pollIntervalRef.current = setInterval(() => {
       fetchUnreadCount();
-    }, 30000);
+      if (isOpen) {
+        fetchNotifications();
+      }
+    }, 15000);
 
     return () => {
-      clearInterval(interval);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
     };
-  }, [fetchNotifications, fetchUnreadCount]);
+  }, [fetchNotifications, fetchUnreadCount, isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -283,7 +318,8 @@ const NotificationBell = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      await api.put(`/api/notifications/${notificationId}/read`);
+      // FIXED: Removed /api prefix
+      await api.put(`/notifications/${notificationId}/read`);
       setNotifications(prev =>
         prev.map(notif =>
           notif.id === notificationId ? { ...notif, read: true } : notif
@@ -297,7 +333,8 @@ const NotificationBell = () => {
 
   const markAllAsRead = async () => {
     try {
-      await api.put('/api/notifications/read-all');
+      // FIXED: Removed /api prefix
+      await api.put('/notifications/read-all');
       setNotifications(prev =>
         prev.map(notif => ({ ...notif, read: true }))
       );
@@ -309,7 +346,8 @@ const NotificationBell = () => {
 
   const clearAll = async () => {
     try {
-      await api.delete('/api/notifications/clear');
+      // FIXED: Removed /api prefix
+      await api.delete('/notifications/clear');
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
@@ -319,11 +357,12 @@ const NotificationBell = () => {
 
   const handleBellClick = () => {
     setIsOpen(!isOpen);
-    if (!isOpen && unreadCount > 0) {
+    if (!isOpen) {
       fetchNotifications();
     }
   };
 
+  // Inject styles
   if (typeof document !== 'undefined' && !document.getElementById('notification-styles')) {
     const style = document.createElement('style');
     style.id = 'notification-styles';
@@ -395,7 +434,7 @@ const NotificationBell = () => {
             </div>
 
             <div className="notification-list">
-              {loading ? (
+              {loading && notifications.length === 0 ? (
                 <div className="notification-empty">
                   <div style={{
                     width: 24,
@@ -412,7 +451,7 @@ const NotificationBell = () => {
                 <div className="notification-empty">
                   <Bell size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
                   <div>No notifications yet</div>
-                  <div style={{ fontSize: 10, marginTop: 4 }}>We'll notify you when something happens</div>
+                  <div style={{ fontSize: 10, marginTop: 4 }}>We'll notify you when your jobs complete</div>
                 </div>
               ) : (
                 notifications.map(notif => (

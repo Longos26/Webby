@@ -1,4 +1,4 @@
-# backend/main.py - CLEAN LOGGING VERSION (only shows status codes)
+# backend/main.py - FIXED LIFESPAN FUNCTION
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import all routers
-from routes import auth, jobs, scraping, dashboard, activity, export, llm, notifications, settings
+from routes import auth, jobs, scraping, dashboard, activity, export, llm, notifications, settings, parsing
 from mongodb.database import connect_to_mongo, close_mongo_connection, get_database
 from services.job_executor import JobExecutor
 
@@ -42,6 +42,7 @@ job_executor = JobExecutor()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
+    # Startup
     print("\n" + "="*50)
     print("🚀 Starting Webby Scraper API...")
     print("="*50 + "\n")
@@ -49,21 +50,12 @@ async def lifespan(app: FastAPI):
     # Connect to MongoDB
     try:
         await connect_to_mongo()
-        db = await get_database()
-        
-        # Ensure indexes exist
-        await db.users.create_index("email", unique=True)
-        await db.jobs.create_index("user_id")
-        await db.jobs.create_index("status")
-        await db.jobs.create_index("created_at")
-        await db.parsed_results.create_index("job_id")
-        
-        print("✅ Database connected successfully\n")
+        print("✅ Database connected successfully")
     except Exception as e:
-        print(f"❌ Failed to connect to database: {e}")
+        print(f"❌ Database connection failed: {e}")
         raise
     
-    yield
+    yield  # This is where the app runs
     
     # Shutdown
     print("\n🛑 Shutting down Webby Scraper API...")
@@ -142,6 +134,7 @@ app.include_router(export.router)
 app.include_router(llm.router)
 app.include_router(notifications.router)
 app.include_router(settings.router)
+app.include_router(parsing.router)
 
 # Root endpoint
 @app.get("/")
@@ -169,23 +162,3 @@ async def health_check():
         "database": db_status,
         "timestamp": __import__("datetime").datetime.utcnow().isoformat()
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    
-    port = int(os.getenv("PORT", 8000))
-    host = os.getenv("HOST", "0.0.0.0")
-    
-    print(f"\n{'='*50}")
-    print(f"📍 Server: http://{host}:{port}")
-    print(f"📚 Docs: http://{host}:{port}/docs")
-    print(f"{'='*50}\n")
-    
-    uvicorn.run(
-        "main:app",
-        host=host,
-        port=port,
-        reload=True,
-        log_level="error",  # Suppress uvicorn logs
-        access_log=False,   # Disable default access log
-    )

@@ -26,6 +26,8 @@ async def connect_to_mongo():
         await database.db.users.create_index("username", unique=True)
         await database.db.jobs.create_index("user_id")
         await database.db.activity.create_index("user_id")
+        await database.db.parsed_results.create_index("job_id")
+        await database.db.parsed_results.create_index("created_at")
         await database.db.notifications.create_index([("user_id", 1), ("created_at", -1)])
         await database.db.notifications.create_index([("user_id", 1), ("read", 1)])
         await database.db.notifications.create_index([("created_at", -1)])

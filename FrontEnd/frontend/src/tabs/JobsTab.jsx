@@ -594,6 +594,27 @@ function JobDetailsModal({ job, onClose }) {
   const statusColor = status === 'running' ? '#3b82f6' : status === 'success' ? '#10b981' : status === 'failed' ? '#ef4444' : status === 'paused' ? '#f59e0b' : '#6a8ca8';
   const pct = d.progress || 0;
 
+  // ACCURATE CONTENT STATISTICS
+  const scrapedContent = d.scraped_content || '';
+  const wordCount = scrapedContent ? scrapedContent.split(/\s+/).filter(w => w.length > 0).length : 0;
+  const charCount = scrapedContent.length;
+  const recordCount = d.records || 0;
+
+  // Format date with local timezone
+  const formatLocalDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
@@ -672,28 +693,28 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           )}
 
-          {/* Content stats */}
-          {d.scraped_content && (
+          {/* Content stats - ACCURATE */}
+          {scrapedContent && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Content statistics</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{d.records?.toLocaleString() || '0'}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{recordCount.toLocaleString() || '0'}</div>
                   <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Records</div>
                 </div>
                 <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{d.scraped_content.split(/\s+/).filter(Boolean).length.toLocaleString()}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{wordCount.toLocaleString()}</div>
                   <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Words</div>
                 </div>
                 <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{d.scraped_content.length > 999 ? `${(d.scraped_content.length / 1000).toFixed(1)}k` : d.scraped_content.length}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6' }}>{charCount > 999 ? `${(charCount / 1000).toFixed(1)}k` : charCount}</div>
                   <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Chars</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Job Details */}
+          {/* Job Details with ACCURATE timestamps */}
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Job details</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -709,7 +730,7 @@ function JobDetailsModal({ job, onClose }) {
               </div>
               <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}><Database size={10} />Records</div>
-                <div style={{ fontSize: 12 }}>{d.records?.toLocaleString() || '0'}</div>
+                <div style={{ fontSize: 12 }}>{recordCount.toLocaleString() || '0'}</div>
               </div>
               <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}><Zap size={10} />Frequency</div>
@@ -717,27 +738,35 @@ function JobDetailsModal({ job, onClose }) {
               </div>
               <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}><Calendar size={10} />Created</div>
-                <div style={{ fontSize: 12 }}>{d.created_at ? new Date(d.created_at).toLocaleString() : 'N/A'}</div>
+                <div style={{ fontSize: 12 }}>{formatLocalDate(d.created_at)}</div>
               </div>
+              {d.scraped_at && (
+                <div style={{ gridColumn: '1/-1', background: 'var(--color-surface-1)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '12px 13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    <Activity size={10} />Last Scraped
+                  </div>
+                  <div style={{ fontSize: 12 }}>{formatLocalDate(d.scraped_at)}</div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Content Preview */}
-          {d.scraped_content && !loading && (
+          {scrapedContent && !loading && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Content preview</div>
               <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 13px', background: 'var(--color-surface-1)', borderBottom: '1px solid var(--color-border)', fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600 }}>
                   <span>Raw text</span>
-                  <span>{d.scraped_content.length.toLocaleString()} chars</span>
+                  <span>{charCount.toLocaleString()} chars</span>
                 </div>
                 <pre style={{
                   margin: 0, padding: 13, fontSize: 11, lineHeight: 1.75, color: 'var(--color-text-secondary)',
                   fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   maxHeight: 190, overflowY: 'auto'
                 }}>
-                  {d.scraped_content.substring(0, 3000)}
-                  {d.scraped_content.length > 3000 && '\n\n... truncated'}
+                  {scrapedContent.substring(0, 3000)}
+                  {scrapedContent.length > 3000 && '\n\n... truncated'}
                 </pre>
               </div>
             </div>
@@ -879,6 +908,13 @@ export default function Jobs() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginatedJobs = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  // Helper to format date for table display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="jd-root page-enter" style={{ fontFamily: 'var(--font-sans)' }}>
       {/* Error / Success Alerts */}
@@ -966,7 +1002,7 @@ export default function Jobs() {
                       </td>
                       <td className="mono">{job.records?.toLocaleString() || '0'}</td>
                       <td className="mono">{job.frequency || 'One-time'}</td>
-                      <td className="mono">{job.created_at ? new Date(job.created_at).toLocaleDateString() : 'N/A'}</td>
+                      <td className="mono">{formatDate(job.created_at)}</td>
                       <td>
                         <div className="action-row">
                           <button className="action-btn" title="View details" onClick={() => setSelectedJob(job)}>

@@ -1,8 +1,10 @@
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
+from datetime import datetime, timezone
+import json
 from fastapi.responses import StreamingResponse
-from streamlit import json
+
 from mongodb.database import get_database
 from routes.auth import get_current_user
 from services.notification_service import NotificationService
@@ -20,14 +22,14 @@ async def get_notifications(
     """Get all notifications for the current user"""
     user_id_str = extract_user_id_str(current_user)
     
-    notifications = await NotificationService.get_user_notifications(
+    result = await NotificationService.get_user_notifications(
         user_id=user_id_str,
         unread_only=unread_only,
         limit=limit,
         offset=offset
     )
     
-    return notifications
+    return result["notifications"]
 
 @router.get("/unread/count")
 async def get_unread_count(
@@ -36,13 +38,13 @@ async def get_unread_count(
     """Get unread notification count"""
     user_id_str = extract_user_id_str(current_user)
     
-    notifications = await NotificationService.get_user_notifications(
+    result = await NotificationService.get_user_notifications(
         user_id=user_id_str,
         unread_only=True,
         limit=1
     )
     
-    return {"unread_count": notifications["unread_count"]}
+    return {"unread_count": result["unread_count"]}
 
 @router.put("/{notification_id}/read")
 async def mark_notification_read(
@@ -70,6 +72,17 @@ async def mark_all_read(
     
     return {"message": f"Marked {count} notifications as read"}
 
+@router.delete("/clear")
+async def clear_all_notifications(
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete all notifications for the current user"""
+    user_id_str = extract_user_id_str(current_user)
+    
+    count = await NotificationService.delete_all_notifications(user_id_str)
+    
+    return {"message": f"Deleted {count} notifications"}
+
 @router.delete("/{notification_id}")
 async def delete_notification(
     notification_id: str,
@@ -85,17 +98,6 @@ async def delete_notification(
     
     return {"message": "Notification deleted"}
 
-@router.delete("/")
-async def delete_all_notifications(
-    current_user: dict = Depends(get_current_user)
-):
-    """Delete all notifications for the current user"""
-    user_id_str = extract_user_id_str(current_user)
-    
-    count = await NotificationService.delete_all_notifications(user_id_str)
-    
-    return {"message": f"Deleted {count} notifications"}
-
 @router.get("/{notification_id}")
 async def get_notification(
     notification_id: str,
@@ -104,6 +106,9 @@ async def get_notification(
     """Get a specific notification"""
     user_id_str = extract_user_id_str(current_user)
     db = await get_database()
+    
+    if not ObjectId.is_valid(notification_id):
+        raise HTTPException(status_code=400, detail="Invalid notification ID")
     
     notification = await db.notifications.find_one({
         "_id": ObjectId(notification_id),
