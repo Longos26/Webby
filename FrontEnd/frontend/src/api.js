@@ -1,8 +1,8 @@
 // frontend/src/api.js
 import axios from 'axios';
 
-// Use environment variable or fallback to localhost
-const API_URL = process.env.REACT_APP_API_URL || 'https://webby-1osa.onrender.com';
+// Use environment variable or allback to localhost
+const API_URL = "https://webby-1osa.onrender.com";
 
 // Create axios instance with default config
 const api = axios.create({
