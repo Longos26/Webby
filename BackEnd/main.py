@@ -85,6 +85,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
         "http://127.0.0.1:5173",
+        'https://webby-production.up.railway.app/',
         os.getenv("FRONTEND_URL", "http://localhost:3000"),
     ],
     allow_credentials=True,
