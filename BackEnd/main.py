@@ -77,14 +77,29 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://webby-production.up.railway.app",
-        "http://localhost:3000",
-        "http://localhost:5173",
+        "https://webby-production.up.railway.app",  # Railway frontend
+        "https://webby-1osa.onrender.com",          # Render backend (self)
+        "http://localhost:3000",                    # Local dev
+        "http://localhost:5173",                    # Vite dev
+        "https://*.railway.app",                    # Any Railway subdomain (optional)
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests
 )
+
+# Add OPTIONS handler for all routes
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(request: Request, rest_of_path: str):
+    """Handle CORS preflight requests"""
+    response = JSONResponse(content={"message": "OK"})
+    response.headers["Access-Control-Allow-Origin"] = "https://webby-production.up.railway.app"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # ============================================================
 # CLEAN REQUEST LOGGING - Only shows method, path, status, duration

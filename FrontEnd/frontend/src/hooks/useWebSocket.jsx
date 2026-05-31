@@ -8,29 +8,41 @@ export const useWebSocket = (userId) => {
   useEffect(() => {
     if (!userId) return;
 
-    const ws = new WebSocket(`ws://https://webby-1osa.onrender.com/api/ws/jobs/${userId}`);
+    // FIXED: Use correct WebSocket URL
+    const wsUrl = process.env.REACT_APP_WS_URL || 'wss://webby-1osa.onrender.com';
+    const ws = new WebSocket(`${wsUrl}/ws/jobs/${userId}`);
     socketRef.current = ws;
 
     ws.onopen = () => console.log('WebSocket connected');
     
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      
-      if (message.type === 'job_update') {
-        setJobUpdates(prev => ({
-          ...prev,
-          [message.data.id]: message.data
-        }));
-      } 
-      else if (message.type === 'activity') {
-        setActivities(prev => [message.data, ...prev].slice(0, 20));
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.type === 'job_update') {
+          setJobUpdates(prev => ({
+            ...prev,
+            [message.data.id]: message.data
+          }));
+        } 
+        else if (message.type === 'activity') {
+          setActivities(prev => [message.data, ...prev].slice(0, 20));
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
       }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
     };
 
     ws.onclose = () => console.log('WebSocket disconnected');
     
     return () => {
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, [userId]);
 

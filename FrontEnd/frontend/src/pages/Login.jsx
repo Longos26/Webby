@@ -183,7 +183,7 @@ const Login = () => {
   try {
     dispatch(signInStart());
     
-    // Use the correct endpoint - /signin not /login
+    // FIXED: Use the correct endpoint
     const response = await api.post('/api/auth/login', {
       email: formData.email,
       password: formData.password,
@@ -194,6 +194,8 @@ const Login = () => {
     if (data.access_token) {
       // Store token
       localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
       if (remember) {
         localStorage.setItem('rememberedEmail', formData.email);
       } else {
