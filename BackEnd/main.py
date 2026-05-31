@@ -48,20 +48,21 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Webby Scraper API...")
     print("="*50 + "\n")
     
-    # Connect to MongoDB
+    # Connect to MongoDB - Don't raise on error, just log
     try:
         await connect_to_mongo()
         print("✅ Database connected successfully")
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
-        raise
+        print("⚠️  Continuing without database connection...")
+        # Don't raise - let the app start even if DB is down
+        # This helps with debugging on Render
     
     yield  # This is where the app runs
     
     # Shutdown
     print("\n🛑 Shutting down Webby Scraper API...")
     await close_mongo_connection()
-
 # Create FastAPI app
 app = FastAPI(
     title="Webby Scraper API",

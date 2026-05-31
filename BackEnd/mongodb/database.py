@@ -3,14 +3,14 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from typing import Optional
 from dotenv import load_dotenv
 import os
-import ssl
+import asyncio
+import logging
 
 load_dotenv()
 
-# MongoDB Atlas connection string
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
-
+logger = logging.getLogger(__name__)
 
 class Database:
     client: Optional[AsyncIOMotorClient] = None
@@ -19,48 +19,72 @@ class Database:
 database = Database()
 
 async def connect_to_mongo():
-    """Connect to MongoDB Atlas with proper SSL configuration"""
+    """Connect to MongoDB Atlas with Render-compatible settings"""
     try:
-        # Configure TLS/SSL settings for MongoDB Atlas
-        # This disables certificate verification (useful for older Python versions)
-        # For production, consider updating Python instead
-        connection_kwargs = {
-            "serverSelectionTimeoutMS": 5000,
+        # Log connection attempt (without password)
+        safe_uri = MONGO_URI.split('@')[0].split('//')[0] + '//' + MONGO_URI.split('@')[1] if '@' in MONGO_URI else MONGO_URI
+        logger.info(f"Connecting to MongoDB: {safe_uri}")
+        
+        # Connection parameters for Render compatibility
+        client_kwargs = {
+            "serverSelectionTimeoutMS": 30000,
+            "connectTimeoutMS": 30000,
+            "socketTimeoutMS": 30000,
+            "retryWrites": True,
+            "retryReads": True,
             "tls": True,
-            "tlsAllowInvalidCertificates": True,  # Allow invalid certificates
-            "tlsAllowInvalidHostnames": True,      # Allow invalid hostnames
+            "tlsAllowInvalidCertificates": True,  # Required for Render
+            "tlsAllowInvalidHostnames": True,      # Required for Render
         }
         
-        database.client = AsyncIOMotorClient(
-            MONGO_URI, 
-            **connection_kwargs
-        )
+        database.client = AsyncIOMotorClient(MONGO_URI, **client_kwargs)
+        
+        # Get database instance
         database.db = database.client.get_database(MONGO_DB_NAME)
-
-        # Create indexes for better performance
-        await database.db.users.create_index("email", unique=True)
-        await database.db.users.create_index("username", unique=True)
-        await database.db.jobs.create_index("user_id")
-        await database.db.activity.create_index("user_id")
-        await database.db.parsed_results.create_index("job_id")
-        await database.db.parsed_results.create_index("created_at")
-        await database.db.notifications.create_index([("user_id", 1), ("created_at", -1)])
-        await database.db.notifications.create_index([("user_id", 1), ("read", 1)])
-        await database.db.notifications.create_index([("created_at", -1)])
-
-        # Ping to verify connection
+        
+        # Verify connection
         await database.client.admin.command('ping')
-        print("✅ Successfully connected to MongoDB Atlas!")
+        logger.info("✅ Successfully connected to MongoDB Atlas!")
+        logger.info(f"📊 Database: {MONGO_DB_NAME}")
+        
+        # Create indexes in background (don't block startup)
+        asyncio.create_task(create_indexes())
+        
         return database.db
+        
     except Exception as e:
-        print(f"❌ MongoDB connection error: {e}")
+        logger.error(f"❌ MongoDB connection error: {e}")
+        logger.error(f"Connection string format: {MONGO_URI[:50]}...")  # Partial for debugging
         raise e
+
+async def create_indexes():
+    """Create database indexes"""
+    try:
+        if database.db is None:
+            return
+            
+        # Create indexes (non-blocking)
+        await asyncio.gather(
+            database.db.users.create_index("email", unique=True),
+            database.db.users.create_index("username", unique=True),
+            database.db.jobs.create_index("user_id"),
+            database.db.activity.create_index("user_id"),
+            database.db.parsed_results.create_index("job_id"),
+            database.db.parsed_results.create_index("created_at"),
+            database.db.notifications.create_index([("user_id", 1), ("created_at", -1)]),
+            database.db.notifications.create_index([("user_id", 1), ("read", 1)]),
+            database.db.notifications.create_index([("created_at", -1)]),
+            return_exceptions=True
+        )
+        logger.info("✅ Indexes created/verified")
+    except Exception as e:
+        logger.warning(f"⚠️ Index creation warning: {e}")
 
 async def close_mongo_connection():
     """Close MongoDB connection"""
     if database.client:
         database.client.close()
-        print("Closed MongoDB connection")
+        logger.info("Closed MongoDB connection")
 
 async def get_database() -> AsyncIOMotorDatabase:
     """Get database instance"""
@@ -73,11 +97,10 @@ async def ping_mongo():
     try:
         if database.client:
             await database.client.admin.command('ping')
-            print("✅ MongoDB connection is active!")
             return True
         else:
             await connect_to_mongo()
             return True
     except Exception as e:
-        print(f"❌ MongoDB connection error: {e}")
+        logger.error(f"MongoDB ping failed: {e}")
         return False
