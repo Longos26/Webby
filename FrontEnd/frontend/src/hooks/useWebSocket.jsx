@@ -8,7 +8,7 @@ export const useWebSocket = (userId) => {
   useEffect(() => {
     if (!userId) return;
 
-    const ws = new WebSocket(`ws://localhost:8000/api/ws/jobs/${userId}`);
+    const ws = new WebSocket(`ws://https://webby-1osa.onrender.com/api/ws/jobs/${userId}`);
     socketRef.current = ws;
 
     ws.onopen = () => console.log('WebSocket connected');
