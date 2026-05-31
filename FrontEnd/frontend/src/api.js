@@ -509,5 +509,5 @@ export const notificationService = {
     return response.data;
   },
 };
-export { authService };
+
 export default api;
