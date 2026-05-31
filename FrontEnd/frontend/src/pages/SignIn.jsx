@@ -10,6 +10,7 @@ import {
 import { Eye, EyeOff, AlertCircle, UserPlus, CheckCircle2, Shield, Zap, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../api';
+import { authService } from '../api';
 
 // ============================================================
 // ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - SIGNUP PAGE

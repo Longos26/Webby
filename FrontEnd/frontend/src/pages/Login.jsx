@@ -9,6 +9,8 @@ import {
 import { ArrowRight, Eye, EyeOff, AlertCircle, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../api';
+import { authService } from '../api';
+
 
 
 // ============================================================
