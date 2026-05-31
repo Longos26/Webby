@@ -184,7 +184,7 @@ const Login = () => {
     dispatch(signInStart());
     
     // FIXED: Use the correct endpoint
-    const response = await api.post('/api/auth/login', {
+    const response = await api.post('https://webby-1osa.onrender.com/api/auth/login', {
       email: formData.email,
       password: formData.password,
     });

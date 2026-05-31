@@ -250,7 +250,7 @@ const SignUp = () => {
   try {
     dispatch(signInStart());
 
-    const response = await api.post('/api/auth/signup', {
+    const response = await api.post('https://webby-1osa.onrender.com/api/auth/signup', {
       first_name: formData.firstName,
       last_name: formData.lastName,
       email: formData.email,
