@@ -20,7 +20,6 @@
     "react-hot-toast": "^2.6.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.14.0",
-    "react-scripts": "^5.0.1",
     "recharts": "^3.8.1",
     "redux-persist": "^6.0.0",
     "tailwindcss": "^4.2.2",
@@ -33,7 +32,6 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-  
   "proxy": "https://webby-1osa.onrender.com",
   "eslintConfig": {
     "extends": [
@@ -52,5 +50,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "react-scripts": "^5.0.1"
   }
 }
