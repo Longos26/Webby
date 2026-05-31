@@ -65,12 +65,8 @@ app = FastAPI(
 # Allow all origins for development/production
 ALLOWED_ORIGINS = [
     "https://webby-production.up.railway.app",
-    "https://webby-1osa.onrender.com",
     "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:8000",
-    "https://*.railway.app",
-    "https://*.onrender.com",
+    
 ]
 
 app.add_middleware(
