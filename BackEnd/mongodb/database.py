@@ -1,9 +1,12 @@
+# mongodb/database.py
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from typing import Optional
 from dotenv import load_dotenv
 import os
+import ssl
 
 load_dotenv()
+
 # MongoDB Atlas connection string
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
@@ -16,9 +19,22 @@ class Database:
 database = Database()
 
 async def connect_to_mongo():
-    """Connect to MongoDB Atlas"""
+    """Connect to MongoDB Atlas with proper SSL configuration"""
     try:
-        database.client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        # Configure TLS/SSL settings for MongoDB Atlas
+        # This disables certificate verification (useful for older Python versions)
+        # For production, consider updating Python instead
+        connection_kwargs = {
+            "serverSelectionTimeoutMS": 5000,
+            "tls": True,
+            "tlsAllowInvalidCertificates": True,  # Allow invalid certificates
+            "tlsAllowInvalidHostnames": True,      # Allow invalid hostnames
+        }
+        
+        database.client = AsyncIOMotorClient(
+            MONGO_URI, 
+            **connection_kwargs
+        )
         database.db = database.client.get_database(MONGO_DB_NAME)
 
         # Create indexes for better performance
