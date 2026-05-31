@@ -250,25 +250,19 @@ const SignUp = () => {
   try {
     dispatch(signInStart());
 
-    const response = await api.post('https://webby-1osa.onrender.com/api/auth/signup', {
+    const data = await authService.signup({
       first_name: formData.firstName,
       last_name: formData.lastName,
       email: formData.email,
       password: formData.password,
     });
 
-    const data = response.data;
-
     if (data.access_token) {
       localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
-      dispatch(signInSuccess({ 
-        user: data.user, 
-        token: data.access_token 
-      }));
+      dispatch(signInSuccess({ user: data.user, token: data.access_token }));
       navigate('/dashboard');
-    } else {
-      throw new Error('Registration failed - no token received');
     }
   } catch (error) {
     console.error('Signup error:', error);
@@ -278,8 +272,8 @@ const SignUp = () => {
       errorMsg = error.response.data.detail;
     } else if (error.response?.data?.message) {
       errorMsg = error.response.data.message;
-    } else if (error.message) {
-      errorMsg = error.message;
+    } else if (error.userMessage) {
+      errorMsg = error.userMessage;
     }
     
     dispatch(signInFailure(errorMsg));

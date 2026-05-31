@@ -1,63 +1,133 @@
-// frontend/src/api.js
+// frontend/src/api.js - COMPLETE FIXED VERSION
+
 import axios from 'axios';
 
-// Use environment variable or allback to localhost
-const API_URL = "https://webby-1osa.onrender.com";
+// Dynamic API URL based on environment
+const getApiUrl = () => {
+  // Production URLs
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://webby-1osa.onrender.com';
+  }
+  // Development
+  return 'http://localhost:8000';
+};
 
-// Create axios instance with default config
+const API_URL = getApiUrl();
+
+// Create axios instance with enhanced config
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
   timeout: 90000,
-  withCredentials: false,
+  withCredentials: true, // Important for CORS with credentials
 });
 
-// Request interceptor to add auth token
+// Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Log request in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor - Handle errors globally
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('rememberedEmail');
-      window.location.href = '/login';
+  (response) => {
+    // Log response in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ API Response: ${response.config.url} - ${response.status}`);
     }
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', error);
+    
+    // Handle authentication errors
+    if (error.response?.status === 401) {
+      // Don't redirect on login/signup endpoints
+      const isAuthEndpoint = error.config?.url?.includes('/auth/');
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('rememberedEmail');
+        window.location.href = '/login';
+      }
+    }
+    
+    // Handle CORS errors specifically
+    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+      console.error('CORS or Network Error - Check if backend is running and CORS is configured');
+      error.userMessage = 'Unable to connect to server. Please check your connection.';
+    }
+    
     return Promise.reject(error);
   }
 );
+
+// Test connection function
+export const testConnection = async () => {
+  try {
+    const response = await api.get('/health');
+    console.log('Connection test successful:', response.data);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Connection test failed:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Auth Service
+export const authService = {
+  login: async (email, password) => {
+    const response = await api.post('/api/auth/login', { email, password });
+    return response.data;
+  },
+  
+  signup: async (userData) => {
+    const response = await api.post('/api/auth/signup', userData);
+    return response.data;
+  },
+  
+  logout: async () => {
+    const response = await api.post('/api/auth/logout');
+    return response.data;
+  },
+  
+  getCurrentUser: async () => {
+    const response = await api.get('/api/auth/me');
+    return response.data;
+  },
+};
 
 // Job Service
 export const jobService = {
-  // Get all jobs with optional status filter
   getAllJobs: async (statusFilter = 'all') => {
     const params = statusFilter !== 'all' ? { status: statusFilter } : {};
     const response = await api.get('/api/jobs', { params });
     return response.data;
   },
 
-  // Get single job by ID
   getJob: async (jobId) => {
     const response = await api.get(`/api/jobs/${jobId}`);
     return response.data;
   },
 
-  // Create new job
   createJob: async (jobData) => {
     const response = await api.post('/api/jobs', {
       ...jobData,
@@ -66,37 +136,31 @@ export const jobService = {
     return response.data;
   },
 
-  // Update job
   updateJob: async (jobId, updateData) => {
     const response = await api.put(`/api/jobs/${jobId}`, updateData);
     return response.data;
   },
 
-  // Delete job
   deleteJob: async (jobId) => {
     const response = await api.delete(`/api/jobs/${jobId}`);
     return response.data;
   },
 
-  // Start job
   startJob: async (jobId) => {
     const response = await api.post(`/api/jobs/${jobId}/start`);
     return response.data;
   },
 
-  // Pause job (if your backend supports it)
   pauseJob: async (jobId) => {
     const response = await api.post(`/api/jobs/${jobId}/pause`);
     return response.data;
   },
 
-  // Get parsed results for job
   getParsedResults: async (jobId) => {
     const response = await api.get(`/api/scraping/jobs/${jobId}/parsed-results`);
     return response.data;
   },
 
-  // Parse job content
   parseJobContent: async (jobId, parseDescription) => {
     const response = await api.post(`/api/scraping/jobs/${jobId}/parse`, {
       parse_description: parseDescription,
@@ -256,7 +320,6 @@ export const exportService = {
 
 // Settings Service
 export const settingsService = {
-  // Profile
   getProfile: async () => {
     const response = await api.get('/api/settings/profile');
     return response.data;
@@ -272,7 +335,6 @@ export const settingsService = {
     return response.data;
   },
 
-  // Notifications
   getNotificationPreferences: async () => {
     const response = await api.get('/api/settings/notifications');
     return response.data;
@@ -283,7 +345,6 @@ export const settingsService = {
     return response.data;
   },
 
-  // API Keys
   getApiKeys: async () => {
     const response = await api.get('/api/settings/api-keys');
     return response.data;
@@ -304,7 +365,6 @@ export const settingsService = {
     return response.data;
   },
 
-  // Security
   getTwoFactorStatus: async () => {
     const response = await api.get('/api/settings/security/2fa');
     return response.data;
@@ -335,7 +395,6 @@ export const settingsService = {
     return response.data;
   },
 
-  // Billing
   getCurrentPlan: async () => {
     const response = await api.get('/api/settings/billing/plan');
     return response.data;
@@ -361,7 +420,6 @@ export const settingsService = {
     return response.data;
   },
 
-  // Proxy
   getProxyPools: async () => {
     const response = await api.get('/api/settings/proxies/pools');
     return response.data;
@@ -392,7 +450,6 @@ export const settingsService = {
     return response.data;
   },
 
-  // Webhooks
   getWebhooks: async () => {
     const response = await api.get('/api/settings/webhooks');
     return response.data;
@@ -422,11 +479,7 @@ export const settingsService = {
 // Notification Service
 export const notificationService = {
   getNotifications: async (unreadOnly = false, limit = 50, offset = 0) => {
-    const params = {
-      unreadOnly,
-      limit,
-      offset,
-    };
+    const params = { unreadOnly, limit, offset };
     const response = await api.get('/notifications', { params });
     return response.data;
   },
@@ -456,5 +509,5 @@ export const notificationService = {
     return response.data;
   },
 };
-
+export { authService };
 export default api;

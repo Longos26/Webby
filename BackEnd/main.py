@@ -1,4 +1,5 @@
-# backend/main.py - FIXED LIFESPAN FUNCTION
+# backend/main.py - COMPLETE FIXED VERSION
+
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,23 +19,8 @@ from routes import auth, jobs, scraping, dashboard, activity, export, llm, notif
 from mongodb.database import connect_to_mongo, close_mongo_connection, get_database
 from services.job_executor import JobExecutor
 
-# ============================================================
-# CLEAN LOGGING CONFIGURATION - No verbose headers
-# ============================================================
-
-# Suppress all default uvicorn and fastapi logs
-logging.getLogger("uvicorn").setLevel(logging.ERROR)
-logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
-logging.getLogger("uvicorn.error").setLevel(logging.ERROR)
-logging.getLogger("fastapi").setLevel(logging.ERROR)
-
-# Configure root logger to only show what we want
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(message)s'  # Simple format without timestamp (add if needed)
-)
-
-# Create logger for this module
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize global services
@@ -48,21 +34,20 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Webby Scraper API...")
     print("="*50 + "\n")
     
-    # Connect to MongoDB - Don't raise on error, just log
+    # Connect to MongoDB
     try:
         await connect_to_mongo()
         print("✅ Database connected successfully")
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
         print("⚠️  Continuing without database connection...")
-        # Don't raise - let the app start even if DB is down
-        # This helps with debugging on Render
     
-    yield  # This is where the app runs
+    yield
     
     # Shutdown
     print("\n🛑 Shutting down Webby Scraper API...")
     await close_mongo_connection()
+
 # Create FastAPI app
 app = FastAPI(
     title="Webby Scraper API",
@@ -73,63 +58,70 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Configuration
+# ============================================================
+# ENHANCED CORS CONFIGURATION - Fix for all origins
+# ============================================================
+
+# Allow all origins for development/production
+ALLOWED_ORIGINS = [
+    "https://webby-production.up.railway.app",
+    "https://webby-1osa.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "https://*.railway.app",
+    "https://*.onrender.com",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://webby-production.up.railway.app",  # Railway frontend
-        "https://webby-1osa.onrender.com",          # Render backend (self)
-        "http://localhost:3000",                    # Local dev
-        "http://localhost:5173",                    # Vite dev
-        "https://*.railway.app",                    # Any Railway subdomain (optional)
-    ],
+    allow_origins=["*"],  # Temporarily allow all for testing
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
-    max_age=3600,  # Cache preflight requests
+    max_age=3600,
 )
 
-# Add OPTIONS handler for all routes
+# Global OPTIONS handler for all routes
 @app.options("/{rest_of_path:path}")
 async def preflight_handler(request: Request, rest_of_path: str):
     """Handle CORS preflight requests"""
     response = JSONResponse(content={"message": "OK"})
-    response.headers["Access-Control-Allow-Origin"] = "https://webby-production.up.railway.app"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
+    origin = request.headers.get("origin")
+    
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Max-Age"] = "3600"
+    
     return response
 
-# ============================================================
-# CLEAN REQUEST LOGGING - Only shows method, path, status, duration
-# ============================================================
+# Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log only essential request info (no headers)"""
+    """Log request info"""
     start_time = time.time()
-    
-    # Process request
     response = await call_next(request)
-    
-    # Calculate duration
     duration_ms = (time.time() - start_time) * 1000
     
-    # Get status code
     status_code = response.status_code
-    
-    # Status indicators
     if status_code >= 500:
-        icon = "❌"  # Server error
+        icon = "❌"
     elif status_code >= 400:
-        icon = "⚠️"  # Client error  
-    elif status_code >= 300:
-        icon = "➡️"  # Redirect
+        icon = "⚠️"
     else:
-        icon = "✅"  # Success
+        icon = "✅"
     
-    # Clean log - just what you need
     print(f"{icon} {request.method} {request.url.path} → {status_code} ({duration_ms:.0f}ms)")
+    
+    # Add CORS headers to every response
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
     
     return response
 
@@ -172,11 +164,12 @@ async def health_check():
         "timestamp": __import__("datetime").datetime.utcnow().isoformat()
     }
 
-
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000)),
-        log_level="info"
+        port=port,
+        log_level="info",
+        reload=False
     )

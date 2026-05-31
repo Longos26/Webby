@@ -176,6 +176,7 @@ const Login = () => {
     }
   };
 
+ 
  const handleSubmit = async (e) => {
   e.preventDefault();
   if (!validateForm()) return;
@@ -183,16 +184,10 @@ const Login = () => {
   try {
     dispatch(signInStart());
     
-    // FIXED: Use the correct endpoint
-    const response = await api.post('https://webby-1osa.onrender.com/api/auth/login', {
-      email: formData.email,
-      password: formData.password,
-    });
-
-    const data = response.data;
+    // Use the authService
+    const data = await authService.login(formData.email, formData.password);
 
     if (data.access_token) {
-      // Store token
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
@@ -202,19 +197,9 @@ const Login = () => {
         localStorage.removeItem('rememberedEmail');
       }
       
-      // Set default auth header for future requests
       api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
-      
-      // Dispatch success with user data
-      dispatch(signInSuccess({ 
-        user: data.user, 
-        token: data.access_token 
-      }));
-      
-      // Navigate to dashboard
+      dispatch(signInSuccess({ user: data.user, token: data.access_token }));
       navigate('/dashboard');
-    } else {
-      throw new Error('Invalid response from server');
     }
   } catch (error) {
     console.error('Login error:', error);
@@ -224,8 +209,8 @@ const Login = () => {
       errorMsg = error.response.data.detail;
     } else if (error.response?.data?.message) {
       errorMsg = error.response.data.message;
-    } else if (error.message) {
-      errorMsg = error.message;
+    } else if (error.userMessage) {
+      errorMsg = error.userMessage;
     }
     
     dispatch(signInFailure(errorMsg));
