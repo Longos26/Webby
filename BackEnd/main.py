@@ -8,6 +8,7 @@ import logging
 import os
 import time
 from dotenv import load_dotenv
+import uvicorn
 
 # Load environment variables
 load_dotenv()
@@ -162,3 +163,12 @@ async def health_check():
         "database": db_status,
         "timestamp": __import__("datetime").datetime.utcnow().isoformat()
     }
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000)),
+        log_level="info"
+    )
