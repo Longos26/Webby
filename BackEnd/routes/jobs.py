@@ -1,11 +1,9 @@
-# backend/routes/jobs.py
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone
 from bson import ObjectId
 import logging
 import asyncio
-import re
 from mongodb.database import get_database
 from routes.auth import get_current_user
 from services.scraper_utils import scrape_website, extract_body_content, clean_body_content
@@ -28,10 +26,9 @@ def get_current_utc_time():
     return datetime.now(timezone.utc)
 
 def job_to_response(job: dict) -> dict:
-    """Convert MongoDB job document to API response format with proper timestamps"""
+    """Convert MongoDB job document to API response format"""
     def format_datetime(dt):
         if isinstance(dt, datetime):
-            # Convert to local timezone for display
             return dt.astimezone().isoformat() if dt.tzinfo else dt.isoformat()
         return dt
     
@@ -67,43 +64,18 @@ async def validate_job_access(job_id: str, user_id_str: str, db) -> dict:
     
     return job
 
-def calculate_accurate_stats(content: str) -> dict:
-    """Calculate accurate content statistics"""
-    if not content:
-        return {"records": 0, "words": 0, "chars": 0}
-    
-    # Count words (split by whitespace, filter empty strings)
-    words = [w for w in content.split() if w.strip()]
-    word_count = len(words)
-    
-    # Count characters
-    char_count = len(content)
-    
-    # Estimate records - use paragraphs or meaningful line breaks
-    # More accurate: count lines with substantial content
-    lines = [line.strip() for line in content.splitlines() if line.strip() and len(line.strip()) > 20]
-    record_count = max(1, len(lines)) if lines else 1
-    
-    return {
-        "records": record_count,
-        "words": word_count,
-        "chars": char_count
-    }
-
 async def execute_scraping_job(job_id: str, user_id: str):
-    """Background task to execute actual scraping job with accurate data"""
+    """Background task to execute actual scraping job"""
     db = await get_database()
     
     try:
         logger.info(f"Starting scraping job {job_id}")
         
-        # Update status to running with current timestamp
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
             {"$set": {"status": "running", "progress": 10, "updated_at": get_current_utc_time()}}
         )
         
-        # Get job details
         job = await db.jobs.find_one({"_id": ObjectId(job_id)})
         if not job:
             raise Exception("Job not found")
@@ -112,18 +84,11 @@ async def execute_scraping_job(job_id: str, user_id: str):
         if not url:
             raise Exception("No URL provided")
         
-        await asyncio.sleep(0.5)
-        
-        # Update progress - starting scrape
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
             {"$set": {"progress": 30, "updated_at": get_current_utc_time()}}
         )
         
-        # ACTUAL SCRAPING - Get real content from the website
-        logger.info(f"Scraping actual content from {url}")
-        
-        # Try with requests first (faster)
         html = scrape_website(url, use_selenium=False)
         
         await db.jobs.update_one(
@@ -131,18 +96,9 @@ async def execute_scraping_job(job_id: str, user_id: str):
             {"$set": {"progress": 50, "updated_at": get_current_utc_time()}}
         )
         
-        # Extract and clean the body content
         body = extract_body_content(html)
         cleaned_content = clean_body_content(body)
         
-        # If content is too small, try with Selenium
-        if not cleaned_content or len(cleaned_content.strip()) < 100:
-            logger.warning(f"Content too small ({len(cleaned_content) if cleaned_content else 0} chars), trying Selenium...")
-            html = scrape_website(url, use_selenium=True)
-            body = extract_body_content(html)
-            cleaned_content = clean_body_content(body)
-        
-        # Validate content
         if not cleaned_content or len(cleaned_content.strip()) < 50:
             raise Exception(f"Failed to extract meaningful content. Got {len(cleaned_content) if cleaned_content else 0} characters.")
         
@@ -151,15 +107,10 @@ async def execute_scraping_job(job_id: str, user_id: str):
             {"$set": {"progress": 80, "updated_at": get_current_utc_time()}}
         )
         
-        # Calculate accurate statistics
-        stats = calculate_accurate_stats(cleaned_content)
-        records = stats["records"]
-        word_count = stats["words"]
-        char_count = stats["chars"]
+        # Calculate records
+        lines = [line.strip() for line in cleaned_content.splitlines() if line.strip() and len(line.strip()) > 20]
+        records = max(1, len(lines)) if lines else 1
         
-        logger.info(f"Scraped {char_count} chars, {word_count} words, ~{records} records from {url}")
-        
-        # Store the scraped content with timestamp
         scraped_at = get_current_utc_time()
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
@@ -168,7 +119,7 @@ async def execute_scraping_job(job_id: str, user_id: str):
                     "status": "success",
                     "progress": 100,
                     "records": records,
-                    "scraped_content": cleaned_content[:500000],  # Store up to 500k chars
+                    "scraped_content": cleaned_content[:500000],
                     "scraped_at": scraped_at,
                     "updated_at": get_current_utc_time(),
                     "error_message": None
@@ -180,13 +131,11 @@ async def execute_scraping_job(job_id: str, user_id: str):
         await db.activities.insert_one({
             "type": "success",
             "title": "Job Completed",
-            "description": f"Successfully scraped {url} - Extracted {records} records, {word_count} words",
+            "description": f"Successfully scraped {url} - Extracted {records} records",
             "user_id": user_id,
             "created_at": get_current_utc_time()
         })
         
-        # Create notification for job completion
-        from services.notification_service import NotificationService
         await NotificationService.create_notification(
             user_id=user_id,
             title="Job Completed Successfully",
@@ -196,13 +145,11 @@ async def execute_scraping_job(job_id: str, user_id: str):
             metadata={
                 "url": url,
                 "records": records,
-                "words": word_count,
-                "chars": char_count,
                 "job_name": job.get("name", "Untitled")
             }
         )
         
-        logger.info(f"Job {job_id} completed successfully with {records} records, {word_count} words, {char_count} chars")
+        logger.info(f"Job {job_id} completed successfully")
         
     except Exception as e:
         error_message = str(e)
@@ -228,8 +175,6 @@ async def execute_scraping_job(job_id: str, user_id: str):
             "created_at": get_current_utc_time()
         })
         
-        # Create notification for job failure
-    
         await NotificationService.create_notification(
             user_id=user_id,
             title="Job Failed",
@@ -242,10 +187,9 @@ async def execute_scraping_job(job_id: str, user_id: str):
                 "job_name": job.get("name", "Untitled")
             }
         )
-        
-        logger.info(f"Created failure notification for job {job_id}")
 
-@router.get("/")
+# FIXED: Use proper route paths without trailing slashes issues
+@router.get("")
 async def get_all_jobs(
     status: Optional[str] = Query(None, description="Filter by status"),
     current_user: dict = Depends(get_current_user)
@@ -268,20 +212,20 @@ async def get_job(
     job_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get a specific job by ID with its scraped data"""
+    """Get a specific job by ID"""
     db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
     job = await validate_job_access(job_id, user_id_str, db)
     return job_to_response(job)
 
-@router.post("/")
+@router.post("")
 async def create_job(
     job_data: dict,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new job and optionally start it"""
+    """Create a new job and automatically start it"""
     db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
@@ -290,7 +234,6 @@ async def create_job(
     if not job_data.get("url"):
         raise HTTPException(status_code=400, detail="Target URL is required")
     
-    # Validate URL format
     url = job_data.get("url")
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
@@ -341,7 +284,6 @@ async def update_job(
     
     await validate_job_access(job_id, user_id_str, db)
     
-    # Remove protected fields
     for field in ["_id", "id", "user_id", "created_at", "scraped_at"]:
         update_data.pop(field, None)
     
@@ -382,7 +324,7 @@ async def start_job(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
-    """Start a job - executes the scraping in background"""
+    """Start a job"""
     db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     

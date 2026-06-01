@@ -1,50 +1,61 @@
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone
-import json
-from fastapi.responses import StreamingResponse
-
 from mongodb.database import get_database
 from routes.auth import get_current_user
-from services.notification_service import NotificationService
-from routes.jobs import extract_user_id_str
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
-@router.get("/")
+def extract_user_id_str(current_user: dict) -> str:
+    user_id = current_user.get("id") or current_user.get("_id") or current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found")
+    return str(user_id)
+
+@router.get("")
 async def get_notifications(
-    unread_only: bool = Query(False, alias="unreadOnly"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user)
 ):
     """Get all notifications for the current user"""
+    db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
-    result = await NotificationService.get_user_notifications(
-        user_id=user_id_str,
-        unread_only=unread_only,
-        limit=limit,
-        offset=offset
-    )
+    query = {"user_id": user_id_str}
     
-    return result["notifications"]
+    cursor = db.notifications.find(query).sort("created_at", -1).skip(offset).limit(limit)
+    notifications = []
+    
+    async for notif in cursor:
+        notifications.append({
+            "id": str(notif["_id"]),
+            "title": notif.get("title", ""),
+            "message": notif.get("message", ""),
+            "type": notif.get("type", "info"),
+            "read": notif.get("read", False),
+            "created_at": notif.get("created_at", datetime.utcnow()).isoformat() if notif.get("created_at") else None,
+            "job_id": notif.get("job_id"),
+            "metadata": notif.get("metadata", {})
+        })
+    
+    unread_count = await db.notifications.count_documents({"user_id": user_id_str, "read": False})
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count,
+        "total": await db.notifications.count_documents(query)
+    }
 
 @router.get("/unread/count")
-async def get_unread_count(
-    current_user: dict = Depends(get_current_user)
-):
+async def get_unread_count(current_user: dict = Depends(get_current_user)):
     """Get unread notification count"""
+    db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
-    result = await NotificationService.get_user_notifications(
-        user_id=user_id_str,
-        unread_only=True,
-        limit=1
-    )
-    
-    return {"unread_count": result["unread_count"]}
+    count = await db.notifications.count_documents({"user_id": user_id_str, "read": False})
+    return {"unread_count": count}
 
 @router.put("/{notification_id}/read")
 async def mark_notification_read(
@@ -52,36 +63,34 @@ async def mark_notification_read(
     current_user: dict = Depends(get_current_user)
 ):
     """Mark a specific notification as read"""
+    db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
-    success = await NotificationService.mark_as_read(notification_id, user_id_str)
+    if not ObjectId.is_valid(notification_id):
+        raise HTTPException(status_code=400, detail="Invalid notification ID")
     
-    if not success:
+    result = await db.notifications.update_one(
+        {"_id": ObjectId(notification_id), "user_id": user_id_str},
+        {"$set": {"read": True}}
+    )
+    
+    if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Notification not found")
     
     return {"message": "Notification marked as read"}
 
 @router.put("/read-all")
-async def mark_all_read(
-    current_user: dict = Depends(get_current_user)
-):
+async def mark_all_read(current_user: dict = Depends(get_current_user)):
     """Mark all notifications as read"""
+    db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
-    count = await NotificationService.mark_all_as_read(user_id_str)
+    result = await db.notifications.update_many(
+        {"user_id": user_id_str, "read": False},
+        {"$set": {"read": True}}
+    )
     
-    return {"message": f"Marked {count} notifications as read"}
-
-@router.delete("/clear")
-async def clear_all_notifications(
-    current_user: dict = Depends(get_current_user)
-):
-    """Delete all notifications for the current user"""
-    user_id_str = extract_user_id_str(current_user)
-    
-    count = await NotificationService.delete_all_notifications(user_id_str)
-    
-    return {"message": f"Deleted {count} notifications"}
+    return {"message": f"Marked {result.modified_count} notifications as read"}
 
 @router.delete("/{notification_id}")
 async def delete_notification(
@@ -89,60 +98,27 @@ async def delete_notification(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a specific notification"""
-    user_id_str = extract_user_id_str(current_user)
-    
-    success = await NotificationService.delete_notification(notification_id, user_id_str)
-    
-    if not success:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    
-    return {"message": "Notification deleted"}
-
-@router.get("/{notification_id}")
-async def get_notification(
-    notification_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """Get a specific notification"""
-    user_id_str = extract_user_id_str(current_user)
     db = await get_database()
+    user_id_str = extract_user_id_str(current_user)
     
     if not ObjectId.is_valid(notification_id):
         raise HTTPException(status_code=400, detail="Invalid notification ID")
     
-    notification = await db.notifications.find_one({
+    result = await db.notifications.delete_one({
         "_id": ObjectId(notification_id),
         "user_id": user_id_str
     })
     
-    if not notification:
+    if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Notification not found")
     
-    notification["id"] = str(notification["_id"])
-    del notification["_id"]
-    
-    return notification
+    return {"message": "Notification deleted"}
 
-@router.get("/stream")
-async def stream_notifications(
-    current_user: dict = Depends(get_current_user)
-):
-    """Stream notifications in real-time using Server-Sent Events"""
+@router.delete("/clear")
+async def clear_all_notifications(current_user: dict = Depends(get_current_user)):
+    """Delete all notifications for the current user"""
+    db = await get_database()
     user_id_str = extract_user_id_str(current_user)
     
-    async def event_stream():
-        db = await get_database()
-        # Watch the notifications collection for changes
-        async with db.notifications.watch() as stream:
-            async for change in stream:
-                if change["operationType"] in ["insert", "update"]:
-                    # Check if notification belongs to this user
-                    if change.get("fullDocument", {}).get("user_id") == user_id_str:
-                        if change["operationType"] == "insert":
-                            notification = change["fullDocument"]
-                            notification["id"] = str(notification["_id"])
-                            yield f"data: {json.dumps({'type': 'new', 'notification': notification})}\n\n"
-                        elif change["operationType"] == "update" and change.get("updateDescription", {}).get("updatedFields", {}).get("read") == True:
-                            yield f"data: {json.dumps({'type': 'read', 'notification_id': str(change['documentKey']['_id'])})}\n\n"
-    
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    result = await db.notifications.delete_many({"user_id": user_id_str})
+    return {"message": f"Deleted {result.deleted_count} notifications"}

@@ -1,8 +1,6 @@
-// src/components/NotificationBell.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, X, Trash2 } from 'lucide-react';
 import api from '../api';
-
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
@@ -14,9 +12,11 @@ export default function NotificationBell() {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const data = await api.getNotifications(50);
-      setNotifications(Array.isArray(data) ? data : []);
-      setUnreadCount((Array.isArray(data) ? data : []).filter(n => !n.read).length);
+      // Use api.notifications.getNotifications
+      const data = await api.notifications.getNotifications(50, 0);
+      const notificationsList = data.notifications || data || [];
+      setNotifications(notificationsList);
+      setUnreadCount(data.unread_count || notificationsList.filter(n => !n.read).length);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
       setNotifications([]);
@@ -44,7 +44,7 @@ export default function NotificationBell() {
 
   const markAsRead = async (id) => {
     try {
-      await api.markAsRead(id);
+      await api.notifications.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
@@ -54,7 +54,7 @@ export default function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await api.markAllAsRead();
+      await api.notifications.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
@@ -64,7 +64,7 @@ export default function NotificationBell() {
 
   const deleteNotification = async (id) => {
     try {
-      await api.deleteNotification(id);
+      await api.notifications.deleteNotification(id);
       const wasUnread = notifications.find(n => n.id === id)?.read === false;
       setNotifications(prev => prev.filter(n => n.id !== id));
       if (wasUnread) setUnreadCount(prev => Math.max(0, prev - 1));
@@ -114,8 +114,6 @@ export default function NotificationBell() {
           cursor: 'pointer',
           transition: 'all 0.2s ease',
         }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
       >
         <Bell size={16} style={{ color: 'var(--color-text-secondary)' }} />
         {unreadCount > 0 && (
