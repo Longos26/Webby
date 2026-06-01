@@ -30,10 +30,10 @@ import {
 } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
 import api from '../api';
-import JobsTab from './pages/JobsTab';
-import ExportTab from './pages/ExportTab';
-import SettingsPage from './pages/SettingsPage';
-import ModelsTab from './pages/ModelsTab';
+import JobsTab from './JobsTab';
+import ExportTab from './ExportTab';
+import SettingsPage from './SettingsTab';
+import ModelsTab from './ModelsTab';
 
 // ============================================================
 // ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - DASHBOARD
