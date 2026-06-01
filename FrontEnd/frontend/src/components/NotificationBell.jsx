@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, X, Trash2 } from 'lucide-react';
 import api from '../api';
 
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -13,7 +14,7 @@ export default function NotificationBell() {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const data = await notificationService.getNotifications(50);
+      const data = await api.getNotifications(50);
       setNotifications(Array.isArray(data) ? data : []);
       setUnreadCount((Array.isArray(data) ? data : []).filter(n => !n.read).length);
     } catch (error) {
@@ -43,7 +44,7 @@ export default function NotificationBell() {
 
   const markAsRead = async (id) => {
     try {
-      await notificationService.markAsRead(id);
+      await api.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
@@ -53,7 +54,7 @@ export default function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await notificationService.markAllAsRead();
+      await api.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
@@ -63,7 +64,7 @@ export default function NotificationBell() {
 
   const deleteNotification = async (id) => {
     try {
-      await notificationService.deleteNotification(id);
+      await api.deleteNotification(id);
       const wasUnread = notifications.find(n => n.id === id)?.read === false;
       setNotifications(prev => prev.filter(n => n.id !== id));
       if (wasUnread) setUnreadCount(prev => Math.max(0, prev - 1));
