@@ -64,7 +64,7 @@ app = FastAPI(
 
 # Allow all origins for development/production
 ALLOWED_ORIGINS = [
-    "https://webby-production.up.railway.app",
+    "https://webby-1kju.vercel.app/",
     "http://localhost:3000",
     
 ]
