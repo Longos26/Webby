@@ -1,25 +1,19 @@
+// frontend/src/pages/JobsTab.jsx - COMPLETE FIXED VERSION
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Briefcase, Play, Eye, AlertCircle,
   Pause, Trash2, RefreshCw, X, Loader,
- Database, Link as LinkIcon, Calendar, Activity,
+  Database, Link as LinkIcon, Calendar, Activity,
   CheckCircle, Zap, Brain,
   AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-
 } from 'lucide-react';
-import  api, { jobService } from '../api';
+import api from '../api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import ParsingPanel from '../components/ParsingPanel';
 
 // ============================================================
 // ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - JOBS PAGE
-// - No nested card anti-pattern
-// - Visible borders (10%+ contrast)
-// - No emoji icons (Lucide only)
-// - No em dashes in UI copy
-// - 60-30-10 color ratio enforced
-// - Subtle shadows, consistent radius scale
-// - Purposeful animation layer
 // ============================================================
 
 const STYLES = `
@@ -583,9 +577,15 @@ function JobDetailsModal({ job, onClose }) {
   
   const loadDetails = async () => {
     setLoading(true);
-    try { setDetails(await jobService.getJob(job.id)); } 
-    catch { setDetails(job); } 
-    finally { setLoading(false); }
+    try { 
+      const response = await api.get(`/api/jobs/${job.id}`);
+      setDetails(response.data); 
+    } catch (err) {
+      console.error('Failed to load job details:', err);
+      setDetails(job); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   if (!job) return null;
@@ -594,13 +594,11 @@ function JobDetailsModal({ job, onClose }) {
   const statusColor = status === 'running' ? '#3b82f6' : status === 'success' ? '#10b981' : status === 'failed' ? '#ef4444' : status === 'paused' ? '#f59e0b' : '#6a8ca8';
   const pct = d.progress || 0;
 
-  // ACCURATE CONTENT STATISTICS
   const scrapedContent = d.scraped_content || '';
   const wordCount = scrapedContent ? scrapedContent.split(/\s+/).filter(w => w.length > 0).length : 0;
   const charCount = scrapedContent.length;
   const recordCount = d.records || 0;
 
-  // Format date with local timezone
   const formatLocalDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -693,7 +691,7 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           )}
 
-          {/* Content stats - ACCURATE */}
+          {/* Content stats */}
           {scrapedContent && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Content statistics</div>
@@ -714,7 +712,7 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           )}
 
-          {/* Job Details with ACCURATE timestamps */}
+          {/* Job Details */}
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Job details</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -818,105 +816,114 @@ export default function Jobs() {
   const { jobUpdates } = useWebSocket(currentUserId);
 
   const loadJobs = useCallback(async () => {
-  setLoading(true); 
-  setError(null);
-  try {
-    const response = await api.get(`/api/jobs${filter !== 'all' ? `?status=${filter}` : ''}`);
-    const data = response.data;
-    const arr = Array.isArray(data) ? data : [];
-    setJobs(arr);
-    const running = new Set();
-    arr.forEach(j => { if (j.status === 'running') running.add(j.id); });
-    setRunningJobs(running);
-  } catch (err) {
-    console.error('Failed to load jobs:', err);
-    setError(err.response?.data?.detail || err.message || 'Failed to load jobs');
-    setJobs([]);
-  } finally { 
-    setLoading(false); 
-  }
-}, [filter]);
+    setLoading(true); 
+    setError(null);
+    try {
+      const response = await api.get(`/api/jobs${filter !== 'all' ? `?status=${filter}` : ''}`);
+      const data = response.data;
+      const arr = Array.isArray(data) ? data : [];
+      setJobs(arr);
+      const running = new Set();
+      arr.forEach(j => { if (j.status === 'running') running.add(j.id); });
+      setRunningJobs(running);
+    } catch (err) {
+      console.error('Failed to load jobs:', err);
+      setError(err.response?.data?.detail || err.message || 'Failed to load jobs');
+      setJobs([]);
+    } finally { 
+      setLoading(false); 
+    }
+  }, [filter]);
 
-// Also fix the create job function:
-const handleCreate = async (e) => {
-  e.preventDefault();
-  if (!formData.name.trim()) { setError('Job name is required'); return; }
-  if (!formData.url.trim()) { setError('Target URL is required'); return; }
-  setSubmit(true); 
-  setError(null);
-  try {
-    const response = await api.post('/api/jobs', { 
-      name: formData.name.trim(), 
-      target: formData.url.trim(),
-      url: formData.url.trim()
-    });
-    const nj = response.data;
-    setFormData({ name: '', url: '' });
-    setSuccess(`Job "${nj.name}" created successfully.`);
-    setTab('list'); 
-    await loadJobs();
-    setTimeout(() => setSuccess(null), 3000);
-  } catch (err) {
-    console.error('Create job error:', err);
-    setError(err.response?.data?.detail || err.message || 'Failed to create job');
-  } finally { 
-    setSubmit(false); 
-  }
-};
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) { setError('Job name is required'); return; }
+    if (!formData.url.trim()) { setError('Target URL is required'); return; }
+    setSubmit(true); 
+    setError(null);
+    try {
+      const response = await api.post('/api/jobs', { 
+        name: formData.name.trim(), 
+        target: formData.url.trim(),
+        url: formData.url.trim()
+      });
+      const nj = response.data;
+      setFormData({ name: '', url: '' });
+      setSuccess(`Job "${nj.name}" created successfully.`);
+      setTab('list'); 
+      await loadJobs();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error('Create job error:', err);
+      setError(err.response?.data?.detail || err.message || 'Failed to create job');
+    } finally { 
+      setSubmit(false); 
+    }
+  };
 
-// Fix start/pause/delete:
-const handleStart = async (jobId) => {
-  try {
-    await api.post(`/api/jobs/${jobId}/start`);
-    setSuccess('Job started. Scraping will begin shortly.');
-    await loadJobs();
-    setTimeout(() => setSuccess(null), 4000);
-  } catch (err) {
-    setError(err.response?.data?.detail || err.message || 'Failed to start job');
-    setTimeout(() => setError(null), 3000);
-  }
-};
+  const handleStart = async (jobId) => {
+    try {
+      await api.post(`/api/jobs/${jobId}/start`);
+      setSuccess('Job started. Scraping will begin shortly.');
+      await loadJobs();
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Failed to start job');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
 
-const handlePause = async (jobId) => {
-  try {
-    await api.post(`/api/jobs/${jobId}/pause`);
-    setSuccess('Job paused.');
-    await loadJobs();
-    setTimeout(() => setSuccess(null), 3000);
-  } catch (err) {
-    setError(err.response?.data?.detail || err.message || 'Failed to pause job');
-    setTimeout(() => setError(null), 3000);
-  }
-};
+  const handlePause = async (jobId) => {
+    try {
+      await api.post(`/api/jobs/${jobId}/pause`);
+      setSuccess('Job paused.');
+      await loadJobs();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Failed to pause job');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
 
-const handleDeleteConfirm = async () => {
-  if (!deleteTarget) return;
-  setDeleting(true);
-  try {
-    await api.delete(`/api/jobs/${deleteTarget.id}`);
-    setSuccess(`"${deleteTarget.name}" deleted.`);
-    setDeleteTarget(null);
-    await loadJobs();
-    setTimeout(() => setSuccess(null), 3000);
-  } catch (err) {
-    setError(err.response?.data?.detail || err.message || 'Failed to delete job');
-    setTimeout(() => setError(null), 3000);
-  } finally { 
-    setDeleting(false); 
-  }
-};
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/jobs/${deleteTarget.id}`);
+      setSuccess(`"${deleteTarget.name}" deleted.`);
+      setDeleteTarget(null);
+      await loadJobs();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Failed to delete job');
+      setTimeout(() => setError(null), 3000);
+    } finally { 
+      setDeleting(false); 
+    }
+  };
 
   const filters = ['all', 'running', 'success', 'failed', 'paused', 'queued'];
   const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter);
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginatedJobs = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Helper to format date for table display
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString();
   };
+
+  // WebSocket updates
+  useEffect(() => {
+    if (jobUpdates) {
+      loadJobs();
+    }
+  }, [jobUpdates, loadJobs]);
+
+  // Initial load
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   return (
     <div className="jd-root page-enter" style={{ fontFamily: 'var(--font-sans)' }}>
@@ -938,6 +945,9 @@ const handleDeleteConfirm = async () => {
       <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
         <button className={`btn-sm ${tab === 'list' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('list')}>
           <Briefcase size={12} /> All Jobs
+        </button>
+        <button className={`btn-sm ${tab === 'new' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('new')}>
+          <Play size={12} /> New Job
         </button>
       </div>
 
@@ -963,7 +973,7 @@ const handleDeleteConfirm = async () => {
                 </span>
               )}
             </div>
-            <button className="btn-sm btn-primary" onClick={() => setTab('new')}>
+            <button className="btn-sm btn-primary" onClick={() => { setTab('new'); setFormData({ name: '', url: '' }); }}>
               <Play size={12} /> New Job
             </button>
           </div>
@@ -1002,7 +1012,7 @@ const handleDeleteConfirm = async () => {
                           </div>
                           <span className="mono" style={{ minWidth: 32 }}>{job.progress || 0}%</span>
                         </div>
-                      </td>
+                       </td>
                       <td className="mono">{job.records?.toLocaleString() || '0'}</td>
                       <td className="mono">{job.frequency || 'One-time'}</td>
                       <td className="mono">{formatDate(job.created_at)}</td>

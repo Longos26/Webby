@@ -1,3 +1,5 @@
+// frontend/src/pages/ModelsTab.jsx - COMPLETE FIXED VERSION
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCircle, AlertCircle, Save, RefreshCw,  
@@ -424,6 +426,16 @@ export default function LLMConfiguration() {
     avg_processing_time: 1.24
   });
 
+  // Inject styles
+  useEffect(() => {
+    if (!document.getElementById('llm-styles')) {
+      const style = document.createElement('style');
+      style.id = 'llm-styles';
+      style.textContent = STYLES;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const loadProviders = useCallback(async () => {
     try {
       const res = await api.get('/api/llm/providers');
@@ -528,10 +540,9 @@ export default function LLMConfiguration() {
   const currentProvider = providers[selectedProvider];
   const currentModels = currentProvider?.models || [];
 
-  if (!currentProvider) {
+  if (!currentProvider && Object.keys(providers).length === 0) {
     return (
       <div className="llm-root" style={{ fontFamily: 'var(--font-sans)' }}>
-        <style>{STYLES}</style>
         <div className="llm-container fade-in" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-text-muted)' }}>
             <RefreshCw size={20} className="spin" />
@@ -544,8 +555,6 @@ export default function LLMConfiguration() {
 
   return (
     <div className="llm-root" style={{ fontFamily: 'var(--font-sans)' }}>
-      <style>{STYLES}</style>
-      
       <div className="llm-container fade-in">
         <div className="llm-header">
           <div className="llm-title">

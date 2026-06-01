@@ -1,3 +1,5 @@
+// frontend/src/AppShell.jsx - COMPLETE FIXED VERSION
+
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
@@ -26,22 +28,15 @@ import {
   Activity,
   PieChart as PieChartIcon,
 } from 'lucide-react';
-import NotificationBell from '../components/NotificationBell';
-import api from '../api';
-import JobsTab     from './JobsTab';
-import ExportTab   from './ExportTab';
-import SettingsTab from './SettingsTab';
-import ModelsTab   from './ModelsTab';
+import NotificationBell from './components/NotificationBell';
+import api from './api';
+import JobsTab from './pages/JobsTab';
+import ExportTab from './pages/ExportTab';
+import SettingsPage from './pages/SettingsPage';
+import ModelsTab from './pages/ModelsTab';
 
 // ============================================================
 // ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - DASHBOARD
-// - No nested card anti-pattern
-// - Visible borders (10%+ contrast)
-// - No emoji icons (Lucide only)
-// - No em dashes in UI copy
-// - 60-30-10 color ratio enforced
-// - Subtle shadows, consistent radius scale
-// - Purposeful animation layer
 // ============================================================
 
 const globalStyles = `
@@ -90,7 +85,6 @@ const globalStyles = `
     --text-base: 0.9375rem;
     --text-md:   1.0625rem;
     --text-lg:   1.25rem;
-    --text-xl:   1.5rem;
     --text-2xl:  1.875rem;
     --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
@@ -124,7 +118,6 @@ const globalStyles = `
   .fade-in { animation: fadeIn 0.4s ease forwards; }
   .spinning { animation: spin 0.7s linear infinite; }
 
-  /* Mobile styles */
   @media (max-width: 768px) {
     .sidebar-desktop {
       transform: translateX(-100%);
@@ -215,9 +208,8 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'jobs', label: 'Scraping & LLM Parsing', icon: Briefcase },
     { id: 'export', label: 'Export', icon: Download },
-     { id: 'models', label: 'Models', icon: Bot },
+    { id: 'models', label: 'Models', icon: Bot },
     { id: 'settings', label: 'Settings', icon: Settings },
-   
   ];
 
   return (
@@ -267,7 +259,12 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
               <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.first_name || user?.name || 'User'}</div>
               <div style={{ fontSize: 10, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email || ''}</div>
             </div>
-            <button onClick={() => navigate('/login')} style={{
+            <button onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('user');
+              navigate('/login');
+            }} style={{
               width: 28, height: 28, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)'
             }}><LogOut size={13} /></button>
@@ -285,7 +282,6 @@ function Topbar({ activeTab, open, setOpen }) {
     export: { title: 'Export', sub: 'Download and deliver your scraped data' },
     models: { title: 'Models', sub: 'View and manage your LLM models and usage' },
     settings: { title: 'Settings', sub: 'Manage your account and preferences' }
-    
   };
   const meta = tabTitles[activeTab] || tabTitles.dashboard;
   return (
@@ -307,7 +303,7 @@ function Topbar({ activeTab, open, setOpen }) {
       </div>
       <div style={{ flex: 1 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <NotificationBell /> {/* Use the notification bell component */}
+        <NotificationBell />
       </div>
     </header>
   );
@@ -335,48 +331,49 @@ function DashboardTab() {
   const filters = ['all', 'running', 'success', 'failed', 'queued'];
 
   const fetchDashboardData = async (showRefresh = false) => {
-  if (showRefresh) setIsRefreshing(true);
-  try {
-    const [successRes, realtimeRes, recentRes, activityRes, performanceRes] = await Promise.all([
-      api.get('/api/dashboard/success-rate?days=7').catch(() => ({ data: { daily_stats: [] } })),
-      api.get('/api/dashboard/realtime').catch(() => ({ data: { active_jobs: 0, today_jobs: 0, today_records: 0 } })),
-      api.get('/api/dashboard/recent?limit=10').catch(() => ({ data: [] })),
-      api.get('/api/activity/recent?limit=15').catch(() => ({ data: [] })),
-      api.get('/api/dashboard/performance').catch(() => ({ data: { avg_duration: 0, success_rate_7d: 0 } }))
-    ]);
+    if (showRefresh) setIsRefreshing(true);
+    try {
+      const [successRes, realtimeRes, recentRes, activityRes, performanceRes] = await Promise.all([
+        api.get('/api/dashboard/success-rate?days=7').catch(() => ({ data: { daily_stats: [] } })),
+        api.get('/api/dashboard/realtime').catch(() => ({ data: { active_jobs: 0, today_jobs: 0, today_records: 0 } })),
+        api.get('/api/dashboard/recent?limit=10').catch(() => ({ data: [] })),
+        api.get('/api/activity/recent?limit=15').catch(() => ({ data: [] })),
+        api.get('/api/dashboard/performance').catch(() => ({ data: { avg_duration: 0, success_rate_7d: 0 } }))
+      ]);
 
-    if (realtimeRes.data) {
-      setRealtimeMetrics(realtimeRes.data);
-      setStats(prev => prev.map(s => {
-        if (s.label === 'Active Jobs') return { ...s, value: String(realtimeRes.data.active_jobs || 0) };
-        if (s.label === 'Records Today') return { ...s, value: (realtimeRes.data.today_records || 0).toLocaleString() };
-        return s;
-      }));
+      if (realtimeRes.data) {
+        setRealtimeMetrics(realtimeRes.data);
+        setStats(prev => prev.map(s => {
+          if (s.label === 'Active Jobs') return { ...s, value: String(realtimeRes.data.active_jobs || 0) };
+          if (s.label === 'Records Today') return { ...s, value: (realtimeRes.data.today_records || 0).toLocaleString() };
+          return s;
+        }));
+      }
+
+      if (successRes.data?.daily_stats) {
+        setSuccessRateData(successRes.data.daily_stats);
+        const avgRate = successRes.data.overall_success_rate || 0;
+        setStats(prev => prev.map(s => s.label === 'Success Rate' ? { ...s, value: `${avgRate}%` } : s));
+      }
+
+      if (performanceRes.data) {
+        setPerformanceMetrics({
+          avg_duration: performanceRes.data.avg_duration || 0,
+          success_rate_7d: performanceRes.data.success_rate_7d || 0
+        });
+      }
+
+      if (Array.isArray(recentRes.data)) setRecentJobs(recentRes.data);
+      if (Array.isArray(activityRes.data)) setActivity(activityRes.data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setLoading(false);
+      if (showRefresh) setTimeout(() => setIsRefreshing(false), 400);
     }
+  };
 
-    if (successRes.data?.daily_stats) {
-      setSuccessRateData(successRes.data.daily_stats);
-      const avgRate = successRes.data.overall_success_rate || 0;
-      setStats(prev => prev.map(s => s.label === 'Success Rate' ? { ...s, value: `${avgRate}%` } : s));
-    }
-
-    if (performanceRes.data) {
-      setPerformanceMetrics({
-        avg_duration: performanceRes.data.avg_duration || 0,
-        success_rate_7d: performanceRes.data.success_rate_7d || 0
-      });
-    }
-
-    if (Array.isArray(recentRes.data)) setRecentJobs(recentRes.data);
-    if (Array.isArray(activityRes.data)) setActivity(activityRes.data);
-    setLastUpdated(new Date());
-  } catch (err) {
-    console.error('Dashboard fetch error:', err);
-  } finally {
-    setLoading(false);
-    if (showRefresh) setTimeout(() => setIsRefreshing(false), 400);
-  }
-};
   useEffect(() => {
     fetchDashboardData();
     const interval = setInterval(() => fetchDashboardData(), 15000);
@@ -676,8 +673,7 @@ export default function AppShell() {
     jobs: <JobsTab />,
     export: <ExportTab />,
     models: <ModelsTab />,
-    settings: <SettingsTab />
-    
+    settings: <SettingsPage />
   };
 
   return (

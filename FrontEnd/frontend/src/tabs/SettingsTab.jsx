@@ -1,4 +1,5 @@
-// frontend/src/pages/SettingsPage.jsx
+// frontend/src/pages/SettingsPage.jsx - COMPLETE FIXED VERSION
+
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -8,22 +9,7 @@ import {
   ArrowLeft, Activity, Loader2, CheckCircle,
   Copy
 } from 'lucide-react';
-import axios from 'axios';
-import { toast } from 'react-hot-toast';
-
-// API client with auth interceptor
-const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
-  headers: { 'Content-Type': 'application/json' }
-});
-
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import api from '../api';
 
 // ============================================================
 // ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - SETTINGS PAGE
@@ -289,7 +275,7 @@ function ProfileSettings({ user: initialUser }) {
 
   const fetchProfile = async () => {
     try {
-      const response = await apiClient.get('/api/settings/profile');
+      const response = await api.get('/api/settings/profile');
       const data = response.data;
       setForm({
         firstName: data.first_name || '',
@@ -299,7 +285,7 @@ function ProfileSettings({ user: initialUser }) {
         language: data.language || 'English'
       });
     } catch (error) {
-      toast.error('Failed to load profile');
+      console.error('Failed to load profile:', error);
     } finally {
       setLoading(false);
     }
@@ -308,7 +294,7 @@ function ProfileSettings({ user: initialUser }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await apiClient.put('/api/settings/profile', {
+      await api.put('/api/settings/profile', {
         first_name: form.firstName,
         last_name: form.lastName,
         email: form.email,
@@ -316,10 +302,9 @@ function ProfileSettings({ user: initialUser }) {
         language: form.language
       });
       setSaved(true);
-      toast.success('Profile updated successfully');
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update profile');
+      console.error('Failed to update profile:', error);
     } finally {
       setSaving(false);
     }
@@ -391,7 +376,7 @@ function NotificationSettings() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await apiClient.get('/api/settings/notifications');
+      const response = await api.get('/api/settings/notifications');
       const data = response.data;
       setNotifications({
         jobComplete: data.job_complete,
@@ -402,7 +387,7 @@ function NotificationSettings() {
         quotaWarning: data.quota_warning
       });
     } catch (error) {
-      toast.error('Failed to load notification settings');
+      console.error('Failed to load notification settings:', error);
     } finally {
       setLoading(false);
     }
@@ -416,7 +401,7 @@ function NotificationSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await apiClient.put('/api/settings/notifications', {
+      await api.put('/api/settings/notifications', {
         job_complete: notifications.jobComplete,
         job_failed: notifications.jobFailed,
         job_started: notifications.jobStarted,
@@ -424,10 +409,9 @@ function NotificationSettings() {
         proxy_alert: notifications.proxyAlert,
         quota_warning: notifications.quotaWarning
       });
-      toast.success('Notification preferences saved');
     } catch (error) {
-      toast.error('Failed to save preferences');
-      fetchNotifications(); // Revert on error
+      console.error('Failed to save preferences:', error);
+      fetchNotifications();
     } finally {
       setSaving(false);
     }
@@ -484,10 +468,10 @@ function ApiKeySettings() {
 
   const fetchKeys = async () => {
     try {
-      const response = await apiClient.get('/api/settings/api-keys');
+      const response = await api.get('/api/settings/api-keys');
       setKeys(response.data);
     } catch (error) {
-      toast.error('Failed to load API keys');
+      console.error('Failed to load API keys:', error);
     } finally {
       setLoading(false);
     }
@@ -495,31 +479,29 @@ function ApiKeySettings() {
 
   const fetchUsage = async () => {
     try {
-      const response = await apiClient.get('/api/settings/api-keys/usage');
+      const response = await api.get('/api/settings/api-keys/usage');
       setUsage(response.data);
     } catch (error) {
-      console.error('Failed to load usage stats');
+      console.error('Failed to load usage stats:', error);
     }
   };
 
   const generateKey = async () => {
     if (!newKeyName.trim()) {
-      toast.error('Please enter a key name');
       return;
     }
     setCreating(true);
     try {
-      const response = await apiClient.post('/api/settings/api-keys', {
+      const response = await api.post('/api/settings/api-keys', {
         name: newKeyName,
         scopes: newKeyScopes
       });
       setNewlyCreatedKey(response.data);
-      toast.success('API key created successfully');
       await fetchKeys();
       setNewKeyName('');
       setTimeout(() => setNewlyCreatedKey(null), 10000);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create API key');
+      console.error('Failed to create API key:', error);
     } finally {
       setCreating(false);
     }
@@ -532,11 +514,10 @@ function ApiKeySettings() {
       message: `Delete API key "${keyName}"? This action cannot be undone.`,
       onConfirm: async () => {
         try {
-          await apiClient.delete(`/api/settings/api-keys/${keyId}`);
-          toast.success('API key deleted');
+          await api.delete(`/api/settings/api-keys/${keyId}`);
           fetchKeys();
         } catch (error) {
-          toast.error('Failed to delete API key');
+          console.error('Failed to delete API key:', error);
         }
       }
     });
@@ -544,7 +525,6 @@ function ApiKeySettings() {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
   };
 
   if (loading) {
@@ -575,9 +555,9 @@ function ApiKeySettings() {
       {usage && (
         <SettingsSection title="API Usage" description="Current month consumption">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 8 }}>
-            <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>API Requests</div><div style={{ fontSize: 20, fontWeight: 700 }}>{usage.api_requests.toLocaleString()}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}> / {usage.api_limit.toLocaleString()}</span></div></div>
-            <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Exports</div><div style={{ fontSize: 20, fontWeight: 700 }}>{usage.export_calls.toLocaleString()}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}> / {usage.export_limit.toLocaleString()}</span></div></div>
-            <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Concurrent Jobs</div><div style={{ fontSize: 20, fontWeight: 700 }}>{usage.concurrent_jobs}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}> / {usage.concurrent_jobs_limit}</span></div></div>
+            <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>API Requests</div><div style={{ fontSize: 20, fontWeight: 700 }}>{usage.api_requests?.toLocaleString() || 0}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}> / {usage.api_limit?.toLocaleString() || 1000}</span></div></div>
+            <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Exports</div><div style={{ fontSize: 20, fontWeight: 700 }}>{usage.export_calls?.toLocaleString() || 0}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}> / {usage.export_limit?.toLocaleString() || 100}</span></div></div>
+            <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Concurrent Jobs</div><div style={{ fontSize: 20, fontWeight: 700 }}>{usage.concurrent_jobs || 0}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}> / {usage.concurrent_jobs_limit || 5}</span></div></div>
           </div>
         </SettingsSection>
       )}
@@ -596,14 +576,14 @@ function ApiKeySettings() {
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{k.name}</div>
                     <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                      {k.scopes.map(s => <span key={s} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'rgba(59,130,246,0.12)', color: '#3b82f6', textTransform: 'uppercase' }}>{s}</span>)}
+                      {k.scopes?.map(s => <span key={s} style={{ fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'rgba(59,130,246,0.12)', color: '#3b82f6', textTransform: 'uppercase' }}>{s}</span>)}
                     </div>
                   </div>
                   <div className="action-row">
                     <button className="action-btn" style={{ color: '#ef4444' }} onClick={() => deleteKey(k.id, k.name)}><Trash2 size={12} /></button>
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Created {new Date(k.created_at).toLocaleDateString()}</div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Created {k.created_at ? new Date(k.created_at).toLocaleDateString() : 'Unknown'}</div>
                 {k.last_used && <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Last used {new Date(k.last_used).toLocaleDateString()}</div>}
               </div>
             ))
@@ -656,13 +636,13 @@ function SecuritySettings() {
   const fetchSecurityData = async () => {
     try {
       const [twoFARes, sessionsRes] = await Promise.all([
-        apiClient.get('/api/settings/security/2fa'),
-        apiClient.get('/api/settings/security/sessions')
+        api.get('/api/settings/security/2fa'),
+        api.get('/api/settings/security/sessions')
       ]);
       setTwoFA(twoFARes.data.enabled);
       setSessions(sessionsRes.data);
     } catch (error) {
-      toast.error('Failed to load security settings');
+      console.error('Failed to load security settings:', error);
     } finally {
       setLoading(false);
     }
@@ -670,23 +650,20 @@ function SecuritySettings() {
 
   const updatePassword = async () => {
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      toast.error('New passwords do not match');
       return;
     }
     if (passwordForm.new_password.length < 6) {
-      toast.error('Password must be at least 6 characters');
       return;
     }
     setUpdatingPassword(true);
     try {
-      await apiClient.put('/api/settings/password', {
+      await api.put('/api/settings/password', {
         current_password: passwordForm.current_password,
         new_password: passwordForm.new_password
       });
-      toast.success('Password updated successfully');
       setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update password');
+      console.error('Failed to update password:', error);
     } finally {
       setUpdatingPassword(false);
     }
@@ -695,11 +672,10 @@ function SecuritySettings() {
   const setupTwoFactor = async () => {
     setSettingUp2FA(true);
     try {
-      const response = await apiClient.post('/api/settings/security/2fa/setup');
+      const response = await api.post('/api/settings/security/2fa/setup');
       setTwoFASetup(response.data);
-      toast.success('Scan QR code with your authenticator app');
     } catch (error) {
-      toast.error('Failed to setup 2FA');
+      console.error('Failed to setup 2FA:', error);
     } finally {
       setSettingUp2FA(false);
     }
@@ -707,17 +683,15 @@ function SecuritySettings() {
 
   const verifyTwoFactor = async () => {
     if (!twoFACode) {
-      toast.error('Please enter verification code');
       return;
     }
     try {
-      await apiClient.post('/api/settings/security/2fa/verify', { code: twoFACode });
-      toast.success('2FA enabled successfully');
+      await api.post('/api/settings/security/2fa/verify', { code: twoFACode });
       setTwoFA(true);
       setTwoFASetup(null);
       setTwoFACode('');
     } catch (error) {
-      toast.error('Invalid verification code');
+      console.error('Invalid verification code:', error);
     }
   };
 
@@ -728,11 +702,10 @@ function SecuritySettings() {
       message: 'Disable two-factor authentication? This will make your account less secure.',
       onConfirm: async () => {
         try {
-          await apiClient.post('/api/settings/security/2fa/disable');
-          toast.success('2FA disabled');
+          await api.post('/api/settings/security/2fa/disable');
           setTwoFA(false);
         } catch (error) {
-          toast.error('Failed to disable 2FA');
+          console.error('Failed to disable 2FA:', error);
         }
       }
     });
@@ -740,11 +713,10 @@ function SecuritySettings() {
 
   const revokeSession = async (sessionId) => {
     try {
-      await apiClient.delete(`/api/settings/security/sessions/${sessionId}`);
-      toast.success('Session revoked');
+      await api.delete(`/api/settings/security/sessions/${sessionId}`);
       fetchSecurityData();
     } catch (error) {
-      toast.error('Failed to revoke session');
+      console.error('Failed to revoke session:', error);
     }
   };
 
@@ -833,7 +805,7 @@ function SecuritySettings() {
                 <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}><Activity size={14} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 600 }}>{s.device}</div>
-                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>{s.location} · {new Date(s.last_active).toLocaleString()}</div>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>{s.location} · {s.last_active ? new Date(s.last_active).toLocaleString() : 'Unknown'}</div>
                 </div>
                 {s.current ? <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>CURRENT</span> : <button className="action-btn" style={{ color: '#ef4444' }} onClick={() => revokeSession(s.id)}><Trash2 size={12} /></button>}
               </div>
@@ -861,15 +833,15 @@ function BillingSettings() {
   const fetchBillingData = async () => {
     try {
       const [planRes, usageRes, paymentRes] = await Promise.all([
-        apiClient.get('/api/settings/billing/plan'),
-        apiClient.get('/api/settings/billing/usage'),
-        apiClient.get('/api/settings/billing/payment-method')
+        api.get('/api/settings/billing/plan'),
+        api.get('/api/settings/billing/usage'),
+        api.get('/api/settings/billing/payment-method')
       ]);
       setPlan(planRes.data);
       setUsage(usageRes.data);
       setPaymentMethod(paymentRes.data);
     } catch (error) {
-      toast.error('Failed to load billing data');
+      console.error('Failed to load billing data:', error);
     } finally {
       setLoading(false);
     }
@@ -878,11 +850,10 @@ function BillingSettings() {
   const upgradePlan = async (newPlan) => {
     setUpgrading(true);
     try {
-      await apiClient.post('/api/settings/billing/plan/upgrade', { plan: newPlan });
-      toast.success(`Plan upgraded to ${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}`);
+      await api.post('/api/settings/billing/plan/upgrade', { plan: newPlan });
       fetchBillingData();
     } catch (error) {
-      toast.error('Failed to upgrade plan');
+      console.error('Failed to upgrade plan:', error);
     } finally {
       setUpgrading(false);
     }
@@ -895,11 +866,10 @@ function BillingSettings() {
       message: 'Cancel your subscription? Your plan will end at the current billing period.',
       onConfirm: async () => {
         try {
-          await apiClient.post('/api/settings/billing/plan/cancel');
-          toast.success('Subscription will be cancelled at period end');
+          await api.post('/api/settings/billing/plan/cancel');
           fetchBillingData();
         } catch (error) {
-          toast.error('Failed to cancel subscription');
+          console.error('Failed to cancel subscription:', error);
         }
       }
     });
@@ -920,13 +890,13 @@ function BillingSettings() {
       />
       
       {plan && (
-        <SettingsSection title="Current Plan" description={`${plan.plan_info.name} Plan`}>
+        <SettingsSection title="Current Plan" description={`${plan.plan_info?.name || 'Free'} Plan`}>
           <div style={{
             background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)',
             borderRadius: 'var(--radius-md)', padding: '20px', marginBottom: 20
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div><div style={{ fontSize: 18, fontWeight: 700 }}>{plan.plan_info.name} Plan</div><div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{plan.plan_info.price} per month</div></div>
+              <div><div style={{ fontSize: 18, fontWeight: 700 }}>{plan.plan_info?.name || 'Free'} Plan</div><div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{plan.plan_info?.price || 'Free'} per month</div></div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {!plan.cancel_at_period_end && plan.plan !== 'enterprise' && (
                   <>
@@ -939,13 +909,13 @@ function BillingSettings() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-              <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Records</div><div style={{ fontWeight: 700 }}>{plan.plan_info.records_limit?.toLocaleString() || 'Unlimited'} per month</div></div>
-              <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Active Jobs</div><div style={{ fontWeight: 700 }}>{plan.plan_info.jobs_limit || 'Unlimited'} jobs</div></div>
+              <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Records</div><div style={{ fontWeight: 700 }}>{plan.plan_info?.records_limit?.toLocaleString() || 'Unlimited'} per month</div></div>
+              <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Active Jobs</div><div style={{ fontWeight: 700 }}>{plan.plan_info?.jobs_limit || 'Unlimited'} jobs</div></div>
               <div><div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Support</div><div style={{ fontWeight: 700 }}>{plan.plan === 'enterprise' ? '24/7 Priority' : 'Email'}</div></div>
             </div>
             {plan.cancel_at_period_end && (
               <div style={{ marginTop: 16, padding: 12, background: 'rgba(239,68,68,0.12)', borderRadius: 'var(--radius-md)', fontSize: 12, color: '#ef4444' }}>
-                Your subscription will end on {new Date(plan.current_period_end).toLocaleDateString()}
+                Your subscription will end on {plan.current_period_end ? new Date(plan.current_period_end).toLocaleDateString() : 'N/A'}
               </div>
             )}
           </div>
@@ -957,28 +927,28 @@ function BillingSettings() {
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 12 }}>Records scraped</span>
-              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{usage.records_scraped.toLocaleString()} / {usage.records_limit === 'Unlimited' ? 'Unlimited' : usage.records_limit.toLocaleString()}</span>
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{usage.records_scraped?.toLocaleString() || 0} / {usage.records_limit === 'Unlimited' ? 'Unlimited' : usage.records_limit?.toLocaleString() || 1000}</span>
             </div>
             {usage.records_limit !== 'Unlimited' && (
-              <div className="progress-bar"><div className="progress-fill" style={{ width: `${(usage.records_scraped / usage.records_limit) * 100}%` }} /></div>
+              <div className="progress-bar"><div className="progress-fill" style={{ width: `${((usage.records_scraped || 0) / (usage.records_limit || 1)) * 100}%` }} /></div>
             )}
           </div>
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 12 }}>API requests</span>
-              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{usage.api_requests.toLocaleString()} / {usage.api_limit === 'Unlimited' ? 'Unlimited' : usage.api_limit.toLocaleString()}</span>
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{usage.api_requests?.toLocaleString() || 0} / {usage.api_limit === 'Unlimited' ? 'Unlimited' : usage.api_limit?.toLocaleString() || 1000}</span>
             </div>
             {usage.api_limit !== 'Unlimited' && (
-              <div className="progress-bar"><div className="progress-fill" style={{ width: `${(usage.api_requests / usage.api_limit) * 100}%` }} /></div>
+              <div className="progress-bar"><div className="progress-fill" style={{ width: `${((usage.api_requests || 0) / (usage.api_limit || 1)) * 100}%` }} /></div>
             )}
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 12 }}>Export downloads</span>
-              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{usage.export_downloads.toLocaleString()} / {usage.export_limit === 'Unlimited' ? 'Unlimited' : usage.export_limit.toLocaleString()}</span>
+              <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-text-muted)' }}>{usage.export_downloads?.toLocaleString() || 0} / {usage.export_limit === 'Unlimited' ? 'Unlimited' : usage.export_limit?.toLocaleString() || 100}</span>
             </div>
             {usage.export_limit !== 'Unlimited' && (
-              <div className="progress-bar"><div className="progress-fill" style={{ width: `${(usage.export_downloads / usage.export_limit) * 100}%` }} /></div>
+              <div className="progress-bar"><div className="progress-fill" style={{ width: `${((usage.export_downloads || 0) / (usage.export_limit || 1)) * 100}%` }} /></div>
             )}
           </div>
         </SettingsSection>
@@ -992,7 +962,7 @@ function BillingSettings() {
             borderRadius: 'var(--radius-md)', padding: '14px 18px'
           }}>
             <div style={{ width: 46, height: 30, borderRadius: 6, background: 'linear-gradient(135deg, #1a1f36, #2d3748)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={14} /></div>
-            <div style={{ flex: 1 }}><div style={{ fontWeight: 600 }}>{paymentMethod.card_brand.charAt(0).toUpperCase() + paymentMethod.card_brand.slice(1)} ending in {paymentMethod.last4}</div><div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Expires {paymentMethod.expiry_month}/{paymentMethod.expiry_year}</div></div>
+            <div style={{ flex: 1 }}><div style={{ fontWeight: 600 }}>{paymentMethod.card_brand?.charAt(0).toUpperCase() + paymentMethod.card_brand?.slice(1) || 'Card'} ending in {paymentMethod.last4}</div><div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Expires {paymentMethod.expiry_month}/{paymentMethod.expiry_year}</div></div>
             <button className="btn-sm btn-secondary">Update</button>
           </div>
         ) : (

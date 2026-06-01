@@ -1,19 +1,14 @@
+// frontend/src/pages/ExportTab.jsx - COMPLETE FIXED VERSION
+
 import { useState, useEffect } from 'react';
 import { 
   FileBraces, Download, RefreshCw, FileText, X, AlertCircle, Eye, 
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Database
 } from 'lucide-react';
+import api from '../api';
 
 // ============================================================
 // ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - EXPORT PAGE
-// - No nested card anti-pattern
-// - Visible borders (10%+ contrast)
-// - No emoji icons (Lucide only)
-// - No em dashes in UI copy
-// - 60-30-10 color ratio enforced
-// - Subtle shadows, consistent radius scale
-// - Purposeful animation layer
-// - Gradient: max 2 colors, hue shift < 40deg
 // ============================================================
 
 const STYLES = `
@@ -699,31 +694,36 @@ export default function Export() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
   injectStyles('export-styles', STYLES);
-
-  const authHeaders = () => ({ 'Authorization': `Bearer ${localStorage.getItem('token')}` });
 
   const fetchJobs = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/export/jobs`, { headers: authHeaders() });
-      if (res.ok) setJobs(await res.json());
-    } catch (e) { console.error('Error fetching jobs:', e); }
+      const response = await api.get('/api/export/jobs');
+      setJobs(response.data);
+    } catch (e) { 
+      console.error('Error fetching jobs:', e);
+      setError('Failed to load jobs');
+    }
   };
 
   const fetchParseResults = async (jobId) => {
     try {
-      const res = await fetch(`${API_URL}/api/export/parse-results/${jobId}`, { headers: authHeaders() });
-      if (res.ok) setParseResults(await res.json());
-    } catch (e) { console.error('Error fetching parse results:', e); }
+      const response = await api.get(`/api/export/parse-results/${jobId}`);
+      setParseResults(response.data);
+    } catch (e) { 
+      console.error('Error fetching parse results:', e);
+      setError('Failed to load parse results');
+    }
   };
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/export/history`, { headers: authHeaders() });
-      if (res.ok) setHistory(await res.json());
-    } catch (e) { console.error('Error fetching history:', e); }
+      const response = await api.get('/api/export/history');
+      setHistory(response.data);
+    } catch (e) { 
+      console.error('Error fetching history:', e);
+      setError('Failed to load export history');
+    }
   };
 
   useEffect(() => { fetchJobs(); fetchHistory(); }, []);
@@ -749,57 +749,59 @@ export default function Export() {
     if (!datasetName.trim()) { setError('Please enter a dataset name'); return; }
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/export/generate`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({
-          format, job_id: selectedJob, parse_result_id: selectedParseResult || null,
-          date_range: dateRange, filter_status: 'all', encoding,
-          dataset_name: datasetName, options: checks
-        }),
+      const response = await api.post('/api/export/generate', {
+        format, job_id: selectedJob, parse_result_id: selectedParseResult || null,
+        date_range: dateRange, filter_status: 'all', encoding,
+        dataset_name: datasetName, options: checks
+      }, {
+        responseType: 'blob'
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const cd = res.headers.get('Content-Disposition');
-        let filename = `${datasetName}_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.${format === 'xlsx' ? 'xlsx' : format}`;
-        if (cd) { const m = cd.match(/filename=(.+)/); if (m) filename = m[1]; }
-        const url = URL.createObjectURL(blob);
-        const a = Object.assign(document.createElement('a'), { href: url, download: filename });
-        document.body.appendChild(a); a.click();
-        URL.revokeObjectURL(url); document.body.removeChild(a);
-        await fetchHistory();
-      } else {
-        const err = await res.json();
-        setError(`Export failed: ${err.detail || 'Unknown error'}`);
-      }
-    } catch (e) { setError('Export failed. Please try again.'); }
-    finally { setLoading(false); }
+      
+      const blob = response.data;
+      const cd = response.headers['content-disposition'];
+      let filename = `${datasetName}_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.${format === 'xlsx' ? 'xlsx' : format}`;
+      if (cd) { const m = cd.match(/filename=(.+)/); if (m) filename = m[1]; }
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+      document.body.appendChild(a); a.click();
+      URL.revokeObjectURL(url); document.body.removeChild(a);
+      await fetchHistory();
+    } catch (e) { 
+      setError('Export failed. Please try again.');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handlePreview = async () => {
     if (!selectedJob) { setError('Please select a job to preview'); return; }
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/export/preview/${selectedJob}`, { headers: authHeaders() });
-      if (res.ok) setPreviewData(await res.json());
-      else setError('Failed to load preview.');
-    } catch (e) { setError('Failed to load preview.'); }
-    finally { setLoading(false); }
+      const response = await api.get(`/api/export/preview/${selectedJob}`);
+      setPreviewData(response.data);
+    } catch (e) { 
+      setError('Failed to load preview.');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleDownloadHistory = async (exportId) => {
     try {
-      const res = await fetch(`${API_URL}/api/export/download/${exportId}`, { headers: authHeaders() });
-      if (res.ok) {
-        const blob = await res.blob();
-        const cd = res.headers.get('Content-Disposition');
-        let filename = 'export.zip';
-        if (cd) { const m = cd.match(/filename=(.+)/); if (m) filename = m[1]; }
-        const url = URL.createObjectURL(blob);
-        const a = Object.assign(document.createElement('a'), { href: url, download: filename });
-        document.body.appendChild(a); a.click();
-        URL.revokeObjectURL(url); document.body.removeChild(a);
-      }
-    } catch (e) { setError('Failed to download export'); }
+      const response = await api.get(`/api/export/download/${exportId}`, {
+        responseType: 'blob'
+      });
+      const blob = response.data;
+      const cd = response.headers['content-disposition'];
+      let filename = 'export.zip';
+      if (cd) { const m = cd.match(/filename=(.+)/); if (m) filename = m[1]; }
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+      document.body.appendChild(a); a.click();
+      URL.revokeObjectURL(url); document.body.removeChild(a);
+    } catch (e) { 
+      setError('Failed to download export'); 
+    }
   };
 
   const formats = [
@@ -824,7 +826,6 @@ export default function Export() {
           <button onClick={() => setError(null)}><X size={13} /></button>
         </div>
       )}
-
 
       {/* Format Selection Cards */}
       <div className="ex-formats">

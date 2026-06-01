@@ -4,11 +4,12 @@ import axios from 'axios';
 
 // Dynamic API URL based on environment
 const getApiUrl = () => {
-  // Production URLs
+  // Always use Render URL in production
   if (process.env.NODE_ENV === 'production') {
     return 'https://webby-1osa.onrender.com';
   }
-  // Development
+  // For local development, you can also use the Render URL if needed
+  // Or keep localhost for testing against local backend
   return 'http://localhost:8000';
 };
 
@@ -28,13 +29,14 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Try both token keys for compatibility
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     }
     
     return config;
@@ -56,10 +58,12 @@ api.interceptors.response.use(
   (error) => {
     console.error('API Error:', error);
     
+    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
       const isAuthEndpoint = error.config?.url?.includes('/auth/');
       if (!isAuthEndpoint) {
         localStorage.removeItem('token');
+        localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         localStorage.removeItem('rememberedEmail');
         window.location.href = '/login';
@@ -91,6 +95,10 @@ export const testConnection = async () => {
 export const authService = {
   login: async (email, password) => {
     const response = await api.post('/api/auth/login', { email, password });
+    if (response.data.access_token) {
+      localStorage.setItem('access_token', response.data.access_token);
+      localStorage.setItem('token', response.data.access_token);
+    }
     return response.data;
   },
   
@@ -101,6 +109,9 @@ export const authService = {
   
   logout: async () => {
     const response = await api.post('/api/auth/logout');
+    localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
     return response.data;
   },
   
@@ -471,7 +482,7 @@ export const settingsService = {
   },
 };
 
-// Notification Service - ✅ FIXED with /api prefix
+// Notification Service
 export const notificationService = {
   getNotifications: async (unreadOnly = false, limit = 50, offset = 0) => {
     const params = { limit, offset };
