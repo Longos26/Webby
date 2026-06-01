@@ -818,90 +818,93 @@ export default function Jobs() {
   const { jobUpdates } = useWebSocket(currentUserId);
 
   const loadJobs = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const data = await jobService.getAllJobs(filter);
-      const arr = Array.isArray(data) ? data : [];
-      setJobs(arr);
-      const running = new Set();
-      arr.forEach(j => { if (j.status === 'running') running.add(j.id); });
-      setRunningJobs(running);
-    } catch (err) {
-      setError(err.message || 'Failed to load jobs');
-      setJobs([]);
-    } finally { setLoading(false); }
-  }, [filter]);
+  setLoading(true); 
+  setError(null);
+  try {
+    const response = await api.get(`/api/jobs${filter !== 'all' ? `?status=${filter}` : ''}`);
+    const data = response.data;
+    const arr = Array.isArray(data) ? data : [];
+    setJobs(arr);
+    const running = new Set();
+    arr.forEach(j => { if (j.status === 'running') running.add(j.id); });
+    setRunningJobs(running);
+  } catch (err) {
+    console.error('Failed to load jobs:', err);
+    setError(err.response?.data?.detail || err.message || 'Failed to load jobs');
+    setJobs([]);
+  } finally { 
+    setLoading(false); 
+  }
+}, [filter]);
 
-  useEffect(() => { setCurrentPage(1); }, [filter, jobs.length]);
-  useEffect(() => { if (jobUpdates) setJobs(prev => prev.map(j => jobUpdates[j.id] || j)); }, [jobUpdates]);
-  useEffect(() => { if (tab === 'list') loadJobs(); }, [tab, filter, loadJobs]);
-  useEffect(() => {
-    if (runningJobs.size > 0) {
-      const id = setInterval(loadJobs, 5000);
-      return () => clearInterval(id);
-    }
-  }, [runningJobs, loadJobs]);
+// Also fix the create job function:
+const handleCreate = async (e) => {
+  e.preventDefault();
+  if (!formData.name.trim()) { setError('Job name is required'); return; }
+  if (!formData.url.trim()) { setError('Target URL is required'); return; }
+  setSubmit(true); 
+  setError(null);
+  try {
+    const response = await api.post('/api/jobs', { 
+      name: formData.name.trim(), 
+      target: formData.url.trim(),
+      url: formData.url.trim()
+    });
+    const nj = response.data;
+    setFormData({ name: '', url: '' });
+    setSuccess(`Job "${nj.name}" created successfully.`);
+    setTab('list'); 
+    await loadJobs();
+    setTimeout(() => setSuccess(null), 3000);
+  } catch (err) {
+    console.error('Create job error:', err);
+    setError(err.response?.data?.detail || err.message || 'Failed to create job');
+  } finally { 
+    setSubmit(false); 
+  }
+};
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) { setError('Job name is required'); return; }
-    if (!formData.url.trim()) { setError('Target URL is required'); return; }
-    setSubmit(true); setError(null);
-    try {
-      const nj = await jobService.createJob({ name: formData.name.trim(), url: formData.url.trim() });
-      setFormData({ name: '', url: '' });
-      setSuccess(`Job "${nj.name}" created successfully.`);
-      setTab('list'); await loadJobs();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to create job');
-    } finally { setSubmit(false); }
-  };
+// Fix start/pause/delete:
+const handleStart = async (jobId) => {
+  try {
+    await api.post(`/api/jobs/${jobId}/start`);
+    setSuccess('Job started. Scraping will begin shortly.');
+    await loadJobs();
+    setTimeout(() => setSuccess(null), 4000);
+  } catch (err) {
+    setError(err.response?.data?.detail || err.message || 'Failed to start job');
+    setTimeout(() => setError(null), 3000);
+  }
+};
 
-  const handleStart = async (jobId) => {
-    const job = jobs.find(j => j.id === jobId);
-    if (job?.status === 'queued') {
-      setError('Job is already queued. Please wait.');
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
-    try {
-      await jobService.startJob(jobId);
-      setSuccess('Job started. Scraping will begin shortly.');
-      await loadJobs();
-      setTimeout(() => setSuccess(null), 4000);
-    } catch (err) {
-      setError(err.message || 'Failed to start job');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
+const handlePause = async (jobId) => {
+  try {
+    await api.post(`/api/jobs/${jobId}/pause`);
+    setSuccess('Job paused.');
+    await loadJobs();
+    setTimeout(() => setSuccess(null), 3000);
+  } catch (err) {
+    setError(err.response?.data?.detail || err.message || 'Failed to pause job');
+    setTimeout(() => setError(null), 3000);
+  }
+};
 
-  const handlePause = async (jobId) => {
-    try {
-      await jobService.pauseJob(jobId);
-      setSuccess('Job paused.');
-      await loadJobs();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to pause job');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await jobService.deleteJob(deleteTarget.id);
-      setSuccess(`"${deleteTarget.name}" deleted.`);
-      setDeleteTarget(null);
-      await loadJobs();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to delete job');
-      setTimeout(() => setError(null), 3000);
-    } finally { setDeleting(false); }
-  };
+const handleDeleteConfirm = async () => {
+  if (!deleteTarget) return;
+  setDeleting(true);
+  try {
+    await api.delete(`/api/jobs/${deleteTarget.id}`);
+    setSuccess(`"${deleteTarget.name}" deleted.`);
+    setDeleteTarget(null);
+    await loadJobs();
+    setTimeout(() => setSuccess(null), 3000);
+  } catch (err) {
+    setError(err.response?.data?.detail || err.message || 'Failed to delete job');
+    setTimeout(() => setError(null), 3000);
+  } finally { 
+    setDeleting(false); 
+  }
+};
 
   const filters = ['all', 'running', 'success', 'failed', 'paused', 'queued'];
   const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status === filter);

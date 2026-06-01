@@ -22,7 +22,7 @@ const api = axios.create({
     'Accept': 'application/json',
   },
   timeout: 90000,
-  withCredentials: true, // Important for CORS with credentials
+  withCredentials: true,
 });
 
 // Request interceptor - Add auth token
@@ -33,7 +33,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Log request in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
@@ -49,7 +48,6 @@ api.interceptors.request.use(
 // Response interceptor - Handle errors globally
 api.interceptors.response.use(
   (response) => {
-    // Log response in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`✅ API Response: ${response.config.url} - ${response.status}`);
     }
@@ -58,9 +56,7 @@ api.interceptors.response.use(
   (error) => {
     console.error('API Error:', error);
     
-    // Handle authentication errors
     if (error.response?.status === 401) {
-      // Don't redirect on login/signup endpoints
       const isAuthEndpoint = error.config?.url?.includes('/auth/');
       if (!isAuthEndpoint) {
         localStorage.removeItem('token');
@@ -70,7 +66,6 @@ api.interceptors.response.use(
       }
     }
     
-    // Handle CORS errors specifically
     if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
       console.error('CORS or Network Error - Check if backend is running and CORS is configured');
       error.userMessage = 'Unable to connect to server. Please check your connection.';
@@ -476,36 +471,37 @@ export const settingsService = {
   },
 };
 
-// Notification Service
+// Notification Service - ✅ FIXED with /api prefix
 export const notificationService = {
   getNotifications: async (unreadOnly = false, limit = 50, offset = 0) => {
-    const params = { unreadOnly, limit, offset };
-    const response = await api.get('/notifications', { params });
+    const params = { limit, offset };
+    if (unreadOnly) params.unread_only = true;
+    const response = await api.get('/api/notifications', { params });
     return response.data;
   },
 
   getUnreadCount: async () => {
-    const response = await api.get('/notifications/unread/count');
+    const response = await api.get('/api/notifications/unread/count');
     return response.data;
   },
 
   markAsRead: async (notificationId) => {
-    const response = await api.put(`/notifications/${notificationId}/read`);
+    const response = await api.put(`/api/notifications/${notificationId}/read`);
     return response.data;
   },
 
   markAllAsRead: async () => {
-    const response = await api.put('/notifications/read-all');
+    const response = await api.put('/api/notifications/read-all');
     return response.data;
   },
 
   deleteNotification: async (notificationId) => {
-    const response = await api.delete(`/notifications/${notificationId}`);
+    const response = await api.delete(`/api/notifications/${notificationId}`);
     return response.data;
   },
 
   deleteAllNotifications: async () => {
-    const response = await api.delete('/notifications');
+    const response = await api.delete('/api/notifications');
     return response.data;
   },
 };

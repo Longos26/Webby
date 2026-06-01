@@ -335,49 +335,48 @@ function DashboardTab() {
   const filters = ['all', 'running', 'success', 'failed', 'queued'];
 
   const fetchDashboardData = async (showRefresh = false) => {
-    if (showRefresh) setIsRefreshing(true);
-    try {
-      const [successRes, realtimeRes, recentRes, activityRes, performanceRes] = await Promise.all([
-        api.get('/api/dashboard/success-rate?days=7').catch(() => ({ data: { daily_stats: [] } })),
-        api.get('/api/dashboard/realtime').catch(() => ({ data: { active_jobs: 0, today_jobs: 0, today_records: 0 } })),
-        api.get('/api/dashboard/recent?limit=10').catch(() => ({ data: [] })),
-        api.get('/api/activity/recent?limit=15').catch(() => ({ data: [] })),
-        api.get('/api/dashboard/performance').catch(() => ({ data: { avg_duration: 0, success_rate_7d: 0 } }))
-      ]);
+  if (showRefresh) setIsRefreshing(true);
+  try {
+    const [successRes, realtimeRes, recentRes, activityRes, performanceRes] = await Promise.all([
+      api.get('/api/dashboard/success-rate?days=7').catch(() => ({ data: { daily_stats: [] } })),
+      api.get('/api/dashboard/realtime').catch(() => ({ data: { active_jobs: 0, today_jobs: 0, today_records: 0 } })),
+      api.get('/api/dashboard/recent?limit=10').catch(() => ({ data: [] })),
+      api.get('/api/activity/recent?limit=15').catch(() => ({ data: [] })),
+      api.get('/api/dashboard/performance').catch(() => ({ data: { avg_duration: 0, success_rate_7d: 0 } }))
+    ]);
 
-      if (realtimeRes.data) {
-        setRealtimeMetrics(realtimeRes.data);
-        setStats(prev => prev.map(s => {
-          if (s.label === 'Active Jobs') return { ...s, value: String(realtimeRes.data.active_jobs || 0) };
-          if (s.label === 'Records Today') return { ...s, value: (realtimeRes.data.today_records || 0).toLocaleString() };
-          return s;
-        }));
-      }
-
-      if (successRes.data?.daily_stats) {
-        setSuccessRateData(successRes.data.daily_stats);
-        const avgRate = successRes.data.overall_success_rate || 0;
-        setStats(prev => prev.map(s => s.label === 'Success Rate' ? { ...s, value: `${avgRate}%` } : s));
-      }
-
-      if (performanceRes.data) {
-        setPerformanceMetrics({
-          avg_duration: performanceRes.data.avg_duration || 0,
-          success_rate_7d: performanceRes.data.success_rate_7d || 0
-        });
-      }
-
-      if (Array.isArray(recentRes.data)) setRecentJobs(recentRes.data);
-      if (Array.isArray(activityRes.data)) setActivity(activityRes.data);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Dashboard fetch error:', err);
-    } finally {
-      setLoading(false);
-      if (showRefresh) setTimeout(() => setIsRefreshing(false), 400);
+    if (realtimeRes.data) {
+      setRealtimeMetrics(realtimeRes.data);
+      setStats(prev => prev.map(s => {
+        if (s.label === 'Active Jobs') return { ...s, value: String(realtimeRes.data.active_jobs || 0) };
+        if (s.label === 'Records Today') return { ...s, value: (realtimeRes.data.today_records || 0).toLocaleString() };
+        return s;
+      }));
     }
-  };
 
+    if (successRes.data?.daily_stats) {
+      setSuccessRateData(successRes.data.daily_stats);
+      const avgRate = successRes.data.overall_success_rate || 0;
+      setStats(prev => prev.map(s => s.label === 'Success Rate' ? { ...s, value: `${avgRate}%` } : s));
+    }
+
+    if (performanceRes.data) {
+      setPerformanceMetrics({
+        avg_duration: performanceRes.data.avg_duration || 0,
+        success_rate_7d: performanceRes.data.success_rate_7d || 0
+      });
+    }
+
+    if (Array.isArray(recentRes.data)) setRecentJobs(recentRes.data);
+    if (Array.isArray(activityRes.data)) setActivity(activityRes.data);
+    setLastUpdated(new Date());
+  } catch (err) {
+    console.error('Dashboard fetch error:', err);
+  } finally {
+    setLoading(false);
+    if (showRefresh) setTimeout(() => setIsRefreshing(false), 400);
+  }
+};
   useEffect(() => {
     fetchDashboardData();
     const interval = setInterval(() => fetchDashboardData(), 15000);
