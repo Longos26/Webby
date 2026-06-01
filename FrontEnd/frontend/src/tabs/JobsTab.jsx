@@ -7,7 +7,7 @@ import {
   AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 
 } from 'lucide-react';
-import { jobService } from '../api';
+import  jobService from '../api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import ParsingPanel from '../components/ParsingPanel';
 
