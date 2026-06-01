@@ -29,7 +29,7 @@ import {
   PieChart as PieChartIcon,
 } from 'lucide-react';
 import NotificationBell from './components/NotificationBell';
-import api from './api';
+import api from '../api';
 import JobsTab from './pages/JobsTab';
 import ExportTab from './pages/ExportTab';
 import SettingsPage from './pages/SettingsPage';
