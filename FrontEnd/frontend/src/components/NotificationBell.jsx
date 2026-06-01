@@ -1,7 +1,7 @@
 // src/components/NotificationBell.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, X, Trash2 } from 'lucide-react';
-import { notificationService } from '../api';
+import api from '../api';
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
