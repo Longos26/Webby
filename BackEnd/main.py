@@ -1,5 +1,3 @@
-# backend/main.py - COMPLETE FIXED VERSION
-
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -59,19 +57,25 @@ app = FastAPI(
 )
 
 # ============================================================
-# ENHANCED CORS CONFIGURATION - Fix for all origins
+# ENHANCED CORS CONFIGURATION - FIXED FOR VERCEL DEPLOYMENT
 # ============================================================
 
-# Allow all origins for development/production
+# Your Vercel frontend URL - UPDATE THIS!
+VERCEL_FRONTEND_URL = os.getenv("FRONTEND_URL", "https://webby-1kju.vercel.app/")
+LOCAL_FRONTEND_URL = "http://localhost:3000"
+
 ALLOWED_ORIGINS = [
-    "https://webby-1kju.vercel.app/",
+    VERCEL_FRONTEND_URL,
+    LOCAL_FRONTEND_URL,
+    "https://webby-1kju.vercel.app",  # Your specific Vercel URL
+    "https://webby-1osa.onrender.com",  # Your Render backend URL
     "http://localhost:3000",
-    
+    "http://localhost:5173",  # Vite default
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all for testing
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
@@ -115,7 +119,7 @@ async def log_requests(request: Request, call_next):
     
     # Add CORS headers to every response
     origin = request.headers.get("origin")
-    if origin:
+    if origin and origin in ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
     

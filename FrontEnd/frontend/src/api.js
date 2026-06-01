@@ -1,19 +1,23 @@
-// frontend/src/api.js - COMPLETE FIXED VERSION
-
 import axios from 'axios';
 
-// Dynamic API URL based on environment
+// ============================================================
+// FIXED API CONFIGURATION FOR VERCEL + RENDER DEPLOYMENT
+// ============================================================
+
+// Get API URL based on environment
 const getApiUrl = () => {
-  // Always use Render URL in production
+  // Production: Use your Render backend URL
   if (process.env.NODE_ENV === 'production') {
+    // IMPORTANT: Replace with your actual Render backend URL
     return 'https://webby-1osa.onrender.com';
   }
-  // For local development, you can also use the Render URL if needed
-  // Or keep localhost for testing against local backend
+  // Development: Use local backend
   return 'http://localhost:8000';
 };
 
 const API_URL = getApiUrl();
+
+console.log(`🔧 API Base URL: ${API_URL} (Environment: ${process.env.NODE_ENV})`);
 
 // Create axios instance with enhanced config
 const api = axios.create({
@@ -23,7 +27,7 @@ const api = axios.create({
     'Accept': 'application/json',
   },
   timeout: 90000,
-  withCredentials: true,
+  withCredentials: true,  // Important for CORS
 });
 
 // Request interceptor - Add auth token
@@ -35,6 +39,7 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Log requests in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     }
@@ -56,12 +61,19 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('API Error:', error);
+    console.error('API Error Details:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+    });
     
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
       const isAuthEndpoint = error.config?.url?.includes('/auth/');
       if (!isAuthEndpoint) {
+        console.log('🔐 Token expired or invalid, logging out...');
         localStorage.removeItem('token');
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
@@ -70,8 +82,11 @@ api.interceptors.response.use(
       }
     }
     
+    // Handle network errors
     if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
-      console.error('CORS or Network Error - Check if backend is running and CORS is configured');
+      console.error('🌐 Network Error - Cannot connect to backend');
+      console.error(`   Backend URL: ${API_URL}`);
+      console.error('   Make sure your Render backend is running and CORS is configured');
       error.userMessage = 'Unable to connect to server. Please check your connection.';
     }
     
@@ -82,14 +97,28 @@ api.interceptors.response.use(
 // Test connection function
 export const testConnection = async () => {
   try {
+    console.log('🔍 Testing connection to:', `${API_URL}/health`);
     const response = await api.get('/health');
-    console.log('Connection test successful:', response.data);
+    console.log('✅ Connection test successful:', response.data);
     return { success: true, data: response.data };
   } catch (error) {
-    console.error('Connection test failed:', error);
+    console.error('❌ Connection test failed:', error.message);
     return { success: false, error: error.message };
   }
 };
+
+// Auto-test connection on module load (non-blocking)
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    testConnection().then(result => {
+      if (result.success) {
+        console.log('🎉 Backend connection established!');
+      } else {
+        console.warn('⚠️ Backend connection failed. Check your API_URL configuration.');
+      }
+    });
+  }, 1000);
+}
 
 // Auth Service
 export const authService = {
@@ -98,6 +127,9 @@ export const authService = {
     if (response.data.access_token) {
       localStorage.setItem('access_token', response.data.access_token);
       localStorage.setItem('token', response.data.access_token);
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
     }
     return response.data;
   },
@@ -108,11 +140,15 @@ export const authService = {
   },
   
   logout: async () => {
-    const response = await api.post('/api/auth/logout');
+    try {
+      await api.post('/api/auth/logout');
+    } catch (e) {
+      // Ignore logout errors
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
-    return response.data;
+    return { success: true };
   },
   
   getCurrentUser: async () => {
@@ -423,96 +459,6 @@ export const settingsService = {
 
   getPaymentMethod: async () => {
     const response = await api.get('/api/settings/billing/payment-method');
-    return response.data;
-  },
-
-  getProxyPools: async () => {
-    const response = await api.get('/api/settings/proxies/pools');
-    return response.data;
-  },
-
-  createProxyPool: async (poolData) => {
-    const response = await api.post('/api/settings/proxies/pools', poolData);
-    return response.data;
-  },
-
-  updateProxyPool: async (poolId, poolData) => {
-    const response = await api.put(`/api/settings/proxies/pools/${poolId}`, poolData);
-    return response.data;
-  },
-
-  deleteProxyPool: async (poolId) => {
-    const response = await api.delete(`/api/settings/proxies/pools/${poolId}`);
-    return response.data;
-  },
-
-  getProxyRotationSettings: async () => {
-    const response = await api.get('/api/settings/proxies/rotation');
-    return response.data;
-  },
-
-  updateProxyRotationSettings: async (settings) => {
-    const response = await api.put('/api/settings/proxies/rotation', settings);
-    return response.data;
-  },
-
-  getWebhooks: async () => {
-    const response = await api.get('/api/settings/webhooks');
-    return response.data;
-  },
-
-  createWebhook: async (webhookData) => {
-    const response = await api.post('/api/settings/webhooks', webhookData);
-    return response.data;
-  },
-
-  updateWebhook: async (webhookId, webhookData) => {
-    const response = await api.put(`/api/settings/webhooks/${webhookId}`, webhookData);
-    return response.data;
-  },
-
-  deleteWebhook: async (webhookId) => {
-    const response = await api.delete(`/api/settings/webhooks/${webhookId}`);
-    return response.data;
-  },
-
-  testWebhook: async (webhookId) => {
-    const response = await api.post(`/api/settings/webhooks/${webhookId}/test`);
-    return response.data;
-  },
-};
-
-// Notification Service
-export const notificationService = {
-  getNotifications: async (unreadOnly = false, limit = 50, offset = 0) => {
-    const params = { limit, offset };
-    if (unreadOnly) params.unread_only = true;
-    const response = await api.get('/api/notifications', { params });
-    return response.data;
-  },
-
-  getUnreadCount: async () => {
-    const response = await api.get('/api/notifications/unread/count');
-    return response.data;
-  },
-
-  markAsRead: async (notificationId) => {
-    const response = await api.put(`/api/notifications/${notificationId}/read`);
-    return response.data;
-  },
-
-  markAllAsRead: async () => {
-    const response = await api.put('/api/notifications/read-all');
-    return response.data;
-  },
-
-  deleteNotification: async (notificationId) => {
-    const response = await api.delete(`/api/notifications/${notificationId}`);
-    return response.data;
-  },
-
-  deleteAllNotifications: async () => {
-    const response = await api.delete('/api/notifications');
     return response.data;
   },
 };
