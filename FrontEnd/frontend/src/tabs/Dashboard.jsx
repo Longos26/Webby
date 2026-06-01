@@ -28,7 +28,7 @@ import {
   Activity,
   PieChart as PieChartIcon,
 } from 'lucide-react';
-import NotificationBell from './components/NotificationBell';
+import NotificationBell from '../components/NotificationBell';
 import api from '../api';
 import JobsTab from './pages/JobsTab';
 import ExportTab from './pages/ExportTab';
