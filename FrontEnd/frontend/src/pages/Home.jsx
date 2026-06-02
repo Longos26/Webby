@@ -1,401 +1,853 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, TrendingUp, Shield, Database, CheckCircle2, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Activity,
+  Database,
+  Shield,
+  ChevronRight,
+  BarChart3,
+  Zap,
+  ExternalLink,
+  Menu,
+  X
+} from 'lucide-react';
+import logo from '../logowebby.png';
 
 // ============================================================
-// DESIGN TOKENS — Global CSS (Enforces Anti-Generic Policy)
+// ENTERPRISE DESIGN SYSTEM — MongoDB Atlas / GitHub inspired
+// No gradients, no glassmorphism, no glowing borders, no neon.
+// Clean, professional, scalable SaaS aesthetic.
 // ============================================================
+
 const globalStyles = `
-  /* ------------------------------
-     ANTI-GENERIC UI/UX ENFORCEMENT v2.0
-     - No nested card anti-pattern
-     - Visible borders (10%+ contrast)
-     - No emoji icons (Lucide only)
-     - No em dashes in UI copy
-     - 60-30-10 color ratio enforced
-     - Subtle shadows, consistent radius scale
-     - Purposeful animation layer
-  -------------------------------- */
+  :root {
+    --green-primary: #00ED64;
+    --green-dark: #00c951;
+    --bg-dark: #0D1117;
+    --bg-surface: #161B22;
+    --bg-elevated: #1F242E;
+    --border-default: #30363D;
+    --border-subtle: #21262D;
+    --text-primary: #F0F6FC;
+    --text-secondary: #8B949E;
+    --text-muted: #6E7681;
+    --success: #00ED64;
+    --warning: #D29922;
+    --error: #F85149;
+    --info: #58A6FF;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.2);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
   * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
   }
 
-  :root {
-    --color-brand:       hsl(217, 91%, 60%);
-    --color-brand-light: hsl(217, 91%, 55%);
-    --color-brand-dark:  hsl(217, 83%, 48%);
-    --color-success:     hsl(142, 76%, 36%);
-    --color-success-light: hsl(142, 76%, 95%);
-    --color-error:       hsl(0, 84%, 60%);
-    --color-canvas:      hsl(222, 47%, 5%);
-    --color-surface:     hsl(224, 35%, 8%);
-    --color-surface-elevated: hsl(226, 30%, 12%);
-    --color-overlay:     hsl(225, 25%, 10%);
-    --color-text-primary:   hsl(210, 20%, 98%);
-    --color-text-secondary: hsl(216, 12%, 68%);
-    --color-text-muted:     hsl(218, 15%, 48%);
-    --color-border:        hsl(224, 25%, 18%);
-    --color-border-strong: hsl(224, 25%, 28%);
-    --color-border-focus:  var(--color-brand);
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.1);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.16), 0 2px 4px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.1);
-    --radius-xs:   4px;
-    --radius-sm:   6px;
-    --radius-md:   10px;
-    --radius-lg:   14px;
-    --radius-xl:   20px;
-    --radius-2xl:  28px;
-    --radius-full: 9999px;
-    --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
-    --transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
-    --transition-slow: 320ms cubic-bezier(0.16, 1, 0.3, 1);
-    --text-xs:   0.75rem;
-    --text-sm:   0.8125rem;
-    --text-base: 0.9375rem;
-    --text-md:   1.0625rem;
-    --text-lg:   1.25rem;
-    --text-xl:   1.5rem;
-    --text-2xl:  1.875rem;
-    --text-3xl:  2.5rem;
-    --text-4xl:  3.5rem;
-    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
-  }
-
   body {
-    background: var(--color-canvas);
-    color: var(--color-text-primary);
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
     font-family: var(--font-sans);
-    font-size: var(--text-base);
+    font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
 
-  button, a, [role="button"], .card-interactive {
-    transition: all var(--transition-base);
-  }
-
-  *:focus-visible {
-    outline: none;
-    ring: 2px solid var(--color-brand);
-    ring-offset: 2px;
-    transition: ring var(--transition-fast);
-  }
-
+  /* Professional scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-overlay);
+    background: var(--bg-surface);
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: var(--radius-full);
+    background: var(--border-default);
+    border-radius: var(--radius-sm);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  /* Focus states — clean green outline, no glow */
+  *:focus-visible {
+    outline: 2px solid var(--green-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  button {
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Utility classes for spacing (8px system) */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding: 0 20px;
+    }
   }
 `;
 
-// Hero SVG Illustration
-const HeroGraphic = () => (
-  <svg width="520" height="480" viewBox="0 0 520 480" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ maxWidth: '100%', height: 'auto' }}>
-    <defs>
-      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25"/>
-        <stop offset="100%" stopColor="#2563eb" stopOpacity="0.05"/>
-      </linearGradient>
-      <linearGradient id="grad2" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#10b981" stopOpacity="0.2"/>
-        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.1"/>
-      </linearGradient>
-      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="18" result="blur"/>
-        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-      </filter>
-    </defs>
-    <rect x="80" y="60" width="360" height="280" rx="20" fill="url(#grad1)" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5"/>
-    <path d="M140 180 L200 140 L260 180 L320 140 L380 180" stroke="#3b82f6" strokeWidth="2" fill="none" strokeLinecap="round"/>
-    <circle cx="200" cy="180" r="8" fill="#3b82f6" filter="url(#glow)"/>
-    <circle cx="320" cy="180" r="8" fill="#10b981" filter="url(#glow)"/>
-    <rect x="140" y="240" width="80" height="50" rx="8" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.4)" strokeWidth="1"/>
-    <rect x="300" y="240" width="80" height="50" rx="8" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.4)" strokeWidth="1"/>
-    <path d="M260 220 L260 300" stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="4 4"/>
-    <circle cx="400" cy="120" r="40" fill="url(#grad2)" stroke="rgba(59,130,246,0.4)" strokeWidth="1"/>
-    <path d="M400 100 L400 140 M380 120 L420 120" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/>
-    <polygon points="80,380 120,360 160,380 200,360 240,380" fill="rgba(59,130,246,0.1)" stroke="rgba(59,130,246,0.3)" strokeWidth="1"/>
-    <path d="M440 380 L460 360 L480 380" stroke="#3b82f6" strokeWidth="1.5" fill="none"/>
-  </svg>
+// ============================================================
+// COMPONENTS: Card, Button, Table-like stat block
+// ============================================================
+
+const Card = ({ children, className = '', onClick, hover = true }) => (
+  <div
+    className={`card ${className}`}
+    onClick={onClick}
+    style={{
+      backgroundColor: 'var(--bg-surface)',
+      border: `1px solid var(--border-default)`,
+      borderRadius: 'var(--radius-lg)',
+      padding: '24px',
+      transition: 'border-color 0.2s ease, transform 0.1s ease',
+      ...(hover && {
+        cursor: 'pointer',
+        ':hover': {
+          borderColor: 'var(--border-subtle)',
+        },
+      }),
+    }}
+    onMouseEnter={(e) => hover && (e.currentTarget.style.borderColor = 'var(--text-muted)')}
+    onMouseLeave={(e) => hover && (e.currentTarget.style.borderColor = 'var(--border-default)')}
+  >
+    {children}
+  </div>
 );
 
+const PrimaryButton = ({ children, icon, onClick, to, className = '' }) => {
+  const content = (
+    <>
+      {children}
+      {icon && <span style={{ marginLeft: '8px', display: 'inline-flex' }}>{icon}</span>}
+    </>
+  );
+  const style = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--green-primary)',
+    color: '#0D1117',
+    fontWeight: 600,
+    fontSize: '14px',
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    border: 'none',
+    transition: 'background-color 0.2s ease, transform 0.05s ease',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  };
+  if (to) {
+    return (
+      <Link to={to} style={style} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button
+      style={style}
+      className={className}
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--green-dark)')}
+      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--green-primary)')}
+      onClick={onClick}
+    >
+      {content}
+    </button>
+  );
+};
+
+const SecondaryButton = ({ children, onClick, className = '' }) => (
+  <button
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      border: `1px solid var(--border-default)`,
+      color: 'var(--text-secondary)',
+      fontWeight: 500,
+      fontSize: '14px',
+      padding: '10px 20px',
+      borderRadius: 'var(--radius-md)',
+      transition: 'border-color 0.2s ease, color 0.2s ease',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+    }}
+    className={className}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.borderColor = 'var(--text-secondary)';
+      e.currentTarget.style.color = 'var(--text-primary)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.borderColor = 'var(--border-default)';
+      e.currentTarget.style.color = 'var(--text-secondary)';
+    }}
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
+
+// ============================================================
+// HERO ILLUSTRATION: Clean, minimal SVG, no gradients/glows
+// ============================================================
+const HeroGraphic = () => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+    }}
+  >
+    <div
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '32px 28px',
+        width: '100%',
+        maxWidth: '480px',
+        textAlign: 'center',
+      }}
+    >
+      <img
+        src={logo}
+        alt="Webby"
+        style={{
+          width: '200px',
+          height: 'auto',
+          display: 'block',
+          margin: '0 auto 20px auto',
+        }}
+      />
+      <div
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          borderRadius: 'var(--radius-md)',
+          padding: '16px',
+          marginTop: '16px',
+          border: '1px solid var(--border-subtle)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <Activity size={18} color="var(--green-primary)" />
+          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>Active pipeline</span>
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontSize: '13px',
+              fontFamily: 'monospace',
+              color: 'var(--green-primary)',
+            }}
+          >
+            124 req/s
+          </span>
+        </div>
+        <div
+          style={{
+            height: '4px',
+            backgroundColor: 'var(--border-subtle)',
+            borderRadius: '2px',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: '78%',
+              height: '100%',
+              backgroundColor: 'var(--green-primary)',
+              borderRadius: '2px',
+            }}
+          />
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '12px',
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+          }}
+        >
+          <span>Success rate</span>
+          <span style={{ color: 'var(--green-primary)' }}>99.87%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ============================================================
+// MAIN HOMEPAGE COMPONENT — Enterprise grade, MongoDB Atlas style
+// ============================================================
 const HomePage = () => {
-  const featuresRef = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Interactive gradient effect on feature cards
-  useEffect(() => {
-    const cards = document.querySelectorAll('.feature-card-glow');
-    const handleMove = (e, card) => {
-      const rect = card.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      card.style.setProperty('--mouse-x', `${x}%`);
-      card.style.setProperty('--mouse-y', `${y}%`);
-    };
-    cards.forEach(card => {
-      const handler = (e) => handleMove(e, card);
-      card.addEventListener('mousemove', handler);
-      return () => card.removeEventListener('mousemove', handler);
-    });
-  }, []);
-
+  // Stats data
   const stats = [
-    { value: "2.8K", label: "Active Scraping Jobs", sub: "Running concurrently" },
-    { value: "184M", label: "Records Scraped Today", sub: "Across all clients" },
-    { value: "1.9K", label: "Active Proxies", sub: "99.2% uptime" },
-    { value: "0.4%", label: "Error Rate", sub: "Industry leading" },
+    { value: '2.8M', label: 'Jobs processed', change: '+24%', subtext: 'Last 30 days' },
+    { value: '184B', label: 'Records extracted', change: '+12%', subtext: 'Total volume' },
+    { value: '99.97%', label: 'Uptime SLA', change: '±0.02%', subtext: 'Enterprise grade' },
+    { value: '<0.3%', label: 'Error rate', change: '↓0.1%', subtext: 'Industry leading' },
   ];
 
   const features = [
-    { title: "Real-time Monitoring", desc: "Live dashboards with job status, proxy health, and performance metrics. Instant alerts before issues escalate.", Icon: TrendingUp, color: "#3b82f6" },
-    { title: "AI-Powered Extraction", desc: "Intelligent field detection, data normalization, entity recognition, and structured output — no manual selectors needed.", Icon: Sparkles, color: "#8b5cf6" },
-    { title: "Enterprise Proxy System", desc: "Automatic rotation across residential and datacenter pools. Ban detection, geo-targeting, and CAPTCHA bypass built in.", Icon: Shield, color: "#10b981" },
-    { title: "Multi-Format Export", desc: "CSV, JSON, Excel, Parquet, or direct database delivery. Custom filters, webhooks, and scheduled pipelines.", Icon: Database, color: "#f59e0b" },
+    {
+      title: 'AI-powered parsing',
+      description: 'Intelligent field detection and entity recognition without manual selectors. Adapts to layout changes automatically.',
+      icon: Zap,
+    },
+    {
+      title: 'Proxy rotation & bypass',
+      description: 'Automatic residential/datacenter rotation, CAPTCHA solving, and geo-targeting with real-time ban detection.',
+      icon: Shield,
+    },
+    {
+      title: 'Multi-format delivery',
+      description: 'Export to CSV, JSON, Parquet, or direct database sync. Webhooks and scheduled pipelines included.',
+      icon: Database,
+    },
+    {
+      title: 'Observability suite',
+      description: 'Granular metrics, logs, and alerts. Monitor every job, proxy health, and data volume in real time.',
+      icon: BarChart3,
+    },
   ];
 
-  const testimonials = [
-    { quote: "Webby cut our data pipeline setup time by 80%. What took weeks now runs in hours with better accuracy than our in-house solution.", name: "Sarah Chen", role: "Head of Data, Acme Corp", initial: "SC" },
-    { quote: "The proxy reliability alone is worth it. We scrape 50M records weekly across 40 countries with near-zero failures.", name: "Marcus Reid", role: "Engineering Lead, DataCo", initial: "MR" },
-    { quote: "Finally a platform that handles JS-heavy sites. The AI extraction adapts to layout changes without any code updates.", name: "Priya Nair", role: "CTO, Insights Ltd", initial: "PN" },
+  const recentJobs = [
+    { name: 'ecommerce_prices_daily', status: 'success', rows: '2.4M', duration: '4m 32s', completed: '2 min ago' },
+    { name: 'linkedin_company_scrape', status: 'success', rows: '84K', duration: '1m 12s', completed: '14 min ago' },
+    { name: 'real_estate_listings', status: 'running', rows: '127K', duration: '12m 04s', completed: 'In progress' },
+    { name: 'news_articles_ml', status: 'pending', rows: '—', duration: '—', completed: 'Queued' },
   ];
 
   const fadeUp = (delay = 0) => ({
-    initial: { opacity: 0, y: 16 },
+    initial: { opacity: 0, y: 12 },
     whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, margin: "-40px" },
-    transition: { duration: 0.5, delay, ease: [0.25, 0.1, 0.25, 1] }
+    viewport: { once: true, margin: '-30px' },
+    transition: { duration: 0.35, delay, ease: [0.2, 0.65, 0.3, 0.9] },
   });
 
-  return (
-    <>
-      <style>{globalStyles}</style>
-      <div style={{ fontFamily: "var(--font-sans)", background: "var(--color-canvas)", minHeight: "100vh" }}>
+  useEffect(() => {
+    // Inject global styles
+    const styleTag = document.createElement('style');
+    styleTag.textContent = globalStyles;
+    document.head.appendChild(styleTag);
+    return () => {
+      document.head.removeChild(styleTag);
+    };
+  }, []);
 
-        {/* ========== NAVIGATION ========== */}
-        <nav style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          padding: '18px 48px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'rgba(5, 11, 26, 0.85)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid var(--color-border)'
-        }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
-            <span style={{ width: 10, height: 10, background: 'var(--color-success)', borderRadius: 'var(--radius-full)' }} />
-            Webby
+  return (
+    <div style={{ backgroundColor: 'var(--bg-dark)', minHeight: '100vh' }}>
+      {/* ========== NAVIGATION — Clean, solid background, no backdrop blur ========== */}
+      <nav
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          backgroundColor: 'var(--bg-dark)',
+          borderBottom: '1px solid var(--border-default)',
+          padding: '0 32px',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: '72px',
+          }}
+        >
+          {/* Logo section */}
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src={logo} alt="Webby" style={{ height: '70px', width: 'auto', display: 'block' }} />
+            
           </Link>
+
+          {/* Desktop Navigation */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-            {['Features', 'Docs', 'Pricing', 'Enterprise'].map(item => (
-              <button key={item} style={{ 
-                color: 'var(--color-text-secondary)', 
-                fontSize: 'var(--text-sm)', 
-                fontWeight: 500, 
-                textDecoration: 'none', 
-                transition: 'color 0.2s',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer'
+            <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
+              {['Features', 'Documentation', 'Pricing', 'Enterprise'].map((item) => (
+                <button
+                  key={item}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'color 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <PrimaryButton to="/dashboard" icon={<ArrowRight size={16} />}>
+                Get started
+              </PrimaryButton>
+            </div>
+          </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-primary)',
+              display: 'none',
+              cursor: 'pointer',
+            }}
+            className="mobile-menu-btn"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+      </nav>
+
+      {/* ========== HERO SECTION — No gradients, clean typography ========== */}
+      <section style={{ padding: '80px 32px 64px', maxWidth: '1400px', margin: '0 auto' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '64px',
+            alignItems: 'center',
+          }}
+          className="hero-grid"
+        >
+          <div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '40px',
+                padding: '4px 14px',
+                marginBottom: '28px',
               }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text-primary)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}>
+            >
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  backgroundColor: 'var(--green-primary)',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                Production ready · v3.0
+              </span>
+            </div>
+            <h1
+              style={{
+                fontSize: '52px',
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                lineHeight: 1.2,
+                marginBottom: '20px',
+                color: 'var(--text-primary)',
+              }}
+            >
+              Web data extraction <br />
+              at enterprise scale
+            </h1>
+            <p
+              style={{
+                fontSize: '17px',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                maxWidth: '540px',
+                marginBottom: '36px',
+              }}
+            >
+              The platform engineering teams trust for high-volume scraping, intelligent parsing, and reliable data delivery — without the ops overhead.
+            </p>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <PrimaryButton to="/dashboard" icon={<ArrowRight size={16} />}>
+                Launch dashboard
+              </PrimaryButton>
+              <SecondaryButton>Request demo</SecondaryButton>
+            </div>
+          </div>
+          <div>
+            <HeroGraphic />
+          </div>
+        </div>
+      </section>
+
+      {/* ========== STATS SECTION — Clean metric cards ========== */}
+      <div
+        style={{
+          borderTop: '1px solid var(--border-default)',
+          borderBottom: '1px solid var(--border-default)',
+          backgroundColor: 'var(--bg-surface)',
+          marginTop: '32px',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            padding: '48px 32px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '32px',
+          }}
+        >
+          {stats.map((stat, idx) => (
+            <div key={idx}>
+              <div
+                style={{
+                  fontSize: '42px',
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  letterSpacing: '-0.02em',
+                  color: 'var(--text-primary)',
+                  marginBottom: '8px',
+                }}
+              >
+                {stat.value}
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                {stat.label}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--green-primary)' }}>{stat.change}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{stat.subtext}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ========== FEATURE GRID ========== */}
+      <section style={{ padding: '96px 32px', maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '56px' }}>
+          <div
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--green-primary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              marginBottom: '12px',
+            }}
+          >
+            Platform capabilities
+          </div>
+          <h2 style={{ fontSize: '32px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
+            Built for demanding data teams
+          </h2>
+          <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '600px' }}>
+            Everything you need to extract, process, and act on web data — reliably and at scale.
+          </p>
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '24px',
+          }}
+        >
+          {features.map((feat, i) => (
+            <motion.div key={i} {...fadeUp(i * 0.05)}>
+              <Card hover>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    backgroundColor: 'var(--bg-elevated)',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <feat.icon size={22} color="var(--green-primary)" strokeWidth={1.7} />
+                </div>
+                <h3 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '10px', color: 'var(--text-primary)' }}>
+                  {feat.title}
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{feat.description}</p>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ========== DATA TABLE SECTION (MongoDB Atlas style) ========== */}
+      <section style={{ padding: '0 32px 96px', maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '32px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '8px' }}>Recent extraction jobs</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Real-time view of your scraping pipelines</p>
+        </div>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'auto',
+          }}
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-default)', backgroundColor: 'var(--bg-elevated)' }}>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Job name
+                </th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Status
+                </th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Rows
+                </th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Duration
+                </th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Completed
+                </th>
+                <th style={{ width: '40px', padding: '16px 20px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentJobs.map((job, idx) => (
+                <tr
+                  key={idx}
+                  style={{
+                    borderBottom: idx !== recentJobs.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-elevated)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <td style={{ padding: '14px 20px', fontWeight: 500, color: 'var(--text-primary)' }}>{job.name}</td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color:
+                          job.status === 'success'
+                            ? 'var(--success)'
+                            : job.status === 'running'
+                            ? 'var(--info)'
+                            : 'var(--warning)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor:
+                            job.status === 'success'
+                              ? 'var(--success)'
+                              : job.status === 'running'
+                              ? 'var(--info)'
+                              : 'var(--warning)',
+                        }}
+                      />
+                      {job.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>{job.rows}</td>
+                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>{job.duration}</td>
+                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>{job.completed}</td>
+                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)' }}>
+                    <ExternalLink size={14} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+          <SecondaryButton>
+            View all jobs <ChevronRight size={14} style={{ marginLeft: '6px' }} />
+          </SecondaryButton>
+        </div>
+      </section>
+
+      {/* ========== CTA SECTION — Solid background, no gradients ========== */}
+      <div style={{ padding: '0 32px 96px', maxWidth: '1400px', margin: '0 auto' }}>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '64px 48px',
+            textAlign: 'center',
+          }}
+        >
+          <h2 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '16px' }}>Ready to scale your web intelligence?</h2>
+          <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto 32px' }}>
+            Join leading organizations extracting clean, structured data at enterprise volume.
+          </p>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <PrimaryButton to="/dashboard" icon={<ArrowRight size={16} />}>
+              Enter dashboard
+            </PrimaryButton>
+            <SecondaryButton>Contact sales</SecondaryButton>
+          </div>
+        </div>
+      </div>
+
+      {/* ========== FOOTER ========== */}
+      <footer
+        style={{
+          borderTop: '1px solid var(--border-default)',
+          padding: '40px 32px',
+          backgroundColor: 'var(--bg-dark)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '24px',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <img src={logo} alt="Webby" style={{ height: '28px' }} />
+              <span style={{ fontWeight: 600, fontSize: '16px' }}>Webby</span>
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>© 2026 Webby · Enterprise Web Intelligence</div>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <span
+                style={{
+                  fontSize: '11px',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '2px 8px',
+                  borderRadius: '20px',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                SOC 2 Type II
+              </span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '2px 8px',
+                  borderRadius: '20px',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                GDPR compliant
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
+            {['Privacy', 'Terms', 'Documentation', 'Status'].map((item) => (
+              <button
+                key={item}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '13px',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'color 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
                 {item}
               </button>
             ))}
           </div>
-          <Link to="/login" style={{
-            background: 'var(--color-brand)', color: 'white', padding: '9px 22px', borderRadius: 'var(--radius-sm)',
-            fontSize: 'var(--text-sm)', fontWeight: 600, textDecoration: 'none', transition: 'all var(--transition-fast)'
-          }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-brand-dark)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-            Get started <ArrowRight size={14} style={{ display: 'inline', marginLeft: 6 }} />
-          </Link>
-        </nav>
-
-        {/* ========== HERO SECTION ========== */}
-        <section style={{ padding: '140px 48px 100px', maxWidth: '1280px', margin: '0 auto', position: 'relative' }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 20% 40%, rgba(59,130,246,0.08) 0%, transparent 50%)', pointerEvents: 'none' }} />
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.9fr', gap: '60px', alignItems: 'center' }}>
-            <div>
-              <motion.div {...fadeUp(0)}>
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px',
-                  background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 'var(--radius-full)',
-                  padding: '5px 14px', marginBottom: '32px'
-                }}>
-                  <span style={{ width: 6, height: 6, background: 'var(--color-success)', borderRadius: 'var(--radius-full)' }} />
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--color-success)' }}>v2.0 · AI Field Detection · Live</span>
-                </div>
-              </motion.div>
-              <motion.h1 {...fadeUp(0.05)} style={{
-                fontSize: 'clamp(44px, 5vw, 68px)', fontWeight: 700, lineHeight: 1.08, letterSpacing: '-0.03em',
-                background: 'linear-gradient(135deg, #FFFFFF 30%, #6b9eff 80%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', marginBottom: '24px'
-              }}>
-                Web data extraction <br />at enterprise scale
-              </motion.h1>
-              <motion.p {...fadeUp(0.1)} style={{ fontSize: 'var(--text-md)', color: 'var(--color-text-secondary)', lineHeight: 1.6, maxWidth: '500px', marginBottom: '40px' }}>
-                The platform engineering teams trust for high-volume scraping, intelligent parsing, and reliable data delivery — without the ops overhead.
-              </motion.p>
-              <motion.div {...fadeUp(0.15)} style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                <Link to="/dashboard" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'var(--color-brand)', color: 'white',
-                  padding: '12px 28px', borderRadius: 'var(--radius-sm)', fontWeight: 600, textDecoration: 'none', transition: 'all var(--transition-fast)'
-                }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-brand-dark)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-                  Launch Dashboard <ArrowRight size={16} />
-                </Link>
-                <button style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'transparent', border: `1px solid var(--color-border)`,
-                  color: 'var(--color-text-secondary)', padding: '12px 28px', borderRadius: 'var(--radius-sm)', fontWeight: 500, cursor: 'pointer', transition: 'all var(--transition-fast)'
-                }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; e.currentTarget.style.color = 'var(--color-text-primary)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}>
-                  Watch demo <span style={{ fontSize: '14px' }}>· 2 min</span>
-                </button>
-              </motion.div>
-            </div>
-            <motion.div {...fadeUp(0.05)} style={{ display: 'flex', justifyContent: 'center' }}>
-              <HeroGraphic />
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ========== METRICS STRIP ========== */}
-        <div style={{ borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)', marginTop: '20px' }}>
-          <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '0 48px' }}>
-            {stats.map((stat, idx) => (
-              <motion.div key={idx} {...fadeUp(idx * 0.07)} style={{ padding: '44px 32px', borderRight: idx !== 3 ? '1px solid var(--color-border)' : 'none', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, var(--color-brand), transparent)', opacity: 0, transition: 'opacity 0.2s' }} className="metric-bar" />
-                <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'white', letterSpacing: '-0.02em', marginBottom: '8px' }}>{stat.value}</div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: '4px' }}>{stat.label}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{stat.sub}</div>
-              </motion.div>
-            ))}
-          </div>
         </div>
+      </footer>
 
-        {/* ========== FEATURES ========== */}
-        <section id="features" style={{ padding: '120px 48px', maxWidth: '1280px', margin: '0 auto' }} ref={featuresRef}>
-          <motion.div {...fadeUp(0)} style={{ marginBottom: '64px' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--color-brand)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '16px' }}>// Platform capabilities</div>
-            <h2 style={{ fontSize: 'clamp(32px, 3.8vw, 48px)', fontWeight: 700, letterSpacing: '-0.02em', color: 'white', maxWidth: '500px', lineHeight: 1.2, marginBottom: '16px' }}>Built for demanding data teams</h2>
-            <p style={{ fontSize: 'var(--text-md)', color: 'var(--color-text-secondary)', maxWidth: '450px' }}>Everything you need to extract, process, and act on web data — reliably and at scale.</p>
-          </motion.div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1px', background: 'var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            {features.map((feat, i) => (
-              <motion.div key={i} {...fadeUp(i * 0.08)} className="feature-card-glow" style={{
-                background: 'var(--color-surface)', padding: '44px 40px', position: 'relative', overflow: 'hidden', transition: 'background var(--transition-base)'
-              }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-elevated)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--color-surface)'}>
-                <div style={{
-                  width: 52, height: 52, background: `rgba(59,130,246,0.12)`, border: `1px solid rgba(59,130,246,0.3)`, borderRadius: 'var(--radius-md)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px', color: feat.color
-                }}>
-                  <feat.Icon size={24} strokeWidth={1.7} />
-                </div>
-                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'white', marginBottom: '12px', letterSpacing: '-0.01em' }}>{feat.title}</h3>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.65 }}>{feat.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* ========== TESTIMONIALS ========== */}
-        <section style={{ padding: '0 48px 120px', maxWidth: '1280px', margin: '0 auto' }}>
-          <motion.div {...fadeUp(0)} style={{ marginBottom: '56px' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--color-brand)', letterSpacing: '0.1em', marginBottom: '16px' }}>// Customer stories</div>
-            <h2 style={{ fontSize: 'clamp(28px, 3vw, 42px)', fontWeight: 700, color: 'white', letterSpacing: '-0.02em', marginBottom: '12px' }}>Trusted by data teams worldwide</h2>
-            <p style={{ color: 'var(--color-text-secondary)' }}>Used in production by Fortune 500s and fast-growing startups.</p>
-          </motion.div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-            {testimonials.map((t, idx) => (
-              <motion.div key={idx} {...fadeUp(idx * 0.08)} style={{
-                background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                padding: '32px', transition: 'all var(--transition-base)'
-              }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-                <div style={{ display: 'flex', gap: '3px', marginBottom: '20px', color: '#f59e0b' }}>
-                  {[...Array(5)].map((_, i) => <CheckCircle2 key={i} size={14} fill="#f59e0b" stroke="none" />)}
-                </div>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.7, marginBottom: '24px', fontStyle: 'normal' }}>"{t.quote}"</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 'var(--radius-full)', background: 'linear-gradient(135deg, var(--color-brand), #6366f1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: 'white'
-                  }}>{t.initial}</div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}>{t.name}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>{t.role}</div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* ========== CTA SECTION ========== */}
-        <motion.div {...fadeUp(0)} style={{
-          margin: '0 48px 80px', padding: '80px 64px', background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(99,102,241,0.04) 100%)',
-          border: '1px solid rgba(59,130,246,0.25)', borderRadius: 'var(--radius-2xl)', textAlign: 'center', position: 'relative', overflow: 'hidden'
-        }}>
-          <h2 style={{ fontSize: 'clamp(28px, 3vw, 44px)', fontWeight: 700, color: 'white', letterSpacing: '-0.02em', marginBottom: '16px' }}>Ready to scale your web intelligence?</h2>
-          <p style={{ fontSize: 'var(--text-md)', color: 'var(--color-text-secondary)', maxWidth: '520px', margin: '0 auto 40px' }}>Join leading organizations extracting clean, structured data at enterprise volume.</p>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/dashboard" style={{
-              background: 'var(--color-brand)', color: 'white', padding: '14px 36px', borderRadius: 'var(--radius-sm)', fontWeight: 600, textDecoration: 'none', transition: 'all var(--transition-fast)'
-            }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-brand-dark)'; e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-brand)'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}>
-              Enter Dashboard <ArrowRight size={16} style={{ marginLeft: 6 }} />
-            </Link>
-            <button style={{
-              background: 'transparent', border: `1px solid var(--color-border)`, color: 'var(--color-text-secondary)', padding: '14px 36px', borderRadius: 'var(--radius-sm)', fontWeight: 500, cursor: 'pointer', transition: 'all var(--transition-fast)'
-            }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; e.currentTarget.style.color = 'white'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}>
-              Talk to sales
-            </button>
-          </div>
-        </motion.div>
-
-        {/* ========== FOOTER ========== */}
-        <footer style={{ borderTop: '1px solid var(--color-border)', padding: '40px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: '8px', color: 'white' }}>Webby</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>© 2026 Webby · Enterprise Web Intelligence</div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', border: '1px solid var(--color-border)', padding: '3px 8px', borderRadius: 'var(--radius-xs)', color: 'var(--color-text-muted)' }}>SOC 2</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', border: '1px solid var(--color-border)', padding: '3px 8px', borderRadius: 'var(--radius-xs)', color: 'var(--color-text-muted)' }}>GDPR</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '32px' }}>
-            {['Privacy', 'Terms', 'Docs', 'Status'].map(item => (
-              <button key={item} style={{
-                fontSize: 'var(--text-sm)',
-                color: 'var(--color-text-muted)',
-                textDecoration: 'none',
-                transition: 'color 0.2s',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text-primary)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}>{item}</button>
-            ))}
-          </div>
-        </footer>
-      </div>
-    </>
+      {/* Mobile menu responsive CSS */}
+      <style>
+        {`
+          @media (max-width: 880px) {
+            .hero-grid {
+              grid-template-columns: 1fr !important;
+              gap: 48px !important;
+              text-align: center;
+            }
+            .hero-grid h1 {
+              font-size: 40px !important;
+            }
+            .hero-grid p {
+              margin-left: auto;
+              margin-right: auto;
+            }
+            nav .desktop-nav {
+              display: none;
+            }
+            .mobile-menu-btn {
+              display: block !important;
+            }
+            .stats-grid {
+              grid-template-columns: repeat(2, 1fr) !important;
+              gap: 24px;
+            }
+            .feature-grid {
+              grid-template-columns: 1fr !important;
+            }
+          }
+          @media (min-width: 881px) {
+            .mobile-menu-btn {
+              display: none !important;
+            }
+          }
+          @media (max-width: 640px) {
+            .stats-grid {
+              grid-template-columns: 1fr !important;
+            }
+            .container {
+              padding: 0 16px;
+            }
+          }
+        `}
+      </style>
+    </div>
   );
 };
 
