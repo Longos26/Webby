@@ -412,7 +412,7 @@ const HomePage = () => {
               ))}
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <PrimaryButton to="/dashboard" icon={<ArrowRight size={16} />}>
+              <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>
                 Get started
               </PrimaryButton>
             </div>
@@ -497,8 +497,8 @@ const HomePage = () => {
               The platform engineering teams trust for high-volume scraping, intelligent parsing, and reliable data delivery — without the ops overhead.
             </p>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <PrimaryButton to="/dashboard" icon={<ArrowRight size={16} />}>
-                Launch dashboard
+              <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>
+                Get started
               </PrimaryButton>
               <SecondaryButton>Request demo</SecondaryButton>
             </div>
