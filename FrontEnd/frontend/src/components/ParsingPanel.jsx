@@ -1,536 +1,824 @@
+// frontend/src/components/ParsingPanel.jsx - MongoDB Atlas Enterprise Edition
+
 import React, { useState, useEffect } from 'react';
 import {
   Wand2, Copy, Download, CheckCircle, AlertCircle,
   Clock, RefreshCw, Code, Table, List, Zap, Sparkles,
-  X, ChevronDown, Brain, Hash, Type,
+  X, ChevronDown, Brain, Hash, Type, FileText,
+  Eye, EyeOff, Loader2
 } from 'lucide-react';
 import api from '../api';
 
 // ============================================================
-// ANTI-GENERIC UI/UX ENFORCEMENT v2.0 - PARSING PANEL
-// - No nested card anti-pattern
-// - Visible borders (10%+ contrast)
-// - No emoji icons (Lucide only)
-// - No em dashes in UI copy
-// - 60-30-10 color ratio enforced
-// - Subtle shadows, consistent radius scale
-// - Purposeful animation layer
+// MONGODB ATLAS ENTERPRISE DESIGN SYSTEM
 // ============================================================
 
 const STYLES = `
-  .pp-root {
-    --color-brand:       hsl(177, 70%, 42%);
-    --color-brand-light: hsla(177, 70%, 42%, 0.12);
-    --color-brand-dark:  hsl(177, 70%, 32%);
-    --color-success:     hsl(142, 76%, 36%);
-    --color-success-dim: hsla(142, 76%, 36%, 0.12);
-    --color-warning:     hsl(38, 92%, 50%);
-    --color-warning-dim: hsla(38, 92%, 50%, 0.12);
-    --color-error:       hsl(0, 84%, 60%);
-    --color-error-dim:   hsla(0, 84%, 60%, 0.12);
-    --color-canvas:      hsl(222, 47%, 5%);
-    --color-surface:     hsl(224, 35%, 8%);
-    --color-surface-1:   hsl(224, 35%, 8%);
-    --color-surface-2:   hsl(226, 30%, 12%);
-    --color-surface-3:   hsl(228, 28%, 16%);
-    --color-text-primary:   hsl(210, 20%, 98%);
-    --color-text-secondary: hsl(216, 12%, 68%);
-    --color-text-muted:     hsl(218, 15%, 48%);
-    --color-border:        hsla(0, 0%, 100%, 0.08);
-    --color-border-strong: hsla(0, 0%, 100%, 0.16);
-    --color-border-focus:  var(--color-brand);
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.16);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.24);
-    --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.38);
-    --radius-xs:   4px;
-    --radius-sm:   6px;
-    --radius-md:   10px;
-    --radius-lg:   14px;
-    --radius-xl:   18px;
-    --radius-2xl:  24px;
-    --radius-full: 9999px;
-    --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
-    --transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
-    --transition-slow: 320ms cubic-bezier(0.16, 1, 0.3, 1);
-    --text-xs:   0.75rem;
-    --text-sm:   0.8125rem;
-    --text-base: 0.9375rem;
-    --text-md:   1.0625rem;
-    --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  /* Enterprise Design Tokens - MongoDB Atlas Inspired */
+  .parsing-root {
+    --color-mdb-green: #00ED64;
+    --color-mdb-green-dark: #00C355;
+    --color-canvas: #0D1117;
+    --color-surface: #161B22;
+    --color-surface-elevated: #1F242E;
+    --color-border: #30363D;
+    --color-border-subtle: #21262D;
+    
+    --color-text-primary: #F0F6FC;
+    --color-text-secondary: #8B949E;
+    --color-text-muted: #6E7681;
+    
+    --color-success: #00ED64;
+    --color-warning: #D29922;
+    --color-error: #F85149;
+    --color-info: #58A6FF;
+    
+    --color-accent-dim: rgba(0, 237, 100, 0.12);
+    --color-accent-border: rgba(0, 237, 100, 0.25);
+    
+    --shadow-sm: 0 1px 0 0 rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+    
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    
+    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
+    
+    --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+  }
+
+  /* Base */
+  .parsing-root * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
   /* Animations */
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  
   @keyframes fadeOut {
     from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.95); }
+    to { opacity: 0; transform: scale(0.98); }
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
   @keyframes shimmer {
-    0% { background-position: -500px 0; }
-    100% { background-position: 500px 0; }
+    0% { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
   }
 
-  .fade-in { animation: fadeIn 0.3s ease forwards; }
-  .spin { animation: spin 0.7s linear infinite; }
+  .fade-in {
+    animation: fadeSlideIn 0.2s ease-out;
+  }
+  
+  .spin {
+    animation: spin 0.6s linear infinite;
+  }
 
   /* Overlay */
-  .pp-overlay {
-    position: fixed; inset: 0; z-index: 10000;
-    display: flex; align-items: center; justify-content: center;
+  .parsing-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 24px;
-    background: rgba(4, 8, 14, 0.85);
-    backdrop-filter: blur(14px);
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(4px);
   }
-  .pp-overlay.closing {
-    animation: fadeOut 0.16s ease forwards;
+  
+  .parsing-overlay.closing {
+    animation: fadeOut 0.15s ease forwards;
   }
 
   /* Modal */
-  .pp-modal {
-    width: 100%; max-width: 680px; max-height: 90vh;
-    display: flex; flex-direction: column;
-    background: var(--color-canvas);
+  .parsing-modal {
+    width: 100%;
+    max-width: 720px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
   }
-  .pp-modal.closing {
-    animation: fadeOut 0.16s ease forwards;
+  
+  .parsing-modal.closing {
+    animation: fadeOut 0.15s ease forwards;
   }
 
   /* Header */
-  .pp-header {
-    padding: 20px 24px 18px;
-    display: flex; align-items: center; justify-content: space-between;
+  .parsing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
     border-bottom: 1px solid var(--color-border);
-    background: linear-gradient(180deg, rgba(32,178,170,0.04) 0%, transparent 100%);
-    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.01);
   }
-  .pp-header-left {
-    display: flex; align-items: center; gap: 14px; min-width: 0;
+  
+  .header-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
   }
-  .pp-icon {
-    width: 44px; height: 44px; border-radius: var(--radius-md);
-    background: rgba(32,178,170,0.12);
-    border: 1px solid rgba(32,178,170,0.25);
-    display: flex; align-items: center; justify-content: center;
-    color: #20b2aa;
+  
+  .header-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent-dim);
+    border: 1px solid var(--color-accent-border);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-mdb-green);
   }
-  .pp-title {
-    font-size: var(--text-base); font-weight: 600;
-    color: var(--color-text-primary); letter-spacing: -0.02em;
+  
+  .header-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 2px;
   }
-  .pp-sub {
-    font-size: var(--text-xs); color: var(--color-text-muted);
-    margin-top: 2px; font-family: monospace;
+  
+  .header-subtitle {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--color-text-muted);
   }
-  .pp-x {
-    width: 32px; height: 32px; border-radius: var(--radius-sm);
-    background: transparent; border: 1px solid var(--color-border);
-    color: var(--color-text-muted); cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all var(--transition-base);
+  
+  .close-btn {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
   }
-  .pp-x:hover {
-    background: rgba(239,68,68,0.12);
-    color: #ef4444;
-    border-color: rgba(239,68,68,0.25);
+  
+  .close-btn:hover {
+    background: rgba(248, 81, 73, 0.1);
+    border-color: var(--color-error);
+    color: var(--color-error);
   }
 
   /* Body */
-  .pp-body {
-    flex: 1; overflow-y: auto; padding: 24px;
-    display: flex; flex-direction: column; gap: 24px;
+  .parsing-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
-  .pp-body::-webkit-scrollbar { width: 4px; }
-  .pp-body::-webkit-scrollbar-track { background: transparent; }
-  .pp-body::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
+  
+  .parsing-body::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .parsing-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .parsing-body::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
 
-  /* Section Header */
-  .pp-section-header {
-    font-size: var(--text-xs); font-weight: 700;
-    color: var(--color-text-muted); text-transform: uppercase;
-    letter-spacing: 0.1em; display: flex; align-items: center; gap: 8px;
+  /* Section Headers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 16px;
   }
-  .pp-section-header::after {
-    content: ''; flex: 1; height: 1px;
+  
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+  }
+  
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
     background: var(--color-border);
+    margin-left: 12px;
   }
 
-  /* Prompt Panel */
-  .pp-prompt {
-    background: var(--color-surface-1);
+  /* Prompt Card */
+  .prompt-card {
+    background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: 20px;
   }
-  .pp-label {
-    font-size: var(--text-xs); font-weight: 600;
-    color: var(--color-text-muted); margin-bottom: 10px;
-    text-transform: uppercase; letter-spacing: 0.07em;
+  
+  .prompt-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  .pp-textarea {
-    width: 100%; box-sizing: border-box;
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-sm);
+  
+  .prompt-textarea {
+    width: 100%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     padding: 12px 14px;
-    color: var(--color-text-secondary);
-    font-size: var(--text-sm); line-height: 1.6;
-    font-family: inherit; resize: none; outline: none;
-    transition: all var(--transition-base);
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    transition: all var(--transition);
   }
-  .pp-textarea:focus {
-    border-color: var(--color-border-focus);
-    box-shadow: 0 0 0 3px rgba(32,178,170,0.08);
+  
+  .prompt-textarea:focus {
+    border-color: var(--color-mdb-green);
+    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.1);
   }
-  .pp-textarea::placeholder {
+  
+  .prompt-textarea::placeholder {
     color: var(--color-text-muted);
   }
 
-  /* Chips */
-  .pp-chips-wrap { margin-top: 16px; }
-  .pp-chips-label {
-    font-size: var(--text-xs); color: var(--color-text-muted);
-    font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
-    display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  /* Quick Prompts */
+  .quick-prompts {
+    margin-top: 16px;
   }
-  .pp-chips {
-    display: flex; flex-wrap: wrap; gap: 8px;
+  
+  .quick-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  .pp-chip {
-    padding: 5px 12px; border-radius: var(--radius-full);
-    background: transparent; border: 1px solid var(--color-border-strong);
-    font-size: var(--text-xs); color: var(--color-text-muted);
-    cursor: pointer; transition: all var(--transition-base);
+  
+  .prompt-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  .pp-chip:hover {
-    background: rgba(32,178,170,0.12);
-    color: #20b2aa;
-    border-color: rgba(32,178,170,0.25);
+  
+  .prompt-chip {
+    padding: 5px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  
+  .prompt-chip:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-text-muted);
+    color: var(--color-text-primary);
   }
 
   /* Primary Button */
-  .pp-btn-primary {
-    width: 100%; margin-top: 20px; padding: 11px;
-    border-radius: var(--radius-sm);
-    font-size: var(--text-sm); font-weight: 600;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    cursor: pointer; border: none;
-    background: linear-gradient(135deg, #1a6b66 0%, #20b2aa 100%);
-    color: white; transition: all var(--transition-base);
+  .extract-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 10px 16px;
+    background: var(--color-mdb-green);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #0D1117;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all var(--transition);
   }
-  .pp-btn-primary:hover:not(:disabled) {
+  
+  .extract-btn:hover:not(:disabled) {
+    background: var(--color-mdb-green-dark);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
   }
-  .pp-btn-primary:disabled {
-    opacity: 0.5; cursor: not-allowed;
+  
+  .extract-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
-  .pp-hint {
-    text-align: center; margin-top: 8px;
-    font-size: var(--text-xs); color: var(--color-text-muted);
+  
+  .shortcut-hint {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--color-text-muted);
   }
 
   /* Error Alert */
-  .pp-error {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 12px 14px; border-radius: var(--radius-sm);
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(239,68,68,0.25);
-    font-size: var(--text-sm); color: #f87171;
+  .error-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.25);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: var(--color-error);
+  }
+  
+  .error-close {
+    background: none;
+    border: none;
+    color: var(--color-error);
+    cursor: pointer;
+    padding: 2px;
   }
 
   /* Result Card */
-  .pp-result-card {
+  .result-card {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    transition: all var(--transition-base);
+    transition: all var(--transition);
   }
-  .pp-result-card:hover {
-    border-color: var(--color-border-strong);
-    box-shadow: var(--shadow-sm);
+  
+  .result-card:hover {
+    border-color: var(--color-border-subtle);
   }
-  .pp-result-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px;
-    background: var(--color-surface-1);
+  
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, 0.01);
     border-bottom: 1px solid var(--color-border);
   }
-  .pp-result-title {
-    display: flex; align-items: center; gap: 7px;
-    font-size: var(--text-xs); font-weight: 700;
-    color: #20b2aa; text-transform: uppercase; letter-spacing: 0.07em;
+  
+  .result-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-mdb-green);
   }
-  .pp-result-actions {
-    display: flex; align-items: center; gap: 8px;
+  
+  .result-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .pp-result-body {
-    padding: 16px;
-    background: var(--color-surface-2);
-    max-height: 280px; overflow-y: auto;
+  
+  .result-body {
+    padding: 18px;
+    background: var(--color-canvas);
+    max-height: 320px;
+    overflow-y: auto;
   }
-  .pp-pre {
-    margin: 0; font-size: var(--text-xs); line-height: 1.7;
+  
+  .result-pre {
+    margin: 0;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    line-height: 1.6;
     color: var(--color-text-secondary);
-    font-family: monospace; white-space: pre-wrap; word-break: break-word;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
-  .pp-formatted {
-    font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.7;
+  
+  .result-formatted {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
   }
-  .pp-formatted h2 {
-    font-size: var(--text-sm); font-weight: 600;
-    color: var(--color-text-primary); margin: 14px 0 6px;
+  
+  .result-formatted h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 16px 0 8px;
   }
-  .pp-formatted h3 {
-    font-size: var(--text-sm); font-weight: 600;
-    color: var(--color-text-secondary); margin: 10px 0 4px;
+  
+  .result-formatted h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin: 12px 0 6px;
   }
-  .pp-formatted p { margin: 0 0 6px; }
-  .pp-formatted li { margin: 2px 0 2px 18px; }
+  
+  .result-formatted p {
+    margin: 0 0 8px;
+  }
+  
+  .result-formatted ul,
+  .result-formatted ol {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  
+  .result-formatted li {
+    margin: 2px 0;
+  }
+  
+  .result-formatted code {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
 
-  /* Stats */
-  .pp-stats {
-    display: flex; gap: 20px;
-    padding: 12px 16px;
-    background: var(--color-surface-1);
+  /* Stats Bar */
+  .result-stats {
+    display: flex;
+    gap: 20px;
+    padding: 10px 18px;
+    background: rgba(255, 255, 255, 0.01);
     border-top: 1px solid var(--color-border);
   }
-  .pp-stat {
-    display: flex; align-items: center; gap: 6px;
-    font-size: var(--text-xs); color: var(--color-text-muted);
+  
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--color-text-muted);
   }
-  .pp-stat strong {
-    color: var(--color-text-secondary); font-weight: 600;
+  
+  .stat-value {
+    font-weight: 600;
+    color: var(--color-text-secondary);
   }
 
   /* View Tabs */
-  .pp-view-tabs {
-    display: flex; gap: 2px;
-    background: var(--color-surface-2);
+  .view-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm); padding: 2px;
+    border-radius: var(--radius-md);
+    padding: 2px;
   }
-  .pp-view-tab {
-    padding: 4px 10px; border-radius: var(--radius-xs);
-    font-size: var(--text-xs); font-weight: 600;
-    color: var(--color-text-muted); cursor: pointer;
-    background: transparent; border: none;
-    display: flex; align-items: center; gap: 5px;
-    transition: all var(--transition-base);
+  
+  .view-tab {
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all var(--transition);
   }
-  .pp-view-tab.active {
-    background: var(--color-surface-1);
+  
+  .view-tab:hover {
     color: var(--color-text-primary);
   }
-  .pp-view-tab:hover:not(.active) {
-    color: var(--color-text-secondary);
+  
+  .view-tab.active {
+    background: var(--color-accent-dim);
+    color: var(--color-mdb-green);
   }
 
-  /* Action Icon Button */
-  .pp-icon-btn {
-    width: 28px; height: 28px; border-radius: var(--radius-sm);
-    background: transparent; border: 1px solid var(--color-border);
-    color: var(--color-text-muted); cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all var(--transition-base);
+  /* Action Icon Buttons */
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
   }
-  .pp-icon-btn:hover {
-    background: rgba(32,178,170,0.12);
-    color: #20b2aa;
-    border-color: rgba(32,178,170,0.25);
+  
+  .icon-btn:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-text-muted);
+    color: var(--color-text-primary);
   }
-  .pp-icon-btn.success {
-    color: #10b981;
-    border-color: rgba(16,185,129,0.25);
+  
+  .icon-btn.success {
+    color: var(--color-success);
+    border-color: var(--color-success);
   }
 
   /* History Items */
-  .pp-history-item {
-    background: var(--color-surface-1);
+  .history-item {
+    background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    overflow: hidden;
-    transition: all var(--transition-base);
     margin-bottom: 8px;
+    overflow: hidden;
+    transition: all var(--transition);
   }
-  .pp-history-item:hover {
-    border-color: var(--color-border-strong);
-    transform: translateY(-1px);
+  
+  .history-item:hover {
+    border-color: var(--color-border-subtle);
   }
-  .pp-history-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; cursor: pointer;
+  
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
   }
-  .pp-history-desc {
-    font-size: var(--text-sm); color: var(--color-text-secondary);
-    font-weight: 500; flex: 1; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  
+  .history-description {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .pp-history-date {
-    font-size: var(--text-xs); color: var(--color-text-muted);
-    flex-shrink: 0; font-family: monospace;
-  }
-  .pp-history-actions {
-    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-  }
-  .pp-chevron {
+  
+  .history-date {
+    font-size: 11px;
+    font-family: var(--font-mono);
     color: var(--color-text-muted);
-    transition: transform var(--transition-base);
+    flex-shrink: 0;
+    margin: 0 12px;
   }
-  .pp-chevron.open {
+  
+  .history-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  
+  .chevron-icon {
+    color: var(--color-text-muted);
+    transition: transform var(--transition);
+  }
+  
+  .chevron-icon.open {
     transform: rotate(180deg);
   }
-  .pp-history-body {
+  
+  .history-body {
     border-top: 1px solid var(--color-border);
     padding: 14px 16px;
-    max-height: 200px; overflow-y: auto;
-    background: var(--color-surface-2);
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
   }
 
-  /* Skeleton */
-  .pp-skeleton {
-    height: 11px; border-radius: var(--radius-xs);
-    background: linear-gradient(90deg, var(--color-surface-1) 25%, var(--color-border) 50%, var(--color-surface-1) 75%);
-    background-size: 500px 100%;
+  /* Skeleton Loader */
+  .skeleton {
+    background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-border) 50%, var(--color-surface) 75%);
+    background-size: 200px 100%;
     animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+  }
+  
+  .skeleton-item {
+    height: 52px;
+    margin-bottom: 8px;
   }
 
   /* Empty State */
-  .pp-empty {
-    text-align: center; padding: 48px 24px;
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
   }
-  .pp-empty-icon {
-    width: 56px; height: 56px; border-radius: var(--radius-lg);
-    background: rgba(32,178,170,0.08);
-    border: 1px solid rgba(32,178,170,0.2);
-    display: flex; align-items: center; justify-content: center;
-    color: #20b2aa;
+  
+  .empty-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--color-accent-dim);
+    border: 1px solid var(--color-accent-border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-mdb-green);
   }
-  .pp-empty-title {
-    font-size: var(--text-base); font-weight: 600;
+  
+  .empty-title {
+    font-size: 14px;
+    font-weight: 600;
     color: var(--color-text-secondary);
   }
-  .pp-empty-sub {
-    font-size: var(--text-sm); color: var(--color-text-muted);
-    max-width: 280px; line-height: 1.5;
+  
+  .empty-description {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    max-width: 260px;
+    line-height: 1.5;
   }
 
   /* Footer */
-  .pp-footer {
+  .parsing-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 14px 24px;
     border-top: 1px solid var(--color-border);
-    display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0; background: var(--color-surface-1);
+    background: rgba(255, 255, 255, 0.01);
   }
-  .pp-footer-meta {
-    font-size: var(--text-xs); color: var(--color-text-muted);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .pp-close-btn {
-    padding: 7px 20px; border-radius: var(--radius-sm);
-    font-size: var(--text-sm); font-weight: 600; cursor: pointer;
-    background: transparent; border: 1px solid var(--color-border-strong);
+  
+  .footer-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
     color: var(--color-text-muted);
-    transition: all var(--transition-base);
   }
-  .pp-close-btn:hover {
-    background: rgba(32,178,170,0.12);
-    color: #20b2aa;
-    border-color: rgba(32,178,170,0.25);
+  
+  .footer-close {
+    padding: 6px 16px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  
+  .footer-close:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-text-muted);
+    color: var(--color-text-primary);
   }
 `;
 
-// Helper to inject styles
-if (typeof document !== 'undefined' && !document.getElementById('pp-styles')) {
+// Inject styles
+if (typeof document !== 'undefined' && !document.getElementById('parsing-styles')) {
   const style = document.createElement('style');
-  style.id = 'pp-styles';
+  style.id = 'parsing-styles';
   style.textContent = STYLES;
   document.head.appendChild(style);
 }
 
-// Format content based on view mode
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+
 const formatContent = (content, mode) => {
-  if (mode === 'raw') return { type: 'pre', text: content };
+  if (mode === 'raw') {
+    return { type: 'pre', text: content };
+  }
   if (mode === 'json') {
     try {
-      return { type: 'pre', text: JSON.stringify(JSON.parse(content), null, 2) };
+      const parsed = JSON.parse(content);
+      return { type: 'pre', text: JSON.stringify(parsed, null, 2) };
     } catch {
       return { type: 'pre', text: content };
     }
   }
-  // Formatted markdown-like rendering
-  const html = content.split('\n').map(line => {
-    if (line.startsWith('## ')) return `<h2>${line.slice(3)}</h2>`;
-    if (line.startsWith('### ')) return `<h3>${line.slice(4)}</h3>`;
-    if (line.startsWith('- ')) return `<li>${line.slice(2)}</li>`;
-    if (/^\d+\. /.test(line)) return `<li>${line}</li>`;
-    return line ? `<p>${line}</p>` : '<br/>';
+  // Formatted mode - simple markdown-like rendering
+  const lines = content.split('\n');
+  const html = lines.map(line => {
+    if (line.startsWith('## ')) {
+      return `<h2>${escapeHtml(line.slice(3))}</h2>`;
+    }
+    if (line.startsWith('### ')) {
+      return `<h3>${escapeHtml(line.slice(4))}</h3>`;
+    }
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      return `<li>${escapeHtml(line.slice(2))}</li>`;
+    }
+    if (/^\d+\. /.test(line)) {
+      return `<li>${escapeHtml(line)}</li>`;
+    }
+    if (line.trim() === '') {
+      return '<br/>';
+    }
+    return `<p>${escapeHtml(line)}</p>`;
   }).join('');
   return { type: 'html', html };
 };
 
-// Copy Button Component
+const escapeHtml = (text) => {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+};
+
+// ============================================================
+// COPY BUTTON
+// ============================================================
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
+  
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  
   return (
-    <button className={`pp-icon-btn ${copied ? 'success' : ''}`} onClick={handleCopy} title={copied ? 'Copied' : 'Copy'}>
+    <button className={`icon-btn ${copied ? 'success' : ''}`} onClick={handleCopy} title={copied ? 'Copied' : 'Copy'}>
       {copied ? <CheckCircle size={12} /> : <Copy size={12} />}
     </button>
   );
 }
 
-// Download Button Component
+// ============================================================
+// DOWNLOAD BUTTON
+// ============================================================
+
 function DownloadButton({ content, jobId }) {
   const handleDownload = () => {
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `extracted_${jobId}_${Date.now()}.txt`;
+    a.download = `extract_${jobId}_${Date.now()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  
   return (
-    <button className="pp-icon-btn" onClick={handleDownload} title="Download">
+    <button className="icon-btn" onClick={handleDownload} title="Download">
       <Download size={12} />
     </button>
   );
 }
 
-// View Tabs Component
+// ============================================================
+// VIEW TABS
+// ============================================================
+
 function ViewTabs({ currentView, onChange }) {
   const tabs = [
-    { id: 'formatted', label: 'Formatted', icon: List },
-    { id: 'raw', label: 'Raw', icon: Code },
-    { id: 'json', label: 'JSON', icon: Table },
+    { id: 'formatted', label: 'Formatted', icon: Eye },
+    { id: 'raw', label: 'Raw', icon: FileText },
+    { id: 'json', label: 'JSON', icon: Code },
   ];
+  
   return (
-    <div className="pp-view-tabs">
+    <div className="view-tabs">
       {tabs.map(tab => {
         const Icon = tab.icon;
         return (
           <button
             key={tab.id}
-            className={`pp-view-tab ${currentView === tab.id ? 'active' : ''}`}
+            className={`view-tab ${currentView === tab.id ? 'active' : ''}`}
             onClick={() => onChange(tab.id)}
           >
             <Icon size={10} /> {tab.label}
@@ -541,106 +829,141 @@ function ViewTabs({ currentView, onChange }) {
   );
 }
 
-// Result Content Component
+// ============================================================
+// RESULT CONTENT
+// ============================================================
+
 function ResultContent({ content, viewMode }) {
   const formatted = formatContent(content, viewMode);
+  
   if (formatted.type === 'pre') {
-    return <pre className="pp-pre">{formatted.text}</pre>;
+    return <pre className="result-pre">{formatted.text}</pre>;
   }
-  return <div className="pp-formatted" dangerouslySetInnerHTML={{ __html: formatted.html }} />;
+  
+  return (
+    <div className="result-formatted" dangerouslySetInnerHTML={{ __html: formatted.html }} />
+  );
 }
 
-// Result Stats Component
+// ============================================================
+// RESULT STATS
+// ============================================================
+
 function ResultStats({ content }) {
   const words = content.split(/\s+/).filter(Boolean).length;
   const chars = content.length;
   const lines = content.split('\n').length;
+  
   return (
-    <div className="pp-stats">
-      <div className="pp-stat"><Type size={10} /> <strong>{words.toLocaleString()}</strong> words</div>
-      <div className="pp-stat"><Hash size={10} /> <strong>{chars.toLocaleString()}</strong> chars</div>
-      <div className="pp-stat"><List size={10} /> <strong>{lines}</strong> lines</div>
+    <div className="result-stats">
+      <div className="stat-item">
+        <Type size={10} /> <span className="stat-value">{words.toLocaleString()}</span> words
+      </div>
+      <div className="stat-item">
+        <Hash size={10} /> <span className="stat-value">{chars.toLocaleString()}</span> chars
+      </div>
+      <div className="stat-item">
+        <List size={10} /> <span className="stat-value">{lines}</span> lines
+      </div>
     </div>
   );
 }
 
-// History Item Component
+// ============================================================
+// HISTORY ITEM
+// ============================================================
+
 function HistoryItem({ result, jobId }) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  
   return (
-    <div className="pp-history-item">
-      <div className="pp-history-header" onClick={() => setOpen(!open)}>
-        <div className="pp-history-desc">{result.parse_description || 'Extraction result'}</div>
-        <div className="pp-history-date">{new Date(result.created_at).toLocaleString()}</div>
-        <div className="pp-history-actions">
+    <div className="history-item">
+      <div className="history-header" onClick={() => setIsOpen(!isOpen)}>
+        <div className="history-description">
+          {result.parse_description || 'Extraction result'}
+        </div>
+        <div className="history-date">
+          {new Date(result.created_at).toLocaleString()}
+        </div>
+        <div className="history-actions" onClick={e => e.stopPropagation()}>
           <CopyButton text={result.parsed_content} />
           <DownloadButton content={result.parsed_content} jobId={jobId} />
-          <ChevronDown size={13} className={`pp-chevron ${open ? 'open' : ''}`} />
+          <ChevronDown size={14} className={`chevron-icon ${isOpen ? 'open' : ''}`} />
         </div>
       </div>
-      {open && (
-        <div className="pp-history-body">
-          <pre className="pp-pre">{result.parsed_content.substring(0, 500)}{result.parsed_content.length > 500 && '...'}</pre>
+      {isOpen && (
+        <div className="history-body">
+          <pre className="result-pre">
+            {result.parsed_content.substring(0, 500)}
+            {result.parsed_content.length > 500 && '...'}
+          </pre>
         </div>
       )}
     </div>
   );
 }
 
-// Main ParsingPanel Component
-const SUGGESTIONS = [
+// ============================================================
+// MAIN PARSING PANEL
+// ============================================================
+
+const QUICK_PROMPTS = [
   'Extract all product names and prices',
   'Find all email addresses and phone numbers',
   'Extract article titles, authors, and dates',
-  'Get all image URLs and alt text',
+  'Get all image URLs with alt text',
   'Extract technical specifications',
-  'Find contact information',
+  'Find contact information from the page',
   'Extract all links with anchor text',
   'Get main headings and their content',
 ];
 
 export default function ParsingPanel({ jobId, jobName, onClose }) {
   const [description, setDescription] = useState('');
-  const [parsing, setParsing] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState('formatted');
-  const [closing, setClosing] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [error, setError] = useState(null);
-
+  
   const handleClose = () => {
-    setClosing(true);
-    setTimeout(onClose, 180);
+    setIsClosing(true);
+    setTimeout(onClose, 160);
   };
-
+  
   useEffect(() => {
     if (jobId) {
       fetchHistory();
     }
-    const handleEsc = (e) => { if (e.key === 'Escape') handleClose(); };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+    
+    return () => window.removeEventListener('keydown', handleEscape);
   }, [jobId]);
-
-
+  
   const fetchHistory = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const res = await api.get(`/api/scraping/jobs/${jobId}/parsed-results`);
       setHistory(res.data.parsed_results || []);
     } catch (err) {
       console.error('Failed to fetch history:', err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-
+  
   const handleParse = async () => {
     if (!description.trim()) return;
-    setParsing(true);
+    
+    setIsParsing(true);
     setError(null);
+    
     try {
       const res = await api.post(`/api/scraping/jobs/${jobId}/parse`, {
         dom_content: '',
@@ -652,117 +975,178 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
     } catch (err) {
       setError(err.response?.data?.detail || 'Extraction failed. Please try again.');
     } finally {
-      setParsing(false);
+      setIsParsing(false);
     }
   };
-
+  
+  const handleKeyDown = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      handleParse();
+    }
+  };
+  
   return (
-    <div className={`pp-root pp-overlay ${closing ? 'closing' : ''}`} onClick={handleClose}>
-      <div className={`pp-modal ${closing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+    <div className={`parsing-root parsing-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+      <div className={`parsing-modal ${isClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="pp-header">
-          <div className="pp-header-left">
-            <div className="pp-icon"><Brain size={18} /></div>
+        <div className="parsing-header">
+          <div className="header-info">
+            <div className="header-icon">
+              <Brain size={20} />
+            </div>
             <div>
-              <div className="pp-title">Extract Information</div>
-              <div className="pp-sub">{jobName || jobId}</div>
+              <div className="header-title">Extract Information</div>
+              <div className="header-subtitle">{jobName || jobId}</div>
             </div>
           </div>
-          <button className="pp-x" onClick={handleClose}><X size={14} /></button>
+          <button className="close-btn" onClick={handleClose}>
+            <X size={16} />
+          </button>
         </div>
-
+        
         {/* Body */}
-        <div className="pp-body">
+        <div className="parsing-body">
           {/* Error Alert */}
           {error && (
-            <div className="pp-error">
-              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            <div className="error-alert">
+              <AlertCircle size={14} />
               <span style={{ flex: 1 }}>{error}</span>
-              <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171' }}><X size={12} /></button>
+              <button className="error-close" onClick={() => setError(null)}>
+                <X size={12} />
+              </button>
             </div>
           )}
-
+          
           {/* Prompt Section */}
-          <div className="pp-prompt">
-            <div className="pp-label">What do you want to extract?</div>
+          <div className="prompt-card">
+            <div className="prompt-label">
+              <Zap size={10} /> Extraction Description
+            </div>
             <textarea
-              className="pp-textarea"
+              className="prompt-textarea"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleParse(); }}
-              placeholder="Example: Extract all product names, prices, and availability from the scraped content"
+              onKeyDown={handleKeyDown}
+              placeholder="Describe what you want to extract from the scraped content..."
               rows={3}
             />
-            <div className="pp-chips-wrap">
-              <div className="pp-chips-label"><Zap size={10} /> Quick prompts</div>
-              <div className="pp-chips">
-                {SUGGESTIONS.map((s, i) => (
-                  <button key={i} className="pp-chip" onClick={() => setDescription(s)}>{s}</button>
+            
+            <div className="quick-prompts">
+              <div className="quick-label">
+                <Sparkles size={10} /> Quick Prompts
+              </div>
+              <div className="prompt-chips">
+                {QUICK_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    className="prompt-chip"
+                    onClick={() => setDescription(prompt)}
+                  >
+                    {prompt}
+                  </button>
                 ))}
               </div>
             </div>
-            <button className="pp-btn-primary" onClick={handleParse} disabled={parsing || !description.trim()}>
-              {parsing ? <><div className="spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'white', borderRadius: '50%' }} /> Extracting...</> : <><Wand2 size={14} /> Extract Information</>}
+            
+            <button
+              className="extract-btn"
+              onClick={handleParse}
+              disabled={isParsing || !description.trim()}
+            >
+              {isParsing ? (
+                <Loader2 size={14} className="spin" />
+              ) : (
+                <Wand2 size={14} />
+              )}
+              {isParsing ? 'Extracting...' : 'Extract Information'}
             </button>
-            <div className="pp-hint">Press ⌘↵ to run</div>
+            <div className="shortcut-hint">
+              Press ⌘↵ to extract
+            </div>
           </div>
-
+          
           {/* Latest Result */}
           {result && (
             <div>
-              <div className="pp-section-header"><Sparkles size={10} /> Latest extraction</div>
-              <div className="pp-result-card">
-                <div className="pp-result-header">
-                  <div className="pp-result-title"><Sparkles size={11} /> Extracted data</div>
-                  <div className="pp-result-actions">
+              <div className="section-header">
+                <div className="section-title">
+                  <Sparkles size={10} /> Latest Extraction
+                </div>
+              </div>
+              <div className="result-card">
+                <div className="result-header">
+                  <div className="result-title">
+                    <Wand2 size={12} /> Extracted Data
+                  </div>
+                  <div className="result-actions">
                     <ViewTabs currentView={viewMode} onChange={setViewMode} />
                     <CopyButton text={result} />
                     <DownloadButton content={result} jobId={jobId} />
                   </div>
                 </div>
-                <div className="pp-result-body">
+                <div className="result-body">
                   <ResultContent content={result} viewMode={viewMode} />
                 </div>
                 <ResultStats content={result} />
               </div>
             </div>
           )}
-
+          
           {/* History Section */}
           <div>
-            <div className="pp-section-header" style={{ justifyContent: 'space-between' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={10} /> History {history.length > 0 && <span style={{ color: 'var(--color-text-muted)' }}>({history.length})</span>}</span>
-              <button onClick={fetchHistory} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}><RefreshCw size={12} /></button>
+            <div className="section-header">
+              <div className="section-title">
+                <Clock size={10} /> History
+                {history.length > 0 && (
+                  <span style={{ color: 'var(--color-text-muted)', marginLeft: 4 }}>
+                    ({history.length})
+                  </span>
+                )}
+              </div>
+              <button
+                className="icon-btn"
+                onClick={fetchHistory}
+                title="Refresh history"
+              >
+                <RefreshCw size={12} />
+              </button>
             </div>
-
-            {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div className="pp-skeleton" style={{ height: 48 }} />
-                <div className="pp-skeleton" style={{ height: 48, width: '90%' }} />
-                <div className="pp-skeleton" style={{ height: 48, width: '85%' }} />
+            
+            {isLoading ? (
+              <div>
+                <div className="skeleton skeleton-item" />
+                <div className="skeleton skeleton-item" style={{ width: '90%' }} />
+                <div className="skeleton skeleton-item" style={{ width: '85%' }} />
               </div>
             ) : history.length > 0 ? (
-              <div>
-                {history.map(item => <HistoryItem key={item.id} result={item} jobId={jobId} />)}
-              </div>
+              history.map(item => (
+                <HistoryItem key={item.id} result={item} jobId={jobId} />
+              ))
             ) : !result ? (
-              <div className="pp-empty">
-                <div className="pp-empty-icon"><Wand2 size={24} /></div>
-                <div className="pp-empty-title">No extractions yet</div>
-                <div className="pp-empty-sub">Enter a description above to extract specific information from your scraped content</div>
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <Wand2 size={28} />
+                </div>
+                <div className="empty-title">No extractions yet</div>
+                <div className="empty-description">
+                  Enter a description above to extract specific information from your scraped content
+                </div>
               </div>
             ) : null}
           </div>
         </div>
-
+        
         {/* Footer */}
-        <div className="pp-footer">
-          <div className="pp-footer-meta">
-            <Brain size={10} /> AI-powered extraction
-            <span style={{ color: 'var(--color-border-strong)' }}>·</span>
-            {jobName || jobId}
+        <div className="parsing-footer">
+          <div className="footer-meta">
+            <Brain size={10} />
+            <span>AI-powered extraction</span>
+            <span>•</span>
+            <span className="footer-job">{jobName || jobId}</span>
           </div>
-          <button className="pp-close-btn" onClick={handleClose}>Close</button>
+          <button className="footer-close" onClick={handleClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
