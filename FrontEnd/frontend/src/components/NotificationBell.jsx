@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, X, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, X, Trash2, Info, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 import api from '../api';
 
 export default function NotificationBell() {
@@ -12,7 +12,6 @@ export default function NotificationBell() {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      // Use api.notifications.getNotifications
       const data = await api.notifications.getNotifications(50, 0);
       const notificationsList = data.notifications || data || [];
       setNotifications(notificationsList);
@@ -88,12 +87,21 @@ export default function NotificationBell() {
     return date.toLocaleDateString();
   };
 
-  const getTypeStyles = (type) => {
+  const getTypeIcon = (type) => {
     switch (type) {
-      case 'success': return { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.25)', color: '#10b981' };
-      case 'error': return { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.25)', color: '#ef4444' };
-      case 'warning': return { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', color: '#f59e0b' };
-      default: return { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.25)', color: '#3b82f6' };
+      case 'success': return <CheckCircle size={14} />;
+      case 'error': return <AlertCircle size={14} />;
+      case 'warning': return <AlertTriangle size={14} />;
+      default: return <Info size={14} />;
+    }
+  };
+
+  const getTypeColor = (type) => {
+    switch (type) {
+      case 'success': return '#00ED64';
+      case 'error': return '#F85149';
+      case 'warning': return '#D29922';
+      default: return '#58A6FF';
     }
   };
 
@@ -103,9 +111,9 @@ export default function NotificationBell() {
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: 'relative',
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 'var(--radius-full)',
+          background: '#161B22',
+          border: '1px solid #30363D',
+          borderRadius: '8px',
           width: 36,
           height: 36,
           display: 'flex',
@@ -113,27 +121,36 @@ export default function NotificationBell() {
           justifyContent: 'center',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
+          color: '#8B949E',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#00ED64';
+          e.currentTarget.style.color = '#00ED64';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#30363D';
+          e.currentTarget.style.color = '#8B949E';
         }}
       >
-        <Bell size={16} style={{ color: 'var(--color-text-secondary)' }} />
+        <Bell size={16} />
         {unreadCount > 0 && (
           <span
             style={{
               position: 'absolute',
               top: -4,
               right: -4,
-              background: '#ef4444',
+              background: '#F85149',
               color: 'white',
-              fontSize: 9,
-              fontWeight: 700,
-              borderRadius: 'var(--radius-full)',
+              fontSize: 10,
+              fontWeight: 600,
+              borderRadius: '20px',
               minWidth: 16,
               height: 16,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: '0 4px',
-              fontFamily: 'monospace',
+              fontFamily: "'Inter', monospace",
             }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -147,110 +164,149 @@ export default function NotificationBell() {
             position: 'absolute',
             top: 'calc(100% + 8px)',
             right: 0,
-            width: 360,
+            width: 400,
             maxWidth: 'calc(100vw - 32px)',
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: '0 8px 28px rgba(0,0,0,0.24)',
+            background: '#161B22',
+            border: '1px solid #30363D',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
             zIndex: 1000,
             overflow: 'hidden',
           }}
         >
+          {/* Header */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '12px 16px',
-              borderBottom: '1px solid var(--color-border)',
-              background: 'rgba(255,255,255,0.02)',
+              padding: '14px 20px',
+              borderBottom: '1px solid #30363D',
+              background: '#0D1117',
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Notifications</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#F0F6FC' }}>Notifications</span>
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
-                  background: 'none',
+                  gap: 6,
+                  background: 'transparent',
                   border: 'none',
-                  color: 'var(--color-text-muted)',
-                  fontSize: 10,
+                  color: '#8B949E',
+                  fontSize: 12,
+                  fontWeight: 500,
                   cursor: 'pointer',
-                  fontFamily: 'monospace',
+                  fontFamily: "'Inter', sans-serif",
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#21262D';
+                  e.currentTarget.style.color = '#00ED64';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#8B949E';
                 }}
               >
-                <CheckCheck size={10} /> Mark all read
+                <CheckCheck size={12} /> Mark all read
               </button>
             )}
           </div>
 
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          {/* Notification List */}
+          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
             {loading && notifications.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-muted)' }}>
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8B949E', fontSize: 13 }}>
                 Loading...
               </div>
             ) : notifications.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-muted)' }}>
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8B949E', fontSize: 13 }}>
                 No notifications
               </div>
             ) : (
               notifications.map((notif) => {
-                const styles = getTypeStyles(notif.type);
+                const iconColor = getTypeColor(notif.type);
                 return (
                   <div
                     key={notif.id}
                     style={{
-                      padding: '12px 16px',
-                      borderBottom: '1px solid var(--color-border)',
-                      background: notif.read ? 'transparent' : 'rgba(59,130,246,0.04)',
-                      transition: 'background 0.2s ease',
+                      padding: '14px 20px',
+                      borderBottom: '1px solid #21262D',
+                      background: notif.read ? '#161B22' : '#0D1117',
+                      transition: 'background 0.15s ease',
                       cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1C2128';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = notif.read ? '#161B22' : '#0D1117';
                     }}
                     onClick={() => !notif.read && markAsRead(notif.id)}
                   >
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      {/* Icon container */}
                       <div
                         style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 'var(--radius-sm)',
-                          background: styles.bg,
-                          border: `1px solid ${styles.border}`,
+                          width: 28,
+                          height: 28,
+                          borderRadius: '8px',
+                          background: `${iconColor}12`,
+                          border: `1px solid ${iconColor}28`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
+                          color: iconColor,
                         }}
                       >
-                        {notif.type === 'success' ? '✓' : notif.type === 'error' ? '✗' : 'ℹ'}
+                        {getTypeIcon(notif.type)}
                       </div>
+                      
+                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#F0F6FC', marginBottom: 2 }}>
                           {notif.title}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: '#8B949E', lineHeight: 1.4, marginBottom: 6 }}>
                           {notif.message}
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                        <div style={{ fontSize: 11, color: '#6E7681' }}>
                           {getTimeAgo(notif.created_at)}
                         </div>
                       </div>
+                      
+                      {/* Delete button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteNotification(notif.id);
                         }}
                         style={{
-                          background: 'none',
+                          background: 'transparent',
                           border: 'none',
-                          color: 'var(--color-text-muted)',
+                          color: '#6E7681',
                           cursor: 'pointer',
                           padding: 4,
-                          borderRadius: 'var(--radius-sm)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                          flexShrink: 0,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#21262D';
+                          e.currentTarget.style.color = '#F85149';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#6E7681';
                         }}
                       >
                         <Trash2 size={12} />
@@ -262,14 +318,16 @@ export default function NotificationBell() {
             )}
           </div>
 
+          {/* Footer */}
           <div
             style={{
-              padding: '8px 16px',
-              borderTop: '1px solid var(--color-border)',
-              fontSize: 10,
-              color: 'var(--color-text-muted)',
+              padding: '10px 20px',
+              borderTop: '1px solid #30363D',
+              fontSize: 11,
+              color: '#6E7681',
               textAlign: 'center',
-              background: 'rgba(255,255,255,0.02)',
+              background: '#0D1117',
+              fontWeight: 400,
             }}
           >
             {notifications.length} notification{notifications.length !== 1 ? 's' : ''}

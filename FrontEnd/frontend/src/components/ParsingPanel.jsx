@@ -1056,7 +1056,7 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
               {isParsing ? (
                 <Loader2 size={14} className="spin" />
               ) : (
-                <Wand2 size={14} />
+                <Wand2 size={30} />
               )}
               {isParsing ? 'Extracting...' : 'Extract Information'}
             </button>

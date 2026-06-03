@@ -1402,13 +1402,7 @@ export default function Jobs() {
           <Briefcase size={14} style={{ marginRight: 6 }} />
           All Jobs
         </button>
-        <button
-          className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
-          onClick={() => setActiveTab('new')}
-        >
-          <Play size={14} style={{ marginRight: 6 }} />
-          New Job
-        </button>
+       
       </div>
       
       {/* Jobs List Tab */}
