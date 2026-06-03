@@ -850,12 +850,7 @@ export default function ModelsTab() {
     <div className="models-root page-enter">
       <div className="models-container">
         {/* Header */}
-        <div className="page-header">
-          <h1 className="page-title">LLM Configuration</h1>
-          <p className="page-description">
-            Configure AI providers for intelligent content parsing and data extraction
-          </p>
-        </div>
+        
 
         {/* Stats Grid */}
         <div className="stats-grid">
