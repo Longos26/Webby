@@ -1,6 +1,6 @@
 # backend/routes/export.py - ENHANCED with streaming and large dataset support
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Response, Query
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Response, Query, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from bson import ObjectId
@@ -11,8 +11,10 @@ import json
 import io
 import zipfile
 import re
+import dicttoxml
 import csv
 import asyncio
+from routes.auth import get_current_user
 from mongodb.database import get_database
 import logging
 
@@ -122,7 +124,7 @@ async def stream_large_export(job_id: str, export_config: Dict, user_id: str, ex
             filename += ".json"
             
         elif format_type == "xml":
-            import dicttoxml
+            
             xml_bytes = dicttoxml.dicttoxml(all_data, custom_root='data', attr_type=False)
             file_content = xml_bytes
             filename += ".xml"
@@ -283,7 +285,7 @@ async def generate_export(request: ExportRequest):
             
         elif request.format == "xml":
             try:
-                import dicttoxml
+             
                 xml_bytes = dicttoxml.dicttoxml(all_data, custom_root='export_data', attr_type=False)
                 file_content = xml_bytes
                 filename += ".xml"
