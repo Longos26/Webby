@@ -3,91 +3,60 @@
 import React, { useState, useEffect } from 'react';
 import {
   Wand2, Copy, Download, CheckCircle, AlertCircle,
-  Clock, RefreshCw, Code, Table, List, Zap, Sparkles,
+  RefreshCw, Code, List, Sparkles,
   X, ChevronDown, Brain, Hash, Type, FileText,
-  Eye, EyeOff, Loader2
+  Loader2, History, MessageSquare,
+  Archive, FileCheck, Layers, Tag, Mail, Image, Settings, Users, Link, Eye
 } from 'lucide-react';
 import api from '../api';
 
 // ============================================================
-// MONGODB ATLAS ENTERPRISE DESIGN SYSTEM
+// STYLES — clean, no aggressive resets
 // ============================================================
 
 const STYLES = `
-  /* Enterprise Design Tokens - MongoDB Atlas Inspired */
-  .parsing-root {
-    --color-mdb-green: #00ED64;
-    --color-mdb-green-dark: #00C355;
-    --color-canvas: #0D1117;
-    --color-surface: #161B22;
-    --color-surface-elevated: #1F242E;
-    --color-border: #30363D;
-    --color-border-subtle: #21262D;
-    
-    --color-text-primary: #F0F6FC;
-    --color-text-secondary: #8B949E;
-    --color-text-muted: #6E7681;
-    
-    --color-success: #00ED64;
-    --color-warning: #D29922;
-    --color-error: #F85149;
-    --color-info: #58A6FF;
-    
-    --color-accent-dim: rgba(0, 237, 100, 0.12);
-    --color-accent-border: rgba(0, 237, 100, 0.25);
-    
-    --shadow-sm: 0 1px 0 0 rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
-    
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
-    
-    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-    --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
-    
-    --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
-  }
-
-  /* Base */
-  .parsing-root * {
-    margin: 0;
-    padding: 0;
+  .pp-root {
+    --green: #00ED64;
+    --green-dark: #00C355;
+    --canvas: #0D1117;
+    --surface: #161B22;
+    --surface-el: #1F242E;
+    --border: #30363D;
+    --border-sub: #21262D;
+    --text-1: #F0F6FC;
+    --text-2: #8B949E;
+    --text-3: #6E7681;
+    --error: #F85149;
+    --accent-bg: rgba(0,237,100,0.07);
+    --accent-border: rgba(0,237,100,0.2);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+    --r-2xl: 20px;
+    --mono: "JetBrains Mono","SF Mono","Courier New",monospace;
+    --sans: "Inter","Segoe UI",system-ui,sans-serif;
+    font-family: var(--sans);
     box-sizing: border-box;
   }
 
-  /* Animations */
-  @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  
-  @keyframes fadeOut {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.98); }
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: -200px 0; }
-    100% { background-position: 200px 0; }
+  .pp-root *, .pp-root *::before, .pp-root *::after {
+    box-sizing: border-box;
   }
 
-  .fade-in {
-    animation: fadeSlideIn 0.2s ease-out;
-  }
-  
-  .spin {
-    animation: spin 0.6s linear infinite;
-  }
+  @keyframes ppFadeIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes ppFadeOut { from { opacity:1; transform:scale(1); }        to { opacity:0; transform:scale(0.98); } }
+  @keyframes ppSpin    { to { transform:rotate(360deg); } }
+  @keyframes ppShimmer { 0%{background-position:-200px 0} 100%{background-position:200px 0} }
+  @keyframes ppSlideIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
 
-  /* Overlay */
-  .parsing-overlay {
+  .pp-fade-in  { animation: ppFadeIn  0.22s ease-out; }
+  .pp-slide-in { animation: ppSlideIn 0.25s ease-out; }
+  .pp-spin     { animation: ppSpin    0.65s linear infinite; }
+  .pp-fade-out { animation: ppFadeOut 0.15s ease forwards; }
+
+  /* ── Overlay ── */
+  .pp-overlay {
     position: fixed;
     inset: 0;
     z-index: 10000;
@@ -95,807 +64,777 @@ const STYLES = `
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: rgba(13, 17, 23, 0.92);
-    backdrop-filter: blur(4px);
-  }
-  
-  .parsing-overlay.closing {
-    animation: fadeOut 0.15s ease forwards;
+    background: rgba(13,17,23,0.92);
+    backdrop-filter: blur(8px);
   }
 
-  /* Modal */
-  .parsing-modal {
+  /* ── Modal shell ── */
+  .pp-modal {
     width: 100%;
-    max-width: 720px;
-    max-height: 90vh;
+    max-width: 1200px;
+    height: 85vh;
     display: flex;
     flex-direction: column;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2xl);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
     overflow: hidden;
   }
-  
-  .parsing-modal.closing {
-    animation: fadeOut 0.15s ease forwards;
-  }
 
-  /* Header */
-  .parsing-header {
+  /* ── Header ── */
+  .pp-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--color-border);
-    background: rgba(255, 255, 255, 0.01);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: rgba(0,237,100,0.02);
   }
-  
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-  }
-  
-  .header-icon {
-    width: 44px;
-    height: 44px;
-    background: var(--color-accent-dim);
-    border: 1px solid var(--color-accent-border);
-    border-radius: var(--radius-md);
+
+  .pp-brand { display:flex; align-items:center; gap:12px; }
+
+  .pp-brand-icon {
+    width: 38px;
+    height: 38px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--r-lg);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-mdb-green);
+    color: var(--green);
+    flex-shrink: 0;
   }
-  
-  .header-title {
-    font-size: 16px;
+
+  .pp-brand-title {
+    font-size: 15px;
     font-weight: 600;
-    letter-spacing: -0.01em;
-    margin-bottom: 2px;
+    color: var(--text-1);
+    margin: 0 0 3px;
+    line-height: 1;
   }
-  
-  .header-subtitle {
-    font-size: 12px;
-    font-family: var(--font-mono);
-    color: var(--color-text-muted);
+
+  .pp-brand-sub {
+    font-size: 11px;
+    color: var(--text-3);
+    font-family: var(--mono);
+    margin: 0;
+    line-height: 1;
   }
-  
-  .close-btn {
-    width: 32px;
-    height: 32px;
+
+  .pp-close-btn {
+    width: 30px;
+    height: 30px;
     background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    color: var(--color-text-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--text-3);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition);
+    transition: background 120ms, border-color 120ms, color 120ms;
   }
-  
-  .close-btn:hover {
-    background: rgba(248, 81, 73, 0.1);
-    border-color: var(--color-error);
-    color: var(--color-error);
+  .pp-close-btn:hover {
+    background: rgba(248,81,73,0.1);
+    border-color: var(--error);
+    color: var(--error);
   }
 
-  /* Body */
-  .parsing-body {
+  /* ── Body layout ── */
+  .pp-body {
     flex: 1;
-    overflow-y: auto;
-    padding: 24px;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ── Left panel ── */
+  .pp-left {
+    width: 320px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
+    padding: 16px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
   }
-  
-  .parsing-body::-webkit-scrollbar {
-    width: 4px;
-  }
-  
-  .parsing-body::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .parsing-body::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 4px;
-  }
+  .pp-left::-webkit-scrollbar { width:3px; }
+  .pp-left::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
 
-  /* Section Headers */
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-  
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-  }
-  
-  .section-title::after {
-    content: '';
+  /* ── Right panel ── */
+  .pp-right {
     flex: 1;
-    height: 1px;
-    background: var(--color-border);
-    margin-left: 12px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--canvas);
   }
 
-  /* Prompt Card */
-  .prompt-card {
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 20px;
+  /* ── Card ── */
+  .pp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
   }
-  
-  .prompt-label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-bottom: 12px;
+
+  .pp-card-hd {
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-  
-  .prompt-textarea {
-    width: 100%;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
-    color: var(--color-text-primary);
-    font-size: 13px;
-    font-family: var(--font-sans);
-    line-height: 1.5;
-    resize: none;
-    outline: none;
-    transition: all var(--transition);
-  }
-  
-  .prompt-textarea:focus {
-    border-color: var(--color-mdb-green);
-    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.1);
-  }
-  
-  .prompt-textarea::placeholder {
-    color: var(--color-text-muted);
-  }
-
-  /* Quick Prompts */
-  .quick-prompts {
-    margin-top: 16px;
-  }
-  
-  .quick-label {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-bottom: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+  }
+  .pp-card-hd svg { color: var(--green); }
+
+  .pp-card-bd { padding: 14px; }
+
+  /* ── Textarea ── */
+  .pp-textarea {
+    width: 100%;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 10px 12px;
+    color: var(--text-1);
+    font-size: 13px;
+    font-family: var(--sans);
+    line-height: 1.55;
+    resize: vertical;
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+    display: block;
+  }
+  .pp-textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px rgba(0,237,100,0.1);
+  }
+  .pp-textarea::placeholder { color: var(--text-3); }
+
+  .pp-char-count {
+    text-align: right;
+    margin-top: 4px;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text-3);
+  }
+
+  /* ── Quick prompts ── */
+  .pp-quick-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin: 12px 0 8px;
+  }
+  .pp-quick-label svg { color: var(--green); }
+
+  .pp-chips {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .pp-chip {
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-  
-  .prompt-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  .prompt-chip {
-    padding: 5px 12px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 20px;
+    padding: 7px 10px;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
     font-size: 11px;
-    color: var(--color-text-secondary);
+    color: var(--text-2);
     cursor: pointer;
-    transition: all var(--transition);
+    transition: background 120ms, border-color 120ms, color 120ms;
+    text-align: left;
   }
-  
-  .prompt-chip:hover {
-    background: var(--color-surface-elevated);
-    border-color: var(--color-text-muted);
-    color: var(--color-text-primary);
+  .pp-chip:hover {
+    background: var(--surface-el);
+    border-color: var(--green);
+    color: var(--text-1);
   }
+  .pp-chip svg { opacity: 0.5; width:11px; height:11px; flex-shrink:0; }
+  .pp-chip:hover svg { opacity:1; color:var(--green); }
 
-  /* Primary Button */
-  .extract-btn {
+  /* ── Extract button ── */
+  .pp-extract-btn {
     width: 100%;
-    margin-top: 20px;
-    padding: 10px 16px;
-    background: var(--color-mdb-green);
+    margin-top: 14px;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
     border: none;
-    border-radius: var(--radius-md);
+    border-radius: var(--r-lg);
     color: #0D1117;
     font-size: 13px;
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 7px;
     cursor: pointer;
-    transition: all var(--transition);
+    transition: opacity 120ms, transform 120ms, box-shadow 120ms;
   }
-  
-  .extract-btn:hover:not(:disabled) {
-    background: var(--color-mdb-green-dark);
+  .pp-extract-btn:hover:not(:disabled) {
     transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,237,100,0.22);
   }
-  
-  .extract-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  .shortcut-hint {
+  .pp-extract-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .pp-shortcut {
+    margin-top: 7px;
     text-align: center;
-    margin-top: 10px;
     font-size: 10px;
-    font-family: var(--font-mono);
-    color: var(--color-text-muted);
+    font-family: var(--mono);
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .pp-key {
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
   }
 
-  /* Error Alert */
-  .error-alert {
+  /* ── How-it-works ── */
+  .pp-how {
+    font-size: 11px;
+    color: var(--text-3);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .pp-how-checks {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-2);
+  }
+  .pp-how-checks span { color: var(--green); margin-right: 4px; }
+
+  /* ── Error ── */
+  .pp-error {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.25);
-    border-radius: var(--radius-md);
-    font-size: 13px;
-    color: var(--color-error);
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.25);
+    border-radius: var(--r-lg);
+    font-size: 12px;
+    color: var(--error);
   }
-  
-  .error-close {
+  .pp-error-msg { flex: 1; line-height: 1.4; }
+  .pp-error-x {
     background: none;
     border: none;
-    color: var(--color-error);
+    color: var(--error);
     cursor: pointer;
-    padding: 2px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
-  /* Result Card */
-  .result-card {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+  /* ── Result card (right panel) ── */
+  .pp-result-wrap { padding: 14px 14px 0; }
+
+  .pp-result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
     overflow: hidden;
-    transition: all var(--transition);
+    animation: ppSlideIn 0.28s ease-out;
   }
-  
-  .result-card:hover {
-    border-color: var(--color-border-subtle);
-  }
-  
-  .result-header {
+
+  .pp-result-hd {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 18px;
-    background: rgba(255, 255, 255, 0.01);
-    border-bottom: 1px solid var(--color-border);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,237,100,0.025);
+    gap: 10px;
   }
-  
-  .result-title {
+
+  .pp-result-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-mdb-green);
-  }
-  
-  .result-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .result-body {
-    padding: 18px;
-    background: var(--color-canvas);
-    max-height: 320px;
-    overflow-y: auto;
-  }
-  
-  .result-pre {
-    margin: 0;
-    font-size: 12px;
-    font-family: var(--font-mono);
-    line-height: 1.6;
-    color: var(--color-text-secondary);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  
-  .result-formatted {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--color-text-secondary);
-  }
-  
-  .result-formatted h2 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 16px 0 8px;
-  }
-  
-  .result-formatted h3 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    margin: 12px 0 6px;
-  }
-  
-  .result-formatted p {
-    margin: 0 0 8px;
-  }
-  
-  .result-formatted ul,
-  .result-formatted ol {
-    margin: 8px 0;
-    padding-left: 20px;
-  }
-  
-  .result-formatted li {
-    margin: 2px 0;
-  }
-  
-  .result-formatted code {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--green);
+    flex-shrink: 0;
   }
 
-  /* Stats Bar */
-  .result-stats {
-    display: flex;
-    gap: 20px;
-    padding: 10px 18px;
-    background: rgba(255, 255, 255, 0.01);
-    border-top: 1px solid var(--color-border);
+  .pp-ai-badge {
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    padding: 1px 6px;
+    border-radius: var(--r-sm);
+    font-size: 9px;
+    color: var(--green);
+    font-family: var(--mono);
   }
-  
-  .stat-item {
+
+  .pp-result-actions {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    color: var(--color-text-muted);
-  }
-  
-  .stat-value {
-    font-weight: 600;
-    color: var(--color-text-secondary);
   }
 
-  /* View Tabs */
-  .view-tabs {
-    display: flex;
-    gap: 2px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 2px;
+  .pp-result-body {
+    padding: 14px;
+    max-height: 260px;
+    overflow-y: auto;
   }
-  
-  .view-tab {
-    padding: 4px 10px;
-    background: transparent;
-    border: none;
-    border-radius: var(--radius-sm);
+  .pp-result-body::-webkit-scrollbar { width:3px; }
+  .pp-result-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  .pp-pre {
+    margin: 0;
     font-size: 11px;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    cursor: pointer;
+    font-family: var(--mono);
+    line-height: 1.55;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .pp-formatted { font-size: 12px; line-height: 1.55; color: var(--text-2); }
+  .pp-formatted h2 { font-size:13px; font-weight:600; color:var(--text-1); margin:12px 0 5px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+  .pp-formatted h3 { font-size:12px; font-weight:600; color:var(--text-2); margin:8px 0 4px; }
+  .pp-formatted p  { margin:0 0 5px; }
+  .pp-formatted ul, .pp-formatted ol { margin:5px 0; padding-left:18px; }
+  .pp-formatted li { margin:2px 0; }
+  .pp-formatted code { background:rgba(255,255,255,0.05); padding:1px 4px; border-radius:var(--r-sm); font-family:var(--mono); font-size:10px; }
+  .pp-formatted blockquote { border-left:2px solid var(--green); padding-left:9px; margin:5px 0; color:var(--text-3); }
+
+  /* ── Stats bar ── */
+  .pp-stats {
+    display: flex;
+    gap: 18px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--canvas);
+  }
+  .pp-stat {
     display: flex;
     align-items: center;
     gap: 5px;
-    transition: all var(--transition);
+    font-size: 10px;
+    color: var(--text-3);
   }
-  
-  .view-tab:hover {
-    color: var(--color-text-primary);
-  }
-  
-  .view-tab.active {
-    background: var(--color-accent-dim);
-    color: var(--color-mdb-green);
+  .pp-stat-val {
+    font-weight: 600;
+    color: var(--text-1);
+    background: var(--surface);
+    padding: 1px 6px;
+    border-radius: var(--r-sm);
+    font-family: var(--mono);
+    font-size: 10px;
   }
 
-  /* Action Icon Buttons */
-  .icon-btn {
+  /* ── View tabs ── */
+  .pp-view-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 2px;
+  }
+  .pp-vtab {
+    padding: 4px 9px;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-sm);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 100ms, color 100ms;
+  }
+  .pp-vtab:hover { color: var(--text-1); }
+  .pp-vtab.active { background: var(--accent-bg); color: var(--green); }
+
+  /* ── Icon buttons ── */
+  .pp-icon-btn {
     width: 28px;
     height: 28px;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    color: var(--color-text-muted);
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--text-3);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition);
+    transition: background 120ms, border-color 120ms, color 120ms;
+    flex-shrink: 0;
   }
-  
-  .icon-btn:hover {
-    background: var(--color-surface-elevated);
-    border-color: var(--color-text-muted);
-    color: var(--color-text-primary);
-  }
-  
-  .icon-btn.success {
-    color: var(--color-success);
-    border-color: var(--color-success);
+  .pp-icon-btn:hover { background: var(--surface-el); border-color: var(--text-3); color: var(--text-1); }
+  .pp-icon-btn.success { color: var(--green); border-color: var(--green); }
+
+  /* ── History section ── */
+  .pp-history-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 14px;
   }
 
-  /* History Items */
-  .history-item {
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    margin-bottom: 8px;
-    overflow: hidden;
-    transition: all var(--transition);
-  }
-  
-  .history-item:hover {
-    border-color: var(--color-border-subtle);
-  }
-  
-  .history-header {
+  .pp-history-hd {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    cursor: pointer;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
   }
-  
-  .history-description {
+
+  .pp-history-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+  }
+
+  .pp-history-count {
+    margin-left: 3px;
+    color: var(--text-3);
+  }
+
+  .pp-history-list {
     flex: 1;
-    font-size: 13px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pp-history-list::-webkit-scrollbar { width:3px; }
+  .pp-history-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* ── History item ── */
+  .pp-hitem {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: border-color 120ms;
+  }
+  .pp-hitem:hover { border-color: var(--accent-border); }
+
+  .pp-hitem-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    min-width: 0;
+  }
+
+  .pp-hitem-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--green);
+    border-radius: 50%;
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  .pp-hitem-desc {
+    flex: 1;
+    font-size: 12px;
     font-weight: 500;
-    color: var(--color-text-secondary);
+    color: var(--text-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
   }
-  
-  .history-date {
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--color-text-muted);
+
+  .pp-hitem-date {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text-3);
     flex-shrink: 0;
-    margin: 0 12px;
+    white-space: nowrap;
   }
-  
-  .history-actions {
+
+  .pp-hitem-actions {
     display: flex;
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
   }
-  
-  .chevron-icon {
-    color: var(--color-text-muted);
-    transition: transform var(--transition);
+
+  .pp-chevron {
+    color: var(--text-3);
+    transition: transform 150ms;
+    flex-shrink: 0;
   }
-  
-  .chevron-icon.open {
-    transform: rotate(180deg);
-  }
-  
-  .history-body {
-    border-top: 1px solid var(--color-border);
-    padding: 14px 16px;
-    max-height: 200px;
+  .pp-chevron.open { transform: rotate(180deg); }
+
+  .pp-hitem-body {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    max-height: 140px;
     overflow-y: auto;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--canvas);
+  }
+  .pp-hitem-body::-webkit-scrollbar { width:3px; }
+  .pp-hitem-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  .pp-hitem-pre {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-3);
+    line-height: 1.45;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
-  /* Skeleton Loader */
-  .skeleton {
-    background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-border) 50%, var(--color-surface) 75%);
+  /* ── Skeleton ── */
+  .pp-skeleton {
+    height: 48px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
     background-size: 200px 100%;
-    animation: shimmer 1.4s ease-in-out infinite;
-    border-radius: var(--radius-sm);
-  }
-  
-  .skeleton-item {
-    height: 52px;
-    margin-bottom: 8px;
+    animation: ppShimmer 1.4s ease-in-out infinite;
   }
 
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 48px 24px;
+  /* ── Empty state ── */
+  .pp-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
+    padding: 36px 20px;
+    text-align: center;
   }
-  
-  .empty-icon {
-    width: 64px;
-    height: 64px;
-    background: var(--color-accent-dim);
-    border: 1px solid var(--color-accent-border);
-    border-radius: var(--radius-lg);
+  .pp-empty-icon {
+    width: 52px;
+    height: 52px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--r-2xl);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-mdb-green);
+    color: var(--green);
   }
-  
-  .empty-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-  }
-  
-  .empty-description {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    max-width: 260px;
-    line-height: 1.5;
-  }
+  .pp-empty-title { font-size:13px; font-weight:600; color:var(--text-2); margin:0; }
+  .pp-empty-sub   { font-size:11px; color:var(--text-3); max-width:200px; line-height:1.45; margin:0; }
 
-  /* Footer */
-  .parsing-footer {
+  /* ── Footer ── */
+  .pp-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 24px;
-    border-top: 1px solid var(--color-border);
-    background: rgba(255, 255, 255, 0.01);
+    padding: 9px 18px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
   }
-  
-  .footer-meta {
+  .pp-footer-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 11px;
-    color: var(--color-text-muted);
+    gap: 10px;
+    font-size: 10px;
+    color: var(--text-3);
   }
-  
-  .footer-close {
-    padding: 6px 16px;
+  .pp-status-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--green);
+    border-radius: 50%;
+  }
+  .pp-footer-status { display:flex; align-items:center; gap:5px; }
+  .pp-footer-close {
+    padding: 5px 16px;
     background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    font-size: 11px;
     font-weight: 500;
-    color: var(--color-text-secondary);
+    color: var(--text-2);
     cursor: pointer;
-    transition: all var(--transition);
+    transition: background 120ms, border-color 120ms, color 120ms;
   }
-  
-  .footer-close:hover {
-    background: var(--color-surface-elevated);
-    border-color: var(--color-text-muted);
-    color: var(--color-text-primary);
+  .pp-footer-close:hover {
+    background: var(--surface-el);
+    border-color: var(--text-3);
+    color: var(--text-1);
   }
 `;
 
-// Inject styles
-if (typeof document !== 'undefined' && !document.getElementById('parsing-styles')) {
-  const style = document.createElement('style');
-  style.id = 'parsing-styles';
-  style.textContent = STYLES;
-  document.head.appendChild(style);
+if (typeof document !== 'undefined' && !document.getElementById('pp-styles')) {
+  const s = document.createElement('style');
+  s.id = 'pp-styles';
+  s.textContent = STYLES;
+  document.head.appendChild(s);
 }
 
 // ============================================================
-// UTILITY FUNCTIONS
+// HELPERS
 // ============================================================
 
+const escapeHtml = (text) => {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+};
+
 const formatContent = (content, mode) => {
-  if (mode === 'raw') {
-    return { type: 'pre', text: content };
-  }
+  if (mode === 'raw') return { type: 'pre', text: content };
   if (mode === 'json') {
-    try {
-      const parsed = JSON.parse(content);
-      return { type: 'pre', text: JSON.stringify(parsed, null, 2) };
-    } catch {
-      return { type: 'pre', text: content };
+    try { return { type: 'pre', text: JSON.stringify(JSON.parse(content), null, 2) }; }
+    catch { return { type: 'pre', text: content }; }
+  }
+
+  const lines = content.split('\n');
+  let inList = false, listType = null, html = '';
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      html += `<h2>${escapeHtml(line.slice(3))}</h2>`;
+    } else if (line.startsWith('### ')) {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      html += `<h3>${escapeHtml(line.slice(4))}</h3>`;
+    } else if (/^[-*]\s/.test(line)) {
+      if (!inList || listType !== 'ul') { if (inList) html += `</${listType}>`; html += '<ul>'; inList = true; listType = 'ul'; }
+      html += `<li>${escapeHtml(line.slice(2))}</li>`;
+    } else if (/^\d+\.\s/.test(line)) {
+      if (!inList || listType !== 'ol') { if (inList) html += `</${listType}>`; html += '<ol>'; inList = true; listType = 'ol'; }
+      html += `<li>${escapeHtml(line.replace(/^\d+\.\s/, ''))}</li>`;
+    } else if (line.startsWith('> ')) {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      html += `<blockquote>${escapeHtml(line.slice(2))}</blockquote>`;
+    } else if (line.trim() === '') {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      html += '<br/>';
+    } else {
+      if (inList) { html += `</${listType}>`; inList = false; }
+      let l = escapeHtml(line);
+      l = l.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      l = l.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      l = l.replace(/`(.*?)`/g, '<code>$1</code>');
+      html += `<p>${l}</p>`;
     }
   }
-  // Formatted mode - simple markdown-like rendering
-  const lines = content.split('\n');
-  const html = lines.map(line => {
-    if (line.startsWith('## ')) {
-      return `<h2>${escapeHtml(line.slice(3))}</h2>`;
-    }
-    if (line.startsWith('### ')) {
-      return `<h3>${escapeHtml(line.slice(4))}</h3>`;
-    }
-    if (line.startsWith('- ') || line.startsWith('* ')) {
-      return `<li>${escapeHtml(line.slice(2))}</li>`;
-    }
-    if (/^\d+\. /.test(line)) {
-      return `<li>${escapeHtml(line)}</li>`;
-    }
-    if (line.trim() === '') {
-      return '<br/>';
-    }
-    return `<p>${escapeHtml(line)}</p>`;
-  }).join('');
+  if (inList) html += `</${listType}>`;
   return { type: 'html', html };
 };
 
-const escapeHtml = (text) => {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-};
-
 // ============================================================
-// COPY BUTTON
+// SUB-COMPONENTS
 // ============================================================
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
-  
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  
+  const handle = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   return (
-    <button className={`icon-btn ${copied ? 'success' : ''}`} onClick={handleCopy} title={copied ? 'Copied' : 'Copy'}>
+    <button className={`pp-icon-btn${copied ? ' success' : ''}`} onClick={handle} title={copied ? 'Copied!' : 'Copy'}>
       {copied ? <CheckCircle size={12} /> : <Copy size={12} />}
     </button>
   );
 }
 
-// ============================================================
-// DOWNLOAD BUTTON
-// ============================================================
-
 function DownloadButton({ content, jobId }) {
-  const handleDownload = () => {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `extract_${jobId}_${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handle = () => {
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([content], { type: 'text/plain' })),
+      download: `extract_${jobId}_${Date.now()}.txt`,
+    });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
-  
   return (
-    <button className="icon-btn" onClick={handleDownload} title="Download">
+    <button className="pp-icon-btn" onClick={handle} title="Download">
       <Download size={12} />
     </button>
   );
 }
 
-// ============================================================
-// VIEW TABS
-// ============================================================
-
-function ViewTabs({ currentView, onChange }) {
-  const tabs = [
-    { id: 'formatted', label: 'Formatted', icon: Eye },
-    { id: 'raw', label: 'Raw', icon: FileText },
-    { id: 'json', label: 'JSON', icon: Code },
-  ];
-  
+function ViewTabs({ current, onChange }) {
   return (
-    <div className="view-tabs">
-      {tabs.map(tab => {
-        const Icon = tab.icon;
-        return (
-          <button
-            key={tab.id}
-            className={`view-tab ${currentView === tab.id ? 'active' : ''}`}
-            onClick={() => onChange(tab.id)}
-          >
-            <Icon size={10} /> {tab.label}
-          </button>
-        );
-      })}
+    <div className="pp-view-tabs">
+      {[{ id: 'formatted', label: 'Formatted', Icon: Eye }, { id: 'raw', label: 'Raw', Icon: FileText }, { id: 'json', label: 'JSON', Icon: Code }].map(({ id, label, Icon }) => (
+        <button key={id} className={`pp-vtab${current === id ? ' active' : ''}`} onClick={() => onChange(id)}>
+          <Icon size={10} /> {label}
+        </button>
+      ))}
     </div>
   );
 }
 
-// ============================================================
-// RESULT CONTENT
-// ============================================================
-
 function ResultContent({ content, viewMode }) {
-  const formatted = formatContent(content, viewMode);
-  
-  if (formatted.type === 'pre') {
-    return <pre className="result-pre">{formatted.text}</pre>;
-  }
-  
-  return (
-    <div className="result-formatted" dangerouslySetInnerHTML={{ __html: formatted.html }} />
-  );
+  const f = formatContent(content, viewMode);
+  if (f.type === 'pre') return <pre className="pp-pre">{f.text}</pre>;
+  return <div className="pp-formatted" dangerouslySetInnerHTML={{ __html: f.html }} />;
 }
-
-// ============================================================
-// RESULT STATS
-// ============================================================
 
 function ResultStats({ content }) {
   const words = content.split(/\s+/).filter(Boolean).length;
-  const chars = content.length;
-  const lines = content.split('\n').length;
-  
   return (
-    <div className="result-stats">
-      <div className="stat-item">
-        <Type size={10} /> <span className="stat-value">{words.toLocaleString()}</span> words
-      </div>
-      <div className="stat-item">
-        <Hash size={10} /> <span className="stat-value">{chars.toLocaleString()}</span> chars
-      </div>
-      <div className="stat-item">
-        <List size={10} /> <span className="stat-value">{lines}</span> lines
-      </div>
+    <div className="pp-stats">
+      <div className="pp-stat"><Type size={10} /> Words <span className="pp-stat-val">{words.toLocaleString()}</span></div>
+      <div className="pp-stat"><Hash size={10} /> Chars <span className="pp-stat-val">{content.length.toLocaleString()}</span></div>
+      <div className="pp-stat"><List size={10} /> Lines <span className="pp-stat-val">{content.split('\n').length}</span></div>
     </div>
   );
 }
 
-// ============================================================
-// HISTORY ITEM
-// ============================================================
-
 function HistoryItem({ result, jobId }) {
-  const [isOpen, setIsOpen] = useState(false);
-  
+  const [open, setOpen] = useState(false);
   return (
-    <div className="history-item">
-      <div className="history-header" onClick={() => setIsOpen(!isOpen)}>
-        <div className="history-description">
+    <div className="pp-hitem">
+      <div className="pp-hitem-hd" onClick={() => setOpen(!open)}>
+        <span className="pp-hitem-dot" />
+        <span className="pp-hitem-desc" title={result.parse_description || 'Extraction result'}>
           {result.parse_description || 'Extraction result'}
-        </div>
-        <div className="history-date">
-          {new Date(result.created_at).toLocaleString()}
-        </div>
-        <div className="history-actions" onClick={e => e.stopPropagation()}>
+        </span>
+        <span className="pp-hitem-date">{new Date(result.created_at).toLocaleString()}</span>
+        <div className="pp-hitem-actions" onClick={e => e.stopPropagation()}>
           <CopyButton text={result.parsed_content} />
           <DownloadButton content={result.parsed_content} jobId={jobId} />
-          <ChevronDown size={14} className={`chevron-icon ${isOpen ? 'open' : ''}`} />
         </div>
+        <ChevronDown size={12} className={`pp-chevron${open ? ' open' : ''}`} />
       </div>
-      {isOpen && (
-        <div className="history-body">
-          <pre className="result-pre">
-            {result.parsed_content.substring(0, 500)}
-            {result.parsed_content.length > 500 && '...'}
+      {open && (
+        <div className="pp-hitem-body">
+          <pre className="pp-hitem-pre">
+            {result.parsed_content.substring(0, 500)}{result.parsed_content.length > 500 ? '…' : ''}
           </pre>
         </div>
       )}
@@ -904,66 +843,59 @@ function HistoryItem({ result, jobId }) {
 }
 
 // ============================================================
-// MAIN PARSING PANEL
+// QUICK PROMPTS
 // ============================================================
 
 const QUICK_PROMPTS = [
-  'Extract all product names and prices',
-  'Find all email addresses and phone numbers',
-  'Extract article titles, authors, and dates',
-  'Get all image URLs with alt text',
-  'Extract technical specifications',
-  'Find contact information from the page',
-  'Extract all links with anchor text',
-  'Get main headings and their content',
+  { Icon: Tag,      label: 'Products & Prices', prompt: 'Extract all product names and prices' },
+  { Icon: Mail,     label: 'Contact Info',       prompt: 'Find all email addresses and phone numbers' },
+  { Icon: FileText, label: 'Article Metadata',   prompt: 'Extract article titles, authors, and dates' },
+  { Icon: Image,    label: 'Images & Media',     prompt: 'Get all image URLs with alt text' },
+  { Icon: Settings, label: 'Specifications',     prompt: 'Extract technical specifications' },
+  { Icon: Users,    label: 'Contact Details',    prompt: 'Find contact information from the page' },
+  { Icon: Link,     label: 'Links',              prompt: 'Extract all links with anchor text' },
+  { Icon: Layers,   label: 'Headings',           prompt: 'Get main headings and their content' },
 ];
 
+// ============================================================
+// MAIN
+// ============================================================
+
 export default function ParsingPanel({ jobId, jobName, onClose }) {
-  const [description, setDescription] = useState('');
-  const [isParsing, setIsParsing] = useState(false);
-  const [result, setResult] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('formatted');
-  const [isClosing, setIsClosing] = useState(false);
-  const [error, setError] = useState(null);
-  
-  const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(onClose, 160);
-  };
-  
+  const [description, setDescription]   = useState('');
+  const [isParsing, setIsParsing]       = useState(false);
+  const [result, setResult]             = useState(null);
+  const [history, setHistory]           = useState([]);
+  const [isLoading, setIsLoading]       = useState(true);
+  const [viewMode, setViewMode]         = useState('formatted');
+  const [isClosing, setIsClosing]       = useState(false);
+  const [error, setError]               = useState(null);
+
+  const close = () => { setIsClosing(true); setTimeout(onClose, 160); };
+
   useEffect(() => {
-    if (jobId) {
-      fetchHistory();
-    }
-    
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') handleClose();
-    };
-    window.addEventListener('keydown', handleEscape);
-    
-    return () => window.removeEventListener('keydown', handleEscape);
+    if (jobId) fetchHistory();
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [jobId]);
-  
+
   const fetchHistory = async () => {
     try {
       setIsLoading(true);
       const res = await api.get(`/api/scraping/jobs/${jobId}/parsed-results`);
       setHistory(res.data.parsed_results || []);
-    } catch (err) {
-      console.error('Failed to fetch history:', err);
+    } catch (e) {
+      console.error('Failed to fetch history:', e);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleParse = async () => {
     if (!description.trim()) return;
-    
     setIsParsing(true);
     setError(null);
-    
     try {
       const res = await api.post(`/api/scraping/jobs/${jobId}/parse`, {
         dom_content: '',
@@ -972,181 +904,173 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
       setResult(res.data.parse_result);
       await fetchHistory();
       setDescription('');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Extraction failed. Please try again.');
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Extraction failed. Please try again.');
     } finally {
       setIsParsing(false);
     }
   };
-  
-  const handleKeyDown = (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      handleParse();
-    }
+
+  const onKeyDown = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleParse();
   };
-  
+
   return (
-    <div className={`parsing-root parsing-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
-      <div className={`parsing-modal ${isClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+    <div className={`pp-root pp-overlay${isClosing ? ' pp-fade-out' : ''}`} onClick={close}>
+      <div className={`pp-modal${isClosing ? ' pp-fade-out' : ''}`} onClick={e => e.stopPropagation()}>
+
         {/* Header */}
-        <div className="parsing-header">
-          <div className="header-info">
-            <div className="header-icon">
-              <Brain size={20} />
-            </div>
+        <div className="pp-header">
+          <div className="pp-brand">
+            <div className="pp-brand-icon"><Brain size={18} /></div>
             <div>
-              <div className="header-title">Extract Information</div>
-              <div className="header-subtitle">{jobName || jobId}</div>
+              <p className="pp-brand-title">Intelligent Data Extraction</p>
+              <p className="pp-brand-sub">{jobName || 'Scraping Job'} · Job {jobId}</p>
             </div>
           </div>
-          <button className="close-btn" onClick={handleClose}>
-            <X size={16} />
-          </button>
+          <button className="pp-close-btn" onClick={close}><X size={14} /></button>
         </div>
-        
+
         {/* Body */}
-        <div className="parsing-body">
-          {/* Error Alert */}
-          {error && (
-            <div className="error-alert">
-              <AlertCircle size={14} />
-              <span style={{ flex: 1 }}>{error}</span>
-              <button className="error-close" onClick={() => setError(null)}>
-                <X size={12} />
-              </button>
-            </div>
-          )}
-          
-          {/* Prompt Section */}
-          <div className="prompt-card">
-            <div className="prompt-label">
-              <Zap size={10} /> Extraction Description
-            </div>
-            <textarea
-              className="prompt-textarea"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Describe what you want to extract from the scraped content..."
-              rows={3}
-            />
-            
-            <div className="quick-prompts">
-              <div className="quick-label">
-                <Sparkles size={10} /> Quick Prompts
+        <div className="pp-body">
+
+          {/* ── Left Panel ── */}
+          <div className="pp-left">
+            {error && (
+              <div className="pp-error pp-fade-in">
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span className="pp-error-msg">{error}</span>
+                <button className="pp-error-x" onClick={() => setError(null)}><X size={12} /></button>
               </div>
-              <div className="prompt-chips">
-                {QUICK_PROMPTS.map((prompt, idx) => (
-                  <button
-                    key={idx}
-                    className="prompt-chip"
-                    onClick={() => setDescription(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
+            )}
+
+            <div className="pp-card">
+              <div className="pp-card-hd"><Wand2 size={11} /> Extraction Query</div>
+              <div className="pp-card-bd">
+                <textarea
+                  className="pp-textarea"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder="Describe what you want to extract…"
+                  rows={4}
+                />
+                {description.length > 0 && (
+                  <div className="pp-char-count">{description.length} chars</div>
+                )}
+
+                <div className="pp-quick-label"><Sparkles size={10} /> Quick Start</div>
+                <div className="pp-chips">
+                  {QUICK_PROMPTS.map(({ Icon, label, prompt }) => (
+                    <button key={label} className="pp-chip" onClick={() => setDescription(prompt)}>
+                      <Icon size={11} /> {label}
+                    </button>
+                  ))}
+                </div>
+
+                <button className="pp-extract-btn" onClick={handleParse} disabled={isParsing || !description.trim()}>
+                  {isParsing
+                    ? <><Loader2 size={14} className="pp-spin" /> Processing…</>
+                    : <><Wand2 size={14} /> Extract</>
+                  }
+                </button>
+                <div className="pp-shortcut">
+                  <span className="pp-key">⌘↵</span> to extract
+                </div>
               </div>
             </div>
-            
-            <button
-              className="extract-btn"
-              onClick={handleParse}
-              disabled={isParsing || !description.trim()}
-            >
-              {isParsing ? (
-                <Loader2 size={14} className="spin" />
-              ) : (
-                <Wand2 size={30} />
-              )}
-              {isParsing ? 'Extracting...' : 'Extract Information'}
-            </button>
-            <div className="shortcut-hint">
-              Press ⌘↵ to extract
+
+            <div className="pp-card">
+              <div className="pp-card-hd"><FileCheck size={11} /> How it works</div>
+              <div className="pp-card-bd">
+                <p className="pp-how">
+                  Our AI analyzes the scraped content and extracts exactly what you need.
+                  Describe the information you're looking for, and the system will identify
+                  and extract relevant data.
+                </p>
+                <div className="pp-how-checks">
+                  <div><span>✓</span>Structured data</div>
+                  <div><span>✓</span>Natural language</div>
+                </div>
+              </div>
             </div>
           </div>
-          
-          {/* Latest Result */}
-          {result && (
-            <div>
-              <div className="section-header">
-                <div className="section-title">
-                  <Sparkles size={10} /> Latest Extraction
+
+          {/* ── Right Panel ── */}
+          <div className="pp-right">
+            {result && (
+              <div className="pp-result-wrap">
+                <div className="pp-result-card">
+                  <div className="pp-result-hd">
+                    <div className="pp-result-title">
+                      <Sparkles size={11} /> Latest
+                      <span className="pp-ai-badge">AI</span>
+                    </div>
+                    <div className="pp-result-actions">
+                      <ViewTabs current={viewMode} onChange={setViewMode} />
+                      <CopyButton text={result} />
+                      <DownloadButton content={result} jobId={jobId} />
+                    </div>
+                  </div>
+                  <div className="pp-result-body">
+                    <ResultContent content={result} viewMode={viewMode} />
+                  </div>
+                  <ResultStats content={result} />
                 </div>
               </div>
-              <div className="result-card">
-                <div className="result-header">
-                  <div className="result-title">
-                    <Wand2 size={12} /> Extracted Data
-                  </div>
-                  <div className="result-actions">
-                    <ViewTabs currentView={viewMode} onChange={setViewMode} />
-                    <CopyButton text={result} />
-                    <DownloadButton content={result} jobId={jobId} />
-                  </div>
+            )}
+
+            {/* History */}
+            <div className="pp-history-section">
+              <div className="pp-history-hd">
+                <div className="pp-history-title">
+                  <History size={11} /> History
+                  {history.length > 0 && <span className="pp-history-count">({history.length})</span>}
                 </div>
-                <div className="result-body">
-                  <ResultContent content={result} viewMode={viewMode} />
-                </div>
-                <ResultStats content={result} />
+                <button className="pp-icon-btn" onClick={fetchHistory} title="Refresh" style={{ width: 26, height: 26 }}>
+                  <RefreshCw size={11} />
+                </button>
               </div>
-            </div>
-          )}
-          
-          {/* History Section */}
-          <div>
-            <div className="section-header">
-              <div className="section-title">
-                <Clock size={10} /> History
-                {history.length > 0 && (
-                  <span style={{ color: 'var(--color-text-muted)', marginLeft: 4 }}>
-                    ({history.length})
-                  </span>
+
+              <div className="pp-history-list">
+                {isLoading ? (
+                  <>
+                    <div className="pp-skeleton" />
+                    <div className="pp-skeleton" style={{ opacity: 0.7 }} />
+                    <div className="pp-skeleton" style={{ opacity: 0.4 }} />
+                  </>
+                ) : history.length > 0 ? (
+                  history.map(item => <HistoryItem key={item.id} result={item} jobId={jobId} />)
+                ) : !result ? (
+                  <div className="pp-empty">
+                    <div className="pp-empty-icon"><MessageSquare size={24} /></div>
+                    <p className="pp-empty-title">No extractions yet</p>
+                    <p className="pp-empty-sub">Enter a description on the left to get started</p>
+                  </div>
+                ) : (
+                  <div className="pp-empty">
+                    <div className="pp-empty-icon"><Archive size={24} /></div>
+                    <p className="pp-empty-title">History empty</p>
+                    <p className="pp-empty-sub">Past extractions will appear here</p>
+                  </div>
                 )}
               </div>
-              <button
-                className="icon-btn"
-                onClick={fetchHistory}
-                title="Refresh history"
-              >
-                <RefreshCw size={12} />
-              </button>
             </div>
-            
-            {isLoading ? (
-              <div>
-                <div className="skeleton skeleton-item" />
-                <div className="skeleton skeleton-item" style={{ width: '90%' }} />
-                <div className="skeleton skeleton-item" style={{ width: '85%' }} />
-              </div>
-            ) : history.length > 0 ? (
-              history.map(item => (
-                <HistoryItem key={item.id} result={item} jobId={jobId} />
-              ))
-            ) : !result ? (
-              <div className="empty-state">
-                <div className="empty-icon">
-                  <Wand2 size={28} />
-                </div>
-                <div className="empty-title">No extractions yet</div>
-                <div className="empty-description">
-                  Enter a description above to extract specific information from your scraped content
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
-        
+
         {/* Footer */}
-        <div className="parsing-footer">
-          <div className="footer-meta">
+        <div className="pp-footer">
+          <div className="pp-footer-meta">
+            <div className="pp-footer-status">
+              <div className="pp-status-dot" />
+              <span>AI Ready</span>
+            </div>
+            <span>·</span>
             <Brain size={10} />
-            <span>AI-powered extraction</span>
-            <span>•</span>
-            <span className="footer-job">{jobName || jobId}</span>
+            <span>MongoDB Atlas ML</span>
           </div>
-          <button className="footer-close" onClick={handleClose}>
-            Close
-          </button>
+          <button className="pp-footer-close" onClick={close}>Close</button>
         </div>
       </div>
     </div>
