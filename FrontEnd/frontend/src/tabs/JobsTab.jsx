@@ -1268,8 +1268,22 @@ export default function Jobs() {
     setError(null);
     try {
       const response = await api.get('/api/jobs');
-      const data = response.data;
-      setJobs(Array.isArray(data) ? data : []);
+      console.log('API Response:', response.data);
+      
+      let jobsData = [];
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          jobsData = response.data;
+          console.log('Array format, length:', jobsData.length);
+        } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
+          jobsData = response.data.jobs;
+          console.log('Jobs property format, length:', jobsData.length);
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          jobsData = response.data.data;
+          console.log('Data property format, length:', jobsData.length);
+        }
+      }
+      setJobs(jobsData);
     } catch (err) {
       console.error('Failed to load jobs:', err);
       setError(err.response?.data?.detail || err.message || 'Failed to load jobs');
@@ -1402,7 +1416,7 @@ export default function Jobs() {
           <Briefcase size={14} style={{ marginRight: 6 }} />
           All Jobs
         </button>
-       
+        
       </div>
       
       {/* Jobs List Tab */}
