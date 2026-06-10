@@ -1,5 +1,7 @@
 # backend/routes/export.py - COMPLETE PRODUCTION VERSION
 
+import codecs
+
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Response, Query, Depends, Request
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, Field, validator

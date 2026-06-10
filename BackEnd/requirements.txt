@@ -111,4 +111,4 @@ xlsxwriter==3.2.9
 xxhash==3.6.0
 zstandard==0.25.0
 dicttoxml==1.7.16
-
+aiofiles==25.1.0
