@@ -112,5 +112,4 @@ xxhash==3.6.0
 zstandard==0.25.0
 dicttoxml==1.7.16
 aiofiles==25.1.0
-openpyxl==3.1.2
 python-docx==1.1.0
