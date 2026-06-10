@@ -19,7 +19,7 @@ from services.notification_service import NotificationService
 from services.job_executor import job_executor
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
+router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 # New models for enhanced features
 class DeepCrawlRequest(BaseModel):

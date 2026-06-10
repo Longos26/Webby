@@ -207,13 +207,9 @@ export const activityService = {
 // ============================================================
 
 export const exportService = {
+  // This endpoint is now GET, not POST
   getJobsWithResults: async () => {
-    const response = await api.get('/api/export/jobs');
-    return response.data;
-  },
-
-  getParseResults: async (jobId) => {
-    const response = await api.get(`/api/export/parse-results/${jobId}`);
+    const response = await api.get('/api/export/jobs-with-results');  // Changed to GET
     return response.data;
   },
 
@@ -224,20 +220,20 @@ export const exportService = {
     return response;
   },
 
-  getExportHistory: async () => {
-    const response = await api.get('/api/export/history');
+  previewExport: async (jobId, limit = 10) => {
+    const response = await api.post(`/api/export/preview/${jobId}`, { limit });
     return response.data;
   },
 
-  downloadExport: async (exportId) => {
-    const response = await api.get(`/api/export/download/${exportId}`, {
+  bulkExport: async (bulkConfig) => {
+    const response = await api.post('/api/export/bulk', bulkConfig, {
       responseType: 'blob',
     });
     return response;
   },
 
-  previewExport: async (jobId) => {
-    const response = await api.get(`/api/export/preview/${jobId}`);
+  getExportStats: async (jobId) => {
+    const response = await api.get(`/api/export/stats/${jobId}`);
     return response.data;
   },
 };

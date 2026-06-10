@@ -1068,7 +1068,7 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
             </div>
             <span>·</span>
             <Brain size={10} />
-            <span>MongoDB Atlas ML</span>
+            <span>Powered by OpenAI</span>
           </div>
           <button className="pp-footer-close" onClick={close}>Close</button>
         </div>
