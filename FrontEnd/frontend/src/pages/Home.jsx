@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import logo from '../logowebby.png';
 import axios from 'axios';
-import api from '../api';
 
 // ============================================================
 // ENTERPRISE DESIGN SYSTEM — MongoDB Atlas / GitHub inspired
@@ -330,14 +329,15 @@ const HomePage = () => {
     return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   };
 
-  const api = axios.create({
-    baseURL: api.BASE_URL,
+  // Create axios instance with base URL
+  const axiosInstance = axios.create({
+    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
     headers: {
       'Content-Type': 'application/json',
     }
   });
 
-  api.interceptors.request.use((config) => {
+  axiosInstance.interceptors.request.use((config) => {
     const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -358,11 +358,11 @@ const HomePage = () => {
         performanceResponse,
         exportStatsResponse
       ] = await Promise.allSettled([
-        api.get('/api/jobs/analytics/dashboard'),
-        api.get('/api/dashboard/realtime'),
-        api.get('/api/dashboard/recent?limit=5'),
-        api.get('/api/dashboard/performance'),
-        api.get('/api/dashboard/export-stats')
+        axiosInstance.get('/api/jobs/analytics/dashboard'),
+        axiosInstance.get('/api/dashboard/realtime'),
+        axiosInstance.get('/api/dashboard/recent?limit=5'),
+        axiosInstance.get('/api/dashboard/performance'),
+        axiosInstance.get('/api/dashboard/export-stats')
       ]);
       
       // Process analytics data
@@ -401,7 +401,7 @@ const HomePage = () => {
           name: job.name,
           status: job.status,
           rows: job.records ? `${(job.records / 1000).toFixed(1)}K` : '—',
-          duration: '—', // Would need to calculate from created_at to completed_at
+          duration: '—',
           completed: formatRelativeTime(job.created_at)
         })));
       } else if (recentJobsResponse.status === 'rejected') {
