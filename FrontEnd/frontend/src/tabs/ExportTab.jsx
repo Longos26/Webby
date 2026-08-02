@@ -5,7 +5,7 @@ import {
   AlertCircle, Loader2, RefreshCw, Trash2, Package, X, HardDrive,
   ChevronRight, ChevronLeft, ChevronsRight, ChevronsLeft,
   Clock, Hash, Layers, Globe, AtSign, Smartphone, Link, Tag, Calendar,
-  Maximize2
+  Maximize2, Pencil
 } from 'lucide-react';
 import api from '../api';
 
@@ -496,7 +496,9 @@ if (typeof document !== 'undefined' && !document.getElementById('export-styles')
   document.head.appendChild(style);
 }
 
-
+// ============================================================
+// PREVIEW MODAL
+// ============================================================
 
 const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -550,7 +552,6 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
         <div style={{
           padding: '20px 24px',
           borderBottom: '1px solid #30363D',
@@ -592,7 +593,6 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
           </button>
         </div>
 
-        {/* Search Bar */}
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #21262D' }}>
           <div style={{ position: 'relative' }}>
             <input
@@ -642,7 +642,6 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
           )}
         </div>
 
-        {/* Table Container */}
         <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px 24px' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{
@@ -731,7 +730,6 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
           </div>
         </div>
 
-        {/* Pagination Footer */}
         {totalPages > 1 && (
           <div style={{
             padding: '16px 24px',
@@ -862,6 +860,7 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
     </div>
   );
 };
+
 // ============================================================
 // FORMAT CONFIGURATION
 // ============================================================
@@ -871,6 +870,10 @@ const EXPORT_FORMATS = [
   { id: 'excel', name: 'Excel', icon: FileSpreadsheet, extension: '.xlsx', description: 'With formatting' },
   { id: 'json', name: 'JSON', icon: FileJson, extension: '.json', description: 'Structured data' },
 ];
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 
 export default function ExportTab() {
   const [jobs, setJobs] = useState([]);
@@ -889,6 +892,7 @@ export default function ExportTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fullDataset, setFullDataset] = useState(null);
   const [loadingFullPreview, setLoadingFullPreview] = useState(false);
+  const [fileName, setFileName] = useState(''); // NEW: State for custom filename
   const itemsPerPage = 10;
 
   const loadJobs = useCallback(async () => {
@@ -933,12 +937,20 @@ export default function ExportTab() {
       ]);
       setStats(statsRes.data);
       setPreviewData(previewRes.data);
+      
+      // Auto-generate filename based on job name when selected
+      const job = jobs.find(j => j.id === selectedJobId);
+      if (job && job.name) {
+        const baseName = job.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        setFileName(`dataset_${baseName}_${timestamp}`);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [selectedJobId]);
+  }, [selectedJobId, jobs]);
 
   useEffect(() => {
     if (selectedJobId) loadStatsAndPreview();
@@ -952,7 +964,6 @@ export default function ExportTab() {
     if (!selectedJobId) return;
     setLoadingFullPreview(true);
     try {
-      // Load more records for full preview (adjust limit as needed)
       const response = await api.post(`/api/export/preview/${selectedJobId}`, { limit: 500 });
       setFullDataset(response.data);
       setIsModalOpen(true);
@@ -968,6 +979,13 @@ export default function ExportTab() {
       setError('Please select a job to export');
       return;
     }
+    
+    // Validate filename
+    if (!fileName.trim()) {
+      setError('Please enter a filename');
+      return;
+    }
+    
     setExporting(true);
     setError(null);
     try {
@@ -977,21 +995,20 @@ export default function ExportTab() {
         include_metadata: includeMetadata
       }, { responseType: 'blob' });
       
-      const job = jobs.find(j => j.id === selectedJobId);
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      // Use custom filename
       const format = EXPORT_FORMATS.find(f => f.id === selectedFormat);
-      const filename = `dataset_${job?.name?.replace(/[^a-z0-9]/gi, '_') || 'export'}_${timestamp}${format?.extension || '.csv'}`;
+      const finalFilename = `${fileName.trim()}${format?.extension || '.csv'}`;
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = finalFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       
-      setSuccess(`Dataset exported successfully as ${filename}`);
+      setSuccess(`Dataset exported successfully as ${finalFilename}`);
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       if (err.response?.data instanceof Blob) {
@@ -1009,6 +1026,12 @@ export default function ExportTab() {
       setError('No jobs available to export');
       return;
     }
+    
+    if (!fileName.trim()) {
+      setError('Please enter a filename');
+      return;
+    }
+    
     setExporting(true);
     setError(null);
     try {
@@ -1018,14 +1041,13 @@ export default function ExportTab() {
         include_metadata: includeMetadata
       }, { responseType: 'blob' });
       
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const format = EXPORT_FORMATS.find(f => f.id === selectedFormat);
-      const filename = `bulk_dataset_${jobs.length}jobs_${timestamp}${format?.extension || '.csv'}`;
+      const finalFilename = `${fileName.trim()}_bulk${format?.extension || '.csv'}`;
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = finalFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1047,6 +1069,15 @@ export default function ExportTab() {
   const selectedJob = jobs.find(j => j.id === selectedJobId);
   const paginatedJobs = filteredJobs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+
+  // Reset filename when job changes
+  useEffect(() => {
+    if (selectedJob && selectedJob.name) {
+      const baseName = selectedJob.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      setFileName(`dataset_${baseName}_${timestamp}`);
+    }
+  }, [selectedJob]);
 
   return (
     <div className="export-root" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -1075,27 +1106,6 @@ export default function ExportTab() {
           <CheckCircle size={16} color="#00ED64" />
           <span style={{ flex: 1, fontSize: '13px', color: '#00ED64' }}>{success}</span>
           <button onClick={() => setSuccess(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00ED64' }}><X size={14} /></button>
-        </div>
-      )}
-
-      {/* Stats Cards */}
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          {[
-            { icon: Database, label: 'Records', value: stats.total_parsed_records || 0 },
-            { icon: Mail, label: 'Emails', value: stats.total_emails_found || 0 },
-            { icon: Smartphone, label: 'Phones', value: stats.total_phones_found || 0 },
-            { icon: DollarSign, label: 'Prices', value: stats.total_prices_found || 0 },
-            { icon: Link, label: 'URLs', value: stats.total_urls_found || 0 },
-          ].map((stat, i) => (
-            <div key={i} style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '8px', padding: '16px' }}>
-              <div style={{ width: '36px', height: '36px', background: 'rgba(0, 237, 100, 0.12)', border: '1px solid rgba(0, 237, 100, 0.25)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                <stat.icon size={18} color="#00ED64" />
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: '700', color: '#00ED64', marginBottom: '4px' }}>{stat.value.toLocaleString()}</div>
-              <div style={{ fontSize: '11px', color: '#6E7681', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
-            </div>
-          ))}
         </div>
       )}
 
@@ -1160,6 +1170,54 @@ export default function ExportTab() {
                 </div>
               </div>
 
+              {/* Filename Input - NEW */}
+              <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Pencil size={16} color="#00ED64" />
+                    Export Filename
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#8B949E' }}>Customize the name of your exported file</div>
+                </div>
+                <div style={{ padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input
+                      type="text"
+                      value={fileName}
+                      onChange={(e) => setFileName(e.target.value)}
+                      placeholder="Enter filename..."
+                      style={{
+                        flex: 1,
+                        background: '#0D1117',
+                        border: '1px solid #30363D',
+                        borderRadius: '6px',
+                        padding: '10px 14px',
+                        fontSize: '13px',
+                        color: '#F0F6FC',
+                        outline: 'none',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = '#00ED64'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = '#30363D'}
+                    />
+                    <span style={{
+                      fontSize: '12px',
+                      color: '#6E7681',
+                      padding: '8px 12px',
+                      background: '#0D1117',
+                      borderRadius: '4px',
+                      border: '1px solid #30363D',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {EXPORT_FORMATS.find(f => f.id === selectedFormat)?.extension || '.csv'}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#6E7681' }}>
+                    <span>📄 Full filename: <strong style={{ color: '#F0F6FC' }}>{fileName || 'untitled'}{EXPORT_FORMATS.find(f => f.id === selectedFormat)?.extension || '.csv'}</strong></span>
+                  </div>
+                </div>
+              </div>
+
               {/* Export Format */}
               <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D' }}>
@@ -1193,12 +1251,12 @@ export default function ExportTab() {
 
               {/* Export Buttons */}
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={handleExport} disabled={exporting} style={{ flex: 2, padding: '14px', background: 'linear-gradient(135deg, #00ED64 0%, #00C355 100%)', border: 'none', borderRadius: '8px', color: '#0D1117', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', opacity: exporting ? 0.6 : 1 }}>
+                <button onClick={handleExport} disabled={exporting || !fileName.trim()} style={{ flex: 2, padding: '14px', background: 'linear-gradient(135deg, #00ED64 0%, #00C355 100%)', border: 'none', borderRadius: '8px', color: '#0D1117', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (exporting || !fileName.trim()) ? 'not-allowed' : 'pointer', opacity: (exporting || !fileName.trim()) ? 0.6 : 1 }}>
                   {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
                   Export Dataset
                 </button>
                 {jobs.length > 1 && (
-                  <button onClick={handleBulkExport} disabled={exporting} style={{ flex: 1, padding: '14px', background: '#0D1117', border: '1px solid #30363D', borderRadius: '8px', color: '#F0F6FC', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <button onClick={handleBulkExport} disabled={exporting || !fileName.trim()} style={{ flex: 1, padding: '14px', background: '#0D1117', border: '1px solid #30363D', borderRadius: '8px', color: '#F0F6FC', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: (exporting || !fileName.trim()) ? 'not-allowed' : 'pointer', opacity: (exporting || !fileName.trim()) ? 0.5 : 1 }}>
                     <HardDrive size={14} />
                     Bulk ({jobs.length})
                   </button>

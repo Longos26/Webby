@@ -1,19 +1,18 @@
-// frontend/src/pages/SettingsPage.jsx - MongoDB Atlas Enterprise Edition
-
+// frontend/src/pages/SettingsPage.jsx
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Bell, Globe, Shield, Key, CreditCard, Webhook,
+  User, Bell, Shield, Key, Lock,
   Save, Plus, Trash2, 
   ArrowLeft, Activity, Loader2, CheckCircle,
-  Copy, Lock, Eye, EyeOff, Smartphone, Server,
+  Copy, Eye, EyeOff, Smartphone, Server,
   Calendar, TrendingUp, AlertTriangle, X
 } from 'lucide-react';
 import api from '../api';
 
 // ============================================================
-// MONGODB ATLAS ENTERPRISE DESIGN SYSTEM
+// MONGODB ATLAS ENTERPRISE DESIGN SYSTEM - STYLES
 // ============================================================
 
 const styles = `
@@ -52,7 +51,6 @@ const styles = `
     --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
   }
 
-  /* Base */
   .settings-root * {
     margin: 0;
     padding: 0;
@@ -64,9 +62,9 @@ const styles = `
     color: var(--color-text-primary);
     background: var(--color-canvas);
     line-height: 1.5;
+    min-height: 100vh;
   }
 
-  /* Animations */
   @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
@@ -84,14 +82,12 @@ const styles = `
     animation: spin 0.6s linear infinite;
   }
 
-  /* Layout */
   .settings-container {
     max-width: 1280px;
     margin: 0 auto;
     padding: 24px;
   }
 
-  /* Back Button */
   .back-btn {
     display: inline-flex;
     align-items: center;
@@ -114,7 +110,6 @@ const styles = `
     color: var(--color-text-primary);
   }
 
-  /* Two Column Layout */
   .settings-grid {
     display: grid;
     grid-template-columns: 260px 1fr;
@@ -128,7 +123,6 @@ const styles = `
     }
   }
 
-  /* Sidebar Navigation */
   .settings-sidebar {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -176,7 +170,6 @@ const styles = `
     color: var(--color-mdb-green);
   }
 
-  /* Settings Card */
   .settings-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -207,7 +200,6 @@ const styles = `
     padding: 24px;
   }
 
-  /* Form Elements */
   .form-group {
     margin-bottom: 20px;
   }
@@ -268,7 +260,6 @@ const styles = `
     }
   }
 
-  /* Buttons */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -331,7 +322,6 @@ const styles = `
     justify-content: center;
   }
 
-  /* Toggle Switch */
   .toggle-item {
     display: flex;
     align-items: center;
@@ -389,7 +379,6 @@ const styles = `
     margin: 8px 0;
   }
 
-  /* Alert */
   .alert {
     display: flex;
     align-items: center;
@@ -418,206 +407,6 @@ const styles = `
     color: var(--color-info);
   }
 
-  /* API Key Items */
-  .api-key-item {
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 16px;
-    margin-bottom: 12px;
-  }
-  
-  .api-key-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-  }
-  
-  .api-key-name {
-    font-size: 14px;
-    font-weight: 600;
-  }
-  
-  .api-key-scopes {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  
-  .scope-badge {
-    font-size: 9px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 20px;
-    background: rgba(88, 166, 255, 0.1);
-    color: var(--color-info);
-    text-transform: uppercase;
-  }
-  
-  /* Stats Grid */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  
-  .stat-box {
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 14px;
-    text-align: center;
-  }
-  
-  .stat-number {
-    font-size: 24px;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    color: var(--color-info);
-  }
-  
-  .stat-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-top: 4px;
-  }
-
-  /* Progress Bar */
-  .progress-section {
-    margin-bottom: 20px;
-  }
-  
-  .progress-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 12px;
-  }
-  
-  .progress-bar {
-    height: 4px;
-    background: var(--color-border);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  
-  .progress-fill {
-    height: 100%;
-    background: var(--color-mdb-green);
-    border-radius: 4px;
-    transition: width var(--transition);
-  }
-
-  /* Plan Card */
-  .plan-card {
-    background: var(--color-accent-dim);
-    border: 1px solid var(--color-accent-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-  
-  .plan-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  
-  .plan-name {
-    font-size: 18px;
-    font-weight: 700;
-  }
-  
-  .plan-price {
-    font-size: 14px;
-    color: var(--color-text-muted);
-  }
-  
-  .plan-features {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-  }
-  
-  .plan-feature {
-    text-align: center;
-  }
-  
-  .plan-feature-value {
-    font-weight: 700;
-  }
-  
-  .plan-feature-label {
-    font-size: 10px;
-    color: var(--color-text-muted);
-    margin-top: 2px;
-  }
-  
-  .cancel-notice {
-    margin-top: 16px;
-    padding: 12px;
-    background: rgba(248, 81, 73, 0.1);
-    border-radius: var(--radius-md);
-    font-size: 12px;
-    color: var(--color-error);
-  }
-
-  /* Session Item */
-  .session-item {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    margin-bottom: 10px;
-  }
-  
-  .session-icon {
-    width: 36px;
-    height: 36px;
-    background: rgba(88, 166, 255, 0.1);
-    border: 1px solid rgba(88, 166, 255, 0.25);
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-info);
-  }
-  
-  .session-info {
-    flex: 1;
-  }
-  
-  .session-device {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  
-  .session-meta {
-    font-size: 10px;
-    color: var(--color-text-muted);
-  }
-  
-  .session-badge {
-    font-size: 9px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 20px;
-    background: rgba(0, 237, 100, 0.1);
-    color: var(--color-success);
-  }
-
-  /* Modal */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -663,45 +452,6 @@ const styles = `
     background: var(--color-surface);
   }
 
-  /* New Key Alert */
-  .new-key-alert {
-    margin-bottom: 20px;
-    padding: 16px;
-    background: rgba(0, 237, 100, 0.1);
-    border: 1px solid rgba(0, 237, 100, 0.25);
-    border-radius: var(--radius-md);
-  }
-  
-  .new-key-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-success);
-    margin-bottom: 8px;
-  }
-  
-  .new-key-message {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    margin-bottom: 12px;
-  }
-  
-  .key-value {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  
-  .key-code {
-    flex: 1;
-    background: rgba(0, 0, 0, 0.35);
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    word-break: break-all;
-  }
-
-  /* Loading State */
   .loading-state {
     display: flex;
     align-items: center;
@@ -711,7 +461,6 @@ const styles = `
     color: var(--color-text-muted);
   }
 
-  /* 2FA Setup */
   .qrcode-container {
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
@@ -730,7 +479,55 @@ const styles = `
     margin-top: 12px;
   }
 
-  /* Empty State */
+  .session-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  
+  .session-item:last-child {
+    border-bottom: none;
+  }
+  
+  .session-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+  }
+  
+  .session-info {
+    flex: 1;
+  }
+  
+  .session-device {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  
+  .session-meta {
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+  
+  .session-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--color-accent-dim);
+    color: var(--color-mdb-green);
+    padding: 2px 10px;
+    border-radius: 99px;
+  }
+
   .empty-state {
     text-align: center;
     padding: 40px;
@@ -798,6 +595,7 @@ function ProfileSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -813,6 +611,7 @@ function ProfileSettings() {
         });
       } catch (err) {
         console.error('Failed to load profile:', err);
+        setError('Failed to load profile');
       } finally {
         setLoading(false);
       }
@@ -822,6 +621,7 @@ function ProfileSettings() {
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null);
     try {
       await api.put('/api/settings/profile', {
         first_name: form.firstName,
@@ -831,9 +631,10 @@ function ProfileSettings() {
         language: form.language
       });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error('Failed to update profile:', err);
+      setError(err.response?.data?.detail || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -850,6 +651,19 @@ function ProfileSettings() {
 
   return (
     <>
+      {error && (
+        <div className="alert alert-error">
+          <AlertTriangle size={14} />
+          {error}
+        </div>
+      )}
+      {saved && (
+        <div className="alert alert-success">
+          <CheckCircle size={14} />
+          Profile updated successfully!
+        </div>
+      )}
+
       <div className="settings-card">
         <div className="card-header">
           <div className="card-title">Personal Information</div>
@@ -882,7 +696,7 @@ function ProfileSettings() {
               value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
             />
-            <div className="form-hint">Used for job notifications and billing</div>
+            <div className="form-hint">Used for notifications and account recovery</div>
           </div>
         </div>
       </div>
@@ -928,8 +742,8 @@ function ProfileSettings() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 size={14} className="spin" /> : saved ? <CheckCircle size={14} /> : <Save size={14} />}
-          {saving ? 'Saving...' : saved ? 'Saved' : 'Save Changes'}
+          {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </>
@@ -947,6 +761,7 @@ function NotificationSettings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -954,12 +769,12 @@ function NotificationSettings() {
         const res = await api.get('/api/settings/notifications');
         const data = res.data;
         setNotifications({
-          jobComplete: data.job_complete,
-          jobFailed: data.job_failed,
-          jobStarted: data.job_started,
-          weeklyReport: data.weekly_report,
-          proxyAlert: data.proxy_alert,
-          quotaWarning: data.quota_warning
+          jobComplete: data.job_complete !== undefined ? data.job_complete : true,
+          jobFailed: data.job_failed !== undefined ? data.job_failed : true,
+          jobStarted: data.job_started !== undefined ? data.job_started : false,
+          weeklyReport: data.weekly_report !== undefined ? data.weekly_report : true,
+          proxyAlert: data.proxy_alert !== undefined ? data.proxy_alert : true,
+          quotaWarning: data.quota_warning !== undefined ? data.quota_warning : true
         });
       } catch (err) {
         console.error('Failed to load notifications:', err);
@@ -985,6 +800,8 @@ function NotificationSettings() {
         proxy_alert: notifications.proxyAlert,
         quota_warning: notifications.quotaWarning
       });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error('Failed to save notifications:', err);
     } finally {
@@ -1003,16 +820,23 @@ function NotificationSettings() {
 
   return (
     <>
+      {saved && (
+        <div className="alert alert-success">
+          <CheckCircle size={14} />
+          Preferences saved successfully!
+        </div>
+      )}
+
       <div className="settings-card">
         <div className="card-header">
           <div className="card-title">Job Events</div>
-          <div className="card-description">Alerts for scraping job lifecycle</div>
+          <div className="card-description">Alerts for job lifecycle events</div>
         </div>
         <div className="card-body">
           <div className="toggle-item" onClick={() => toggle('jobComplete')}>
             <div>
               <div className="toggle-label">Job completed</div>
-              <div className="toggle-description">Notify when a scraping job finishes successfully</div>
+              <div className="toggle-description">Notify when a job finishes successfully</div>
             </div>
             <div className={`toggle-switch ${notifications.jobComplete ? 'active' : ''}`}>
               <div className="toggle-knob" />
@@ -1032,7 +856,7 @@ function NotificationSettings() {
           <div className="toggle-item" onClick={() => toggle('jobStarted')}>
             <div>
               <div className="toggle-label">Job started</div>
-              <div className="toggle-description">Confirmation when a scheduled job kicks off</div>
+              <div className="toggle-description">Confirmation when a scheduled job starts</div>
             </div>
             <div className={`toggle-switch ${notifications.jobStarted ? 'active' : ''}`}>
               <div className="toggle-knob" />
@@ -1098,215 +922,6 @@ function NotificationSettings() {
 }
 
 // ============================================================
-// API KEY SETTINGS
-// ============================================================
-
-function ApiKeySettings() {
-  const [keys, setKeys] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newKeyName, setNewKeyName] = useState('');
-  const [newKeyScopes, setNewKeyScopes] = useState(['read', 'write']);
-  const [newlyCreatedKey, setNewlyCreatedKey] = useState(null);
-  const [usage, setUsage] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, keyId: null, keyName: '' });
-
-  useEffect(() => {
-    fetchKeys();
-    fetchUsage();
-  }, []);
-
-  const fetchKeys = async () => {
-    try {
-      const res = await api.get('/api/settings/api-keys');
-      setKeys(res.data);
-    } catch (err) {
-      console.error('Failed to load API keys:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUsage = async () => {
-    try {
-      const res = await api.get('/api/settings/api-keys/usage');
-      setUsage(res.data);
-    } catch (err) {
-      console.error('Failed to load usage:', err);
-    }
-  };
-
-  const generateKey = async () => {
-    if (!newKeyName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await api.post('/api/settings/api-keys', {
-        name: newKeyName,
-        scopes: newKeyScopes
-      });
-      setNewlyCreatedKey(res.data);
-      await fetchKeys();
-      setNewKeyName('');
-      setTimeout(() => setNewlyCreatedKey(null), 10000);
-    } catch (err) {
-      console.error('Failed to create key:', err);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const deleteKey = async (keyId, keyName) => {
-    setConfirmModal({ isOpen: true, keyId, keyName });
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await api.delete(`/api/settings/api-keys/${confirmModal.keyId}`);
-      await fetchKeys();
-    } catch (err) {
-      console.error('Failed to delete key:', err);
-    } finally {
-      setConfirmModal({ isOpen: false, keyId: null, keyName: '' });
-    }
-  };
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  if (loading) {
-    return (
-      <div className="loading-state">
-        <Loader2 size={20} className="spin" />
-        <span>Loading API keys...</span>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false, keyId: null, keyName: '' })}
-        onConfirm={confirmDelete}
-        title="Delete API Key"
-        message={`Delete API key "${confirmModal.keyName}"? This action cannot be undone.`}
-      />
-
-      {newlyCreatedKey && (
-        <div className="new-key-alert">
-          <div className="new-key-title">New API Key Created</div>
-          <div className="new-key-message">Make sure to copy your key now. You won't be able to see it again.</div>
-          <div className="key-value">
-            <code className="key-code">{newlyCreatedKey.key}</code>
-            <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(newlyCreatedKey.key)}>
-              <Copy size={12} /> Copy
-            </button>
-          </div>
-        </div>
-      )}
-
-      {usage && (
-        <div className="settings-card">
-          <div className="card-header">
-            <div className="card-title">API Usage</div>
-            <div className="card-description">Current month consumption</div>
-          </div>
-          <div className="card-body">
-            <div className="stats-grid">
-              <div className="stat-box">
-                <div className="stat-number">{usage.api_requests?.toLocaleString() || 0}</div>
-                <div className="stat-label">API Requests</div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>limit {usage.api_limit?.toLocaleString() || 1000}</div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-number">{usage.export_calls?.toLocaleString() || 0}</div>
-                <div className="stat-label">Exports</div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>limit {usage.export_limit?.toLocaleString() || 100}</div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-number">{usage.concurrent_jobs || 0}</div>
-                <div className="stat-label">Concurrent Jobs</div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>limit {usage.concurrent_jobs_limit || 5}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="settings-card">
-        <div className="card-header">
-          <div className="card-title">API Keys</div>
-          <div className="card-description">Manage programmatic access to the API</div>
-        </div>
-        <div className="card-body">
-          {keys.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon"><Key size={24} /></div>
-              <div style={{ fontSize: 13 }}>No API keys created yet</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Create your first API key to get started</div>
-            </div>
-          ) : (
-            keys.map(k => (
-              <div key={k.id} className="api-key-item">
-                <div className="api-key-header">
-                  <div>
-                    <div className="api-key-name">{k.name}</div>
-                    <div className="api-key-scopes">
-                      {k.scopes?.map(s => (
-                        <span key={s} className="scope-badge">{s}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <button className="btn btn-danger btn-sm" onClick={() => deleteKey(k.id, k.name)}>
-                    <Trash2 size={12} /> Delete
-                  </button>
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>
-                  Created {k.created_at ? new Date(k.created_at).toLocaleDateString() : 'Unknown'}
-                  {k.last_used && ` • Last used ${new Date(k.last_used).toLocaleDateString()}`}
-                </div>
-              </div>
-            ))
-          )}
-          
-          <div style={{ marginTop: 20 }}>
-            <div className="form-group">
-              <label className="form-label">Key Name</label>
-              <input
-                className="form-input"
-                placeholder="e.g., Production API Key"
-                value={newKeyName}
-                onChange={e => setNewKeyName(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Scopes</label>
-              <select
-                className="form-select"
-                value={newKeyScopes}
-                onChange={e => setNewKeyScopes(Array.from(e.target.selectedOptions, opt => opt.value))}
-                multiple
-                style={{ minHeight: 80 }}
-              >
-                <option value="read">read - Read-only access</option>
-                <option value="write">write - Create and modify resources</option>
-                <option value="export">export - Export data</option>
-              </select>
-              <div className="form-hint">Hold Ctrl/Cmd to select multiple scopes</div>
-            </div>
-            <button className="btn btn-primary" onClick={generateKey} disabled={creating}>
-              {creating ? <Loader2 size={14} className="spin" /> : <Plus size={14} />}
-              {creating ? 'Creating...' : 'Generate New Key'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ============================================================
 // SECURITY SETTINGS
 // ============================================================
 
@@ -1326,6 +941,8 @@ function SecuritySettings() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: '', sessionId: null });
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     fetchSecurityData();
@@ -1337,22 +954,31 @@ function SecuritySettings() {
         api.get('/api/settings/security/2fa'),
         api.get('/api/settings/security/sessions')
       ]);
-      setTwoFA(twoFARes.data.enabled);
-      setSessions(sessionsRes.data);
+      setTwoFA(twoFARes.data.enabled || false);
+      setSessions(sessionsRes.data || []);
     } catch (err) {
       console.error('Failed to load security data:', err);
+      if (err.response?.status === 404) {
+        setSessions([]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const updatePassword = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    
     if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordError('Passwords do not match');
       return;
     }
-    if (passwordForm.new_password.length < 6) {
+    if (passwordForm.new_password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       return;
     }
+    
     setUpdatingPassword(true);
     try {
       await api.put('/api/settings/password', {
@@ -1360,8 +986,11 @@ function SecuritySettings() {
         new_password: passwordForm.new_password
       });
       setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      setPasswordSuccess(true);
+      setTimeout(() => setPasswordSuccess(false), 3000);
     } catch (err) {
       console.error('Failed to update password:', err);
+      setPasswordError(err.response?.data?.detail || 'Failed to update password');
     } finally {
       setUpdatingPassword(false);
     }
@@ -1374,20 +1003,26 @@ function SecuritySettings() {
       setTwoFASetup(res.data);
     } catch (err) {
       console.error('Failed to setup 2FA:', err);
+      alert('Failed to setup 2FA');
     } finally {
       setSettingUp2FA(false);
     }
   };
 
   const verifyTwoFactor = async () => {
-    if (!twoFACode) return;
+    if (!twoFACode) {
+      alert('Please enter verification code');
+      return;
+    }
     try {
       await api.post('/api/settings/security/2fa/verify', { code: twoFACode });
       setTwoFA(true);
       setTwoFASetup(null);
       setTwoFACode('');
+      alert('2FA enabled successfully');
     } catch (err) {
       console.error('Invalid verification code:', err);
+      alert(err.response?.data?.detail || 'Invalid verification code');
     }
   };
 
@@ -1399,8 +1034,10 @@ function SecuritySettings() {
     try {
       await api.post('/api/settings/security/2fa/disable');
       setTwoFA(false);
+      alert('2FA disabled successfully');
     } catch (err) {
       console.error('Failed to disable 2FA:', err);
+      alert('Failed to disable 2FA');
     } finally {
       setConfirmModal({ isOpen: false, type: '', sessionId: null });
     }
@@ -1413,9 +1050,19 @@ function SecuritySettings() {
   const confirmRevokeSession = async () => {
     try {
       await api.delete(`/api/settings/security/sessions/${confirmModal.sessionId}`);
-      await fetchSecurityData();
+      // Refresh sessions
+      const res = await api.get('/api/settings/security/sessions');
+      setSessions(res.data || []);
     } catch (err) {
       console.error('Failed to revoke session:', err);
+      if (err.response?.status === 404) {
+        alert('Session already revoked');
+        // Refresh to update the list
+        const res = await api.get('/api/settings/security/sessions');
+        setSessions(res.data || []);
+      } else {
+        alert('Failed to revoke session');
+      }
     } finally {
       setConfirmModal({ isOpen: false, type: '', sessionId: null });
     }
@@ -1448,6 +1095,19 @@ function SecuritySettings() {
           <div className="card-description">Keep your account secure with a strong password</div>
         </div>
         <div className="card-body">
+          {passwordError && (
+            <div className="alert alert-error">
+              <AlertTriangle size={14} />
+              {passwordError}
+            </div>
+          )}
+          {passwordSuccess && (
+            <div className="alert alert-success">
+              <CheckCircle size={14} />
+              Password updated successfully!
+            </div>
+          )}
+          
           <div className="form-group">
             <label className="form-label">Current Password</label>
             <div style={{ position: 'relative' }}>
@@ -1484,6 +1144,7 @@ function SecuritySettings() {
                   {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
+              <div className="form-hint">Minimum 8 characters</div>
             </div>
             <div className="form-group">
               <label className="form-label">Confirm Password</label>
@@ -1534,7 +1195,7 @@ function SecuritySettings() {
                 <label className="form-label">Verification Code</label>
                 <input
                   className="form-input"
-                  placeholder="000000"
+                  placeholder="Enter 6-digit code"
                   value={twoFACode}
                   onChange={e => setTwoFACode(e.target.value)}
                 />
@@ -1603,279 +1264,19 @@ function SecuritySettings() {
 }
 
 // ============================================================
-// BILLING SETTINGS
-// ============================================================
-
-function BillingSettings() {
-  const [plan, setPlan] = useState(null);
-  const [usage, setUsage] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [upgrading, setUpgrading] = useState(false);
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false });
-
-  useEffect(() => {
-    fetchBillingData();
-  }, []);
-
-  const fetchBillingData = async () => {
-    try {
-      const [planRes, usageRes, paymentRes] = await Promise.all([
-        api.get('/api/settings/billing/plan'),
-        api.get('/api/settings/billing/usage'),
-        api.get('/api/settings/billing/payment-method')
-      ]);
-      setPlan(planRes.data);
-      setUsage(usageRes.data);
-      setPaymentMethod(paymentRes.data);
-    } catch (err) {
-      console.error('Failed to load billing data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const upgradePlan = async (newPlan) => {
-    setUpgrading(true);
-    try {
-      await api.post('/api/settings/billing/plan/upgrade', { plan: newPlan });
-      await fetchBillingData();
-    } catch (err) {
-      console.error('Failed to upgrade plan:', err);
-    } finally {
-      setUpgrading(false);
-    }
-  };
-
-  const cancelSubscription = () => {
-    setConfirmModal({ isOpen: true });
-  };
-
-  const confirmCancel = async () => {
-    try {
-      await api.post('/api/settings/billing/plan/cancel');
-      await fetchBillingData();
-    } catch (err) {
-      console.error('Failed to cancel subscription:', err);
-    } finally {
-      setConfirmModal({ isOpen: false });
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="loading-state">
-        <Loader2 size={20} className="spin" />
-        <span>Loading billing information...</span>
-      </div>
-    );
-  }
-
-  const recordPercent = usage?.records_limit && usage.records_limit !== 'Unlimited'
-    ? ((usage.records_scraped || 0) / usage.records_limit) * 100
-    : 0;
-
-  const apiPercent = usage?.api_limit && usage.api_limit !== 'Unlimited'
-    ? ((usage.api_requests || 0) / usage.api_limit) * 100
-    : 0;
-
-  const exportPercent = usage?.export_limit && usage.export_limit !== 'Unlimited'
-    ? ((usage.export_downloads || 0) / usage.export_limit) * 100
-    : 0;
-
-  return (
-    <>
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false })}
-        onConfirm={confirmCancel}
-        title="Cancel Subscription"
-        message="Cancel your subscription? Your plan will end at the current billing period. You will lose access to premium features."
-      />
-
-      {plan && (
-        <div className="settings-card">
-          <div className="card-header">
-            <div className="card-title">Current Plan</div>
-            <div className="card-description">Your active subscription</div>
-          </div>
-          <div className="card-body">
-            <div className="plan-card">
-              <div className="plan-header">
-                <div>
-                  <div className="plan-name">{plan.plan_info?.name || 'Free'} Plan</div>
-                  <div className="plan-price">{plan.plan_info?.price || 'Free'} / month</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {!plan.cancel_at_period_end && plan.plan !== 'enterprise' && (
-                    <>
-                      <button className="btn btn-primary" onClick={() => upgradePlan('pro')} disabled={upgrading}>
-                        {upgrading ? <Loader2 size={14} className="spin" /> : 'Upgrade to Pro'}
-                      </button>
-                      <button className="btn btn-danger" onClick={cancelSubscription}>Cancel</button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="plan-features">
-                <div className="plan-feature">
-                  <div className="plan-feature-value">{plan.plan_info?.records_limit?.toLocaleString() || 'Unlimited'}</div>
-                  <div className="plan-feature-label">Records / month</div>
-                </div>
-                <div className="plan-feature">
-                  <div className="plan-feature-value">{plan.plan_info?.jobs_limit || 'Unlimited'}</div>
-                  <div className="plan-feature-label">Active Jobs</div>
-                </div>
-                <div className="plan-feature">
-                  <div className="plan-feature-value">{plan.plan === 'enterprise' ? '24/7' : 'Email'}</div>
-                  <div className="plan-feature-label">Support</div>
-                </div>
-              </div>
-              {plan.cancel_at_period_end && (
-                <div className="cancel-notice">
-                  <AlertTriangle size={12} style={{ display: 'inline', marginRight: 8 }} />
-                  Your subscription will end on {plan.current_period_end ? new Date(plan.current_period_end).toLocaleDateString() : 'N/A'}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {usage && (
-        <div className="settings-card">
-          <div className="card-header">
-            <div className="card-title">Usage This Month</div>
-            <div className="card-description">Current consumption against plan limits</div>
-          </div>
-          <div className="card-body">
-            <div className="progress-section">
-              <div className="progress-header">
-                <span>Records scraped</span>
-                <span>{usage.records_scraped?.toLocaleString() || 0} / {usage.records_limit === 'Unlimited' ? 'Unlimited' : usage.records_limit?.toLocaleString() || 1000}</span>
-              </div>
-              {usage.records_limit !== 'Unlimited' && (
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min(recordPercent, 100)}%` }} /></div>
-              )}
-            </div>
-            <div className="progress-section">
-              <div className="progress-header">
-                <span>API requests</span>
-                <span>{usage.api_requests?.toLocaleString() || 0} / {usage.api_limit === 'Unlimited' ? 'Unlimited' : usage.api_limit?.toLocaleString() || 1000}</span>
-              </div>
-              {usage.api_limit !== 'Unlimited' && (
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min(apiPercent, 100)}%` }} /></div>
-              )}
-            </div>
-            <div className="progress-section">
-              <div className="progress-header">
-                <span>Export downloads</span>
-                <span>{usage.export_downloads?.toLocaleString() || 0} / {usage.export_limit === 'Unlimited' ? 'Unlimited' : usage.export_limit?.toLocaleString() || 100}</span>
-              </div>
-              {usage.export_limit !== 'Unlimited' && (
-                <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.min(exportPercent, 100)}%` }} /></div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="settings-card">
-        <div className="card-header">
-          <div className="card-title">Payment Method</div>
-          <div className="card-description">Manage your billing details</div>
-        </div>
-        <div className="card-body">
-          {paymentMethod ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'var(--color-canvas)', padding: 16, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-              <div style={{ width: 46, height: 32, background: 'linear-gradient(135deg, #1a1f36, #2d3748)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CreditCard size={16} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{paymentMethod.card_brand?.charAt(0).toUpperCase() + paymentMethod.card_brand?.slice(1) || 'Card'} ending in {paymentMethod.last4}</div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Expires {paymentMethod.expiry_month}/{paymentMethod.expiry_year}</div>
-              </div>
-              <button className="btn btn-secondary btn-sm">Update</button>
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon"><CreditCard size={24} /></div>
-              <div style={{ fontSize: 13 }}>No payment method on file</div>
-              <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>Add Payment Method</button>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ============================================================
-// PROXY SETTINGS (Placeholder)
-// ============================================================
-
-function ProxySettings() {
-  return (
-    <div className="settings-card">
-      <div className="card-header">
-        <div className="card-title">Proxy Pools</div>
-        <div className="card-description">Manage proxy rotation and health monitoring</div>
-      </div>
-      <div className="card-body">
-        <div className="empty-state">
-          <div className="empty-icon"><Globe size={24} /></div>
-          <div style={{ fontSize: 13 }}>Proxy Management</div>
-          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Coming in the next release</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// WEBHOOK SETTINGS (Placeholder)
-// ============================================================
-
-function WebhookSettings() {
-  return (
-    <div className="settings-card">
-      <div className="card-header">
-        <div className="card-title">Webhook Endpoints</div>
-        <div className="card-description">Configure webhooks for real-time event notifications</div>
-      </div>
-      <div className="card-body">
-        <div className="empty-state">
-          <div className="empty-icon"><Webhook size={24} /></div>
-          <div style={{ fontSize: 13 }}>Webhooks</div>
-          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Coming in the next release</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
 // MAIN SETTINGS PAGE
 // ============================================================
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'proxies', label: 'Proxy Pools', icon: Globe },
-  { id: 'api', label: 'API Keys', icon: Key },
-  { id: 'webhooks', label: 'Webhooks', icon: Webhook },
-  { id: 'security', label: 'Security', icon: Shield },
-  { id: 'billing', label: 'Billing', icon: CreditCard }
+  { id: 'security', label: 'Security', icon: Shield }
 ];
 
 const SECTION_MAP = {
   profile: ProfileSettings,
   notifications: NotificationSettings,
-  proxies: ProxySettings,
-  api: ApiKeySettings,
-  webhooks: WebhookSettings,
-  security: SecuritySettings,
-  billing: BillingSettings
+  security: SecuritySettings
 };
 
 export default function SettingsPage() {
@@ -1886,8 +1287,9 @@ export default function SettingsPage() {
   return (
     <div className="settings-root page-enter">
       <div className="settings-container">
-        <button className="back-btn" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft size={14} /> Back to Dashboard
+        <button className="back-btn" onClick={() => navigate(-1)}>
+          <ArrowLeft size={14} />
+          Back
         </button>
 
         <div className="settings-grid">

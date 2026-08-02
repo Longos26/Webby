@@ -123,6 +123,7 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
+        # Return user data as a dictionary (not UserInDB model)
         return {
             "id": str(user["_id"]),
             "email": user["email"],

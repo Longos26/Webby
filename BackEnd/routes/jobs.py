@@ -270,7 +270,7 @@ async def execute_enhanced_scraping_job(job_id: str, user_id: str):
             {"$set": {"progress": 80}}
         )
         
-        # Combine all scraped content
+        # Combine all scraped content - REMOVE THE 1,000,000 CHARACTER LIMIT
         combined_content = ""
         all_structured_data = []
         
@@ -291,14 +291,14 @@ async def execute_enhanced_scraping_job(job_id: str, user_id: str):
         # Calculate total records
         records = len(results) * 10  # Estimate
         
-        # Save results
+        # Save results - REMOVE THE LIMIT HERE
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
             {"$set": {
                 "status": "success",
                 "progress": 100,
                 "records": records,
-                "scraped_content": combined_content[:1000000],  # Limit size
+                "scraped_content": combined_content,  # NO MORE LIMIT
                 "scraped_at": get_current_utc_time(),
                 "updated_at": get_current_utc_time(),
                 "error_message": None,

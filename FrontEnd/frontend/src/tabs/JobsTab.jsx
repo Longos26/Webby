@@ -1113,8 +1113,8 @@ function JobDetailsModal({ job, onClose }) {
   
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal details-modal" style={{ maxWidth: 680, display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)' }}>
+      <div className="modal details-modal" style={{ maxWidth: 900, display: 'flex', flexDirection: 'column', maxHeight: '95vh' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 40, height: 40,
@@ -1135,7 +1135,7 @@ function JobDetailsModal({ job, onClose }) {
           </button>
         </div>
         
-        <div className="details-body">
+        <div className="details-body" style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
           {/* Progress */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -1200,22 +1200,26 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           </div>
           
-          {/* Content Preview */}
+          {/* Content Preview - SHOW ENTIRE CONTENT */}
           {scrapedContent && !loading && (
             <div className="preview-section">
               <div className="preview-header">
-                <span>Content Preview</span>
+                <span>Full Content</span>
                 <span>{charCount.toLocaleString()} chars</span>
               </div>
-              <div className="preview-content">
-                {scrapedContent.substring(0, 2000)}
-                {scrapedContent.length > 2000 && '\n\n... truncated'}
+              <div className="preview-content" style={{ 
+                maxHeight: '400px', 
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
+              }}>
+                {scrapedContent} {/* ENTIRE CONTENT - NO TRUNCATION */}
               </div>
             </div>
           )}
         </div>
         
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ flexShrink: 0 }}>
           <button className="btn btn-secondary btn-sm" onClick={onClose}>
             Close
           </button>

@@ -1,10 +1,11 @@
-# mongodb/database.py
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from gridfs import GridFSBucket
 from typing import Optional
 from dotenv import load_dotenv
 import os
 import asyncio
 import logging
+import io
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 class Database:
     client: Optional[AsyncIOMotorClient] = None
     db: Optional[AsyncIOMotorDatabase] = None
+    fs: Optional[GridFSBucket] = None
 
 database = Database()
 
@@ -33,8 +35,8 @@ async def connect_to_mongo():
             "retryWrites": True,
             "retryReads": True,
             "tls": True,
-            "tlsAllowInvalidCertificates": True,  # Required for Render
-            "tlsAllowInvalidHostnames": True,      # Required for Render
+            "tlsAllowInvalidCertificates": True,
+            "tlsAllowInvalidHostnames": True,
         }
         
         database.client = AsyncIOMotorClient(MONGO_URI, **client_kwargs)
@@ -42,20 +44,24 @@ async def connect_to_mongo():
         # Get database instance
         database.db = database.client.get_database(MONGO_DB_NAME)
         
+        # Initialize GridFS for large content
+        database.fs = GridFSBucket(database.db)
+        
         # Verify connection
         await database.client.admin.command('ping')
         logger.info("✅ Successfully connected to MongoDB Atlas!")
         logger.info(f"📊 Database: {MONGO_DB_NAME}")
         
-        # Create indexes in background (don't block startup)
+        # Create indexes in background
         asyncio.create_task(create_indexes())
         
         return database.db
         
     except Exception as e:
         logger.error(f"❌ MongoDB connection error: {e}")
-        logger.error(f"Connection string format: {MONGO_URI[:50]}...")  # Partial for debugging
+        logger.error(f"Connection string format: {MONGO_URI[:50]}...")
         raise e
+
 
 async def create_indexes():
     """Create database indexes"""

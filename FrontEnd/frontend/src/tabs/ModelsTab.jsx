@@ -899,14 +899,7 @@ export default function ModelsTab() {
                 <h3>{currentProvider?.name}</h3>
                 <p>{currentProvider?.description}</p>
               </div>
-              <button
-                className={`test-btn ${testStatus?.success ? 'success' : testStatus?.error ? 'error' : ''}`}
-                onClick={handleTestConnection}
-                disabled={testing}
-              >
-                {testing ? <RefreshCw size={12} className="spin" /> : <Zap size={12} />}
-                {testing ? 'Testing...' : 'Test Connection'}
-              </button>
+              
             </div>
 
             <div className="config-body">
@@ -926,49 +919,7 @@ export default function ModelsTab() {
                 </div>
               )}
 
-              {/* API Key Field */}
-              <div className="form-group">
-                <label className="form-label">
-                  <Key size={12} /> API Key
-                </label>
-                <div className="api-key-wrapper">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    className="form-input"
-                    value={config.apiKey || ''}
-                    onChange={e => handleConfigChange('apiKey', e.target.value)}
-                    placeholder={`Enter your ${currentProvider?.name} API key`}
-                  />
-                  <button
-                    type="button"
-                    className="api-key-toggle"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-                <div className="form-hint">
-                  <Lock size={10} style={{ display: 'inline', marginRight: 4 }} />
-                  Your API key is encrypted at rest. Never share it with anyone.
-                </div>
-              </div>
-
-              {/* Base URL Field */}
-              <div className="form-group">
-                <label className="form-label">
-                  <Server size={12} /> Base URL (Optional)
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={config.baseUrl || ''}
-                  onChange={e => handleConfigChange('baseUrl', e.target.value)}
-                  placeholder="https://api.openai.com/v1"
-                />
-                <div className="form-hint">
-                  Override the default API endpoint for custom or self-hosted deployments
-                </div>
-              </div>
+              
 
               {/* Models Section */}
               <div className="models-section">
@@ -988,49 +939,7 @@ export default function ModelsTab() {
                 </div>
               </div>
 
-              {/* Advanced Settings */}
-              <details className="advanced-toggle">
-                <summary className="advanced-summary">
-                  <Settings size={12} />
-                  Advanced Settings
-                  <ChevronRight size={12} style={{ marginLeft: 'auto', transition: 'transform 0.2s' }} />
-                </summary>
-                <div className="advanced-content">
-                  <div className="form-group">
-                    <label className="form-label">Temperature</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      className="slider-input"
-                      value={config.temperature || 0.7}
-                      onChange={e => handleConfigChange('temperature', parseFloat(e.target.value))}
-                    />
-                    <div className="slider-value">
-                      Current: {config.temperature || 0.7} — 
-                      {config.temperature < 0.3 ? ' More deterministic' : 
-                       config.temperature > 0.7 ? ' More creative' : 
-                       ' Balanced'}
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Max Tokens</label>
-                    <input
-                      type="number"
-                      className="number-input"
-                      value={config.maxTokens || 4096}
-                      onChange={e => handleConfigChange('maxTokens', parseInt(e.target.value) || 4096)}
-                      min="1"
-                      max="32768"
-                      step="256"
-                    />
-                    <div className="form-hint">
-                      Maximum number of tokens to generate per request
-                    </div>
-                  </div>
-                </div>
-              </details>
+             
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 28 }}>
