@@ -849,34 +849,7 @@ export default function ModelsTab() {
   return (
     <div className="models-root page-enter">
       <div className="models-container">
-        {/* Header */}
         
-
-        {/* Stats Grid */}
-        <div className="stats-grid">
-          <StatCard 
-            value={stats.total_requests.toLocaleString()} 
-            label="Total API Calls" 
-            icon={TrendingUp}
-          />
-          <StatCard 
-            value={`${stats.success_rate.toFixed(1)}%`} 
-            label="Success Rate" 
-            icon={CheckCircle}
-          />
-          <StatCard 
-            value={`${stats.avg_processing_time.toFixed(2)}s`} 
-            label="Avg Response Time" 
-            icon={Clock}
-          />
-          <StatCard 
-            value={stats.active_providers} 
-            label="Active Providers" 
-            icon={Database}
-          />
-        </div>
-
-        {/* Two Column Layout */}
         <div className="two-column">
           {/* Provider Sidebar */}
           <div className="providers-sidebar">

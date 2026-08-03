@@ -71,6 +71,18 @@ const globalStyles = `
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-elevated) 50%, var(--bg-surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+  }
 `;
 
 const PERKS = [
@@ -79,6 +91,79 @@ const PERKS = [
   { text: 'Real-time monitoring', subtext: 'Error alerts included', icon: Zap },
   { text: 'Cancel anytime', subtext: 'No lock-in contracts', icon: Shield },
 ];
+
+const SignUpSkeleton = () => (
+  <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', display: 'flex' }}>
+    {/* Left Panel Skeleton */}
+    <div style={{
+      width: '42%',
+      background: 'var(--bg-surface)',
+      borderRight: '1px solid var(--border-default)',
+      padding: '48px 40px',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <div className="skeleton" style={{ width: '120px', height: '100px', marginBottom: '48px' }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ marginBottom: '40px' }}>
+          <div className="skeleton" style={{ width: '180px', height: '20px', marginBottom: '12px' }} />
+          <div className="skeleton" style={{ width: '80%', height: '36px', marginBottom: '16px' }} />
+          <div className="skeleton" style={{ width: '70%', height: '18px' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '40px', flexWrap: 'wrap' }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} style={{ flex: 1, padding: '16px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div className="skeleton" style={{ width: '60%', height: '32px', marginBottom: '8px' }} />
+              <div className="skeleton" style={{ width: '50%', height: '16px' }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="skeleton" style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)' }} />
+              <div className="skeleton" style={{ width: '40%', height: '16px' }} />
+              <div className="skeleton" style={{ width: '30%', height: '14px' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Right Panel Skeleton */}
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
+      <div style={{ width: '100%', maxWidth: '460px' }}>
+        <div style={{ marginBottom: '32px' }}>
+          <div className="skeleton" style={{ width: '60%', height: '32px', marginBottom: '8px' }} />
+          <div className="skeleton" style={{ width: '50%', height: '18px' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div>
+            <div className="skeleton" style={{ width: '40%', height: '16px', marginBottom: '8px' }} />
+            <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
+          </div>
+          <div>
+            <div className="skeleton" style={{ width: '40%', height: '16px', marginBottom: '8px' }} />
+            <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
+          </div>
+        </div>
+        <div style={{ marginBottom: '20px' }}>
+          <div className="skeleton" style={{ width: '30%', height: '16px', marginBottom: '8px' }} />
+          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
+        </div>
+        <div style={{ marginBottom: '20px' }}>
+          <div className="skeleton" style={{ width: '30%', height: '16px', marginBottom: '8px' }} />
+          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
+        </div>
+        <div style={{ marginBottom: '24px' }}>
+          <div className="skeleton" style={{ width: '40%', height: '16px', marginBottom: '8px' }} />
+          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
+        </div>
+        <div className="skeleton" style={{ width: '100%', height: '48px', borderRadius: 'var(--radius-md)', marginBottom: '28px' }} />
+      </div>
+    </div>
+  </div>
+);
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -92,8 +177,9 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  const { loading, error: errorMessage } = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -147,6 +233,9 @@ const SignUp = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    setLoading(true);
+    setErrorMessage(null);
+
     try {
       dispatch(signInStart());
       const data = await authService.signup({
@@ -168,9 +257,16 @@ const SignUp = () => {
       if (error.response?.data?.detail) errorMsg = error.response.data.detail;
       else if (error.response?.data?.message) errorMsg = error.response.data.message;
       else if (error.userMessage) errorMsg = error.userMessage;
+      setErrorMessage(errorMsg);
       dispatch(signInFailure(errorMsg));
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (loading) {
+    return <SignUpSkeleton />;
+  }
 
   return (
     <>

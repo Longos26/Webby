@@ -1171,7 +1171,7 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
                       </>
                     ) : (
                       <>
-                        <Zap size={16} />
+                        
                         Parse
                       </>
                     )}

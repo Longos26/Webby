@@ -1,13 +1,260 @@
+/* ───────────────────────────── */
+/* CRITICAL: Mobile First Viewport */
+/* ───────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%; 
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* ───────────────────────────── */
+/* Responsive Images & Media */
+/* ───────────────────────────── */
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ───────────────────────────── */
+/* Mobile Touch Improvements */
+/* ───────────────────────────── */
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* ───────────────────────────── */
+/* Prevent Zoom on Input Focus (iOS) */
+/* ───────────────────────────── */
+
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* ───────────────────────────── */
+/* Mobile Breakpoints */
+/* ───────────────────────────── */
+
+@media screen and (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media screen and (min-width: 481px) and (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+/* ───────────────────────────── */
+/* Scrollbar - Mobile friendly */
+/* ───────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 999px;
+}
+
+@media (hover: none) {
+  ::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+}
+
+/* ───────────────────────────── */
+/* Fix for 100vh on mobile browsers */
+/* ───────────────────────────── */
+
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ───────────────────────────── */
+/* Mobile Responsive Fixes for HomePage */
+/* ───────────────────────────── */
+
+@media screen and (max-width: 768px) {
+  .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+    text-align: center;
+  }
+
+  .hero-grid h1 {
+    font-size: 32px !important;
+  }
+
+  .hero-grid p {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card {
+    padding: 16px !important;
+  }
+
+  nav .desktop-nav {
+    display: none !important;
+  }
+
+  .mobile-menu-btn {
+    display: block !important;
+  }
+
+  .data-table {
+    font-size: 12px !important;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px !important;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .stat-card {
+    padding: 12px !important;
+  }
+
+  .stat-value {
+    font-size: 20px !important;
+  }
+
+  .hero-grid h1 {
+    font-size: 28px !important;
+  }
+}
+
+/* ───────────────────────────── */
+/* Fix for Login/Signup pages */
+/* ───────────────────────────── */
+
+@media screen and (max-width: 880px) {
+  .login-layout {
+    flex-direction: column !important;
+  }
+
+  .login-left-panel {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #30363D !important;
+    padding: 24px !important;
+  }
+
+  .login-right-panel {
+    padding: 24px !important;
+  }
+}
+
+/* ───────────────────────────── */
+/* Fix for Dashboard sidebar on mobile */
+/* ───────────────────────────── */
+
+@media screen and (max-width: 768px) {
+  .app-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000 !important;
+    width: 280px !important;
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  .app-main-content {
+    margin-left: 0 !important;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+  }
 }

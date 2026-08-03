@@ -479,12 +479,95 @@ const STYLES = `
     color: var(--color-text-muted);
   }
 
+    /* Mobile Responsive Fixes for Export */
   @media (max-width: 768px) {
-    .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
+    .export-root {
+      padding: 12px !important;
     }
-    .preview-table th, .preview-table td {
-      padding: 8px;
+    
+    .export-root .two-column {
+      grid-template-columns: 1fr !important;
+      gap: 16px !important;
+    }
+    
+    .export-root .stats-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 8px !important;
+    }
+    
+    .export-root .format-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 8px !important;
+    }
+    
+    .export-root .format-btn {
+      padding: 12px 8px !important;
+    }
+    
+    .export-root .format-btn .format-icon {
+      width: 32px !important;
+      height: 32px !important;
+      font-size: 18px !important;
+    }
+    
+    .export-root .format-btn .format-name {
+      font-size: 10px !important;
+    }
+    
+    .export-root .job-list {
+      max-height: 200px !important;
+    }
+    
+    .export-root .job-item {
+      padding: 10px 12px !important;
+    }
+    
+    .export-root .job-name {
+      font-size: 12px !important;
+    }
+    
+    .export-root .preview-table-container {
+      max-height: 200px !important;
+    }
+    
+    .export-root .preview-table th,
+    .export-root .preview-table td {
+      padding: 6px 8px !important;
+      font-size: 10px !important;
+    }
+    
+    .export-root .option-row {
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+    }
+    
+    .export-root .export-btn {
+      font-size: 13px !important;
+      padding: 12px !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .export-root .stats-grid {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .export-root .format-grid {
+      grid-template-columns: 1fr 1fr !important;
+    }
+    
+    .export-root .modal {
+      max-width: 100% !important;
+      margin: 8px !important;
+    }
+    
+    .export-root .preview-table-container {
+      max-height: 150px !important;
+    }
+    
+    .export-root .export-btn {
+      font-size: 12px !important;
+      padding: 10px !important;
     }
   }
 `;

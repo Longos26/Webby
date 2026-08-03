@@ -1,4 +1,4 @@
-// frontend/src/pages/JobsTab.jsx - MongoDB Atlas Enterprise Edition
+// frontend/src/pages/JobsTab.jsx - FULLY RESPONSIVE VERSION
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -7,18 +7,18 @@ import {
   Database, Link as LinkIcon, Calendar, Activity,
   CheckCircle, Zap, Brain,
   AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Clock, Hash, Server
+  Clock, Hash, Server, Menu
 } from 'lucide-react';
 import api from '../api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import ParsingPanel from '../components/ParsingPanel';
 
 // ============================================================
-// MONGODB ATLAS ENTERPRISE DESIGN SYSTEM
+// STYLES - INCLUDING FULL RESPONSIVE
 // ============================================================
 
 const STYLES = `
-  /* Enterprise Design Tokens - MongoDB Atlas Inspired */
+  /* Enterprise Design Tokens */
   .jobs-root {
     --color-mdb-green: #00ED64;
     --color-mdb-green-dark: #00C355;
@@ -27,33 +27,25 @@ const STYLES = `
     --color-surface-elevated: #1F242E;
     --color-border: #30363D;
     --color-border-subtle: #21262D;
-    
     --color-text-primary: #F0F6FC;
     --color-text-secondary: #8B949E;
     --color-text-muted: #6E7681;
-    
     --color-success: #00ED64;
     --color-warning: #D29922;
     --color-error: #F85149;
     --color-info: #58A6FF;
-    
     --color-accent-dim: rgba(0, 237, 100, 0.12);
     --color-accent-border: rgba(0, 237, 100, 0.25);
-    
     --shadow-sm: 0 1px 0 0 rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-    
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    
     --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
-    
     --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
   }
 
-  /* Base */
   .jobs-root * {
     margin: 0;
     padding: 0;
@@ -67,7 +59,6 @@ const STYLES = `
     line-height: 1.5;
   }
 
-  /* Animations - Subtle Only */
   @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
@@ -192,15 +183,6 @@ const STYLES = `
     color: var(--color-text-primary);
   }
   
-  .btn-ghost {
-    color: var(--color-text-secondary);
-  }
-  
-  .btn-ghost:hover:not(:disabled) {
-    color: var(--color-text-primary);
-    background: rgba(255, 255, 255, 0.04);
-  }
-  
   .btn-sm {
     padding: 6px 12px;
     font-size: 12px;
@@ -212,75 +194,7 @@ const STYLES = `
     cursor: not-allowed;
   }
 
-  /* Alerts */
-  .alert {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: var(--radius-md);
-    margin-bottom: 20px;
-    font-size: 13px;
-  }
-  
-  .alert-error {
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
-    color: var(--color-error);
-  }
-  
-  .alert-success {
-    background: rgba(0, 237, 100, 0.1);
-    border: 1px solid rgba(0, 237, 100, 0.3);
-    color: var(--color-success);
-  }
-  
-  .alert-close {
-    margin-left: auto;
-    background: none;
-    border: none;
-    color: currentColor;
-    cursor: pointer;
-    opacity: 0.7;
-    padding: 4px;
-  }
-  
-  .alert-close:hover {
-    opacity: 1;
-  }
-
-  /* Tab Navigation */
-  .tab-nav {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 24px;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 0;
-  }
-  
-  .tab-btn {
-    padding: 10px 20px;
-    font-size: 13px;
-    font-weight: 500;
-    background: none;
-    border: none;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition: all var(--transition);
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-  }
-  
-  .tab-btn:hover {
-    color: var(--color-text-primary);
-  }
-  
-  .tab-btn.active {
-    color: var(--color-mdb-green);
-    border-bottom-color: var(--color-mdb-green);
-  }
-
-  /* Table */
+  /* Table - Mobile Responsive */
   .table-container {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -331,6 +245,7 @@ const STYLES = `
     color: var(--color-text-secondary);
     cursor: pointer;
     transition: all var(--transition);
+    white-space: nowrap;
   }
   
   .filter-chip:hover {
@@ -344,9 +259,16 @@ const STYLES = `
     color: var(--color-mdb-green);
   }
   
+  /* Table wrapper for horizontal scroll on mobile */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
   .jobs-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 700px;
   }
   
   .jobs-table th {
@@ -359,6 +281,7 @@ const STYLES = `
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
     border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
   }
   
   .jobs-table td {
@@ -383,7 +306,7 @@ const STYLES = `
   }
   
   .url-cell {
-    max-width: 240px;
+    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -395,7 +318,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 130px;
+    min-width: 100px;
   }
   
   .progress-bar {
@@ -404,6 +327,7 @@ const STYLES = `
     background: rgba(255, 255, 255, 0.08);
     border-radius: 4px;
     overflow: hidden;
+    min-width: 40px;
   }
   
   .progress-fill {
@@ -424,6 +348,7 @@ const STYLES = `
   .action-group {
     display: flex;
     gap: 4px;
+    flex-wrap: wrap;
   }
   
   .action-btn {
@@ -451,126 +376,8 @@ const STYLES = `
     color: var(--color-error);
     background: rgba(248, 81, 73, 0.1);
   }
-  
-  .running-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    background: rgba(88, 166, 255, 0.1);
-    border: 1px solid rgba(88, 166, 255, 0.25);
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--color-info);
-  }
 
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 48px 24px;
-  }
-  
-  .empty-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 16px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-text-muted);
-  }
-  
-  .empty-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  
-  .empty-description {
-    font-size: 13px;
-    color: var(--color-text-muted);
-  }
-
-  /* Form */
-  .form-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-  }
-  
-  .form-header {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-border);
-  }
-  
-  .form-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  
-  .form-description {
-    font-size: 12px;
-    color: var(--color-text-muted);
-  }
-  
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  
-  .form-group.full-width {
-    grid-column: 1 / -1;
-  }
-  
-  .form-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-  }
-  
-  .form-input {
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 10px 12px;
-    font-size: 13px;
-    font-family: var(--font-sans);
-    color: var(--color-text-primary);
-    outline: none;
-    transition: all var(--transition);
-  }
-  
-  .form-input:focus {
-    border-color: var(--color-mdb-green);
-    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.1);
-  }
-  
-  .form-input::placeholder {
-    color: var(--color-text-muted);
-  }
-  
-  .form-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    margin-top: 28px;
-  }
-
-  /* Pagination */
+  /* Pagination - Mobile Responsive */
   .pagination-container {
     padding: 16px 20px;
     border-top: 1px solid var(--color-border);
@@ -591,11 +398,6 @@ const STYLES = `
     padding: 5px 12px;
     border-radius: 20px;
     border: 1px solid var(--color-border);
-  }
-  
-  .pagination-info strong {
-    color: var(--color-mdb-green);
-    font-weight: 600;
   }
   
   .pagination-controls {
@@ -658,33 +460,63 @@ const STYLES = `
     border-color: var(--color-mdb-green);
     color: var(--color-mdb-green);
   }
-  
-  .page-size-select {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--color-canvas);
-    padding: 4px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--color-border);
-  }
-  
-  .page-size-select label {
-    font-size: 11px;
-    color: var(--color-text-muted);
-  }
-  
-  .page-size-select select {
+
+  /* Form - Mobile Responsive */
+  .form-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    padding: 4px 8px;
-    font-size: 11px;
+    border-radius: var(--radius-lg);
+    padding: 24px;
+  }
+  
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .form-group.full-width {
+    grid-column: 1 / -1;
+  }
+  
+  .form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+  
+  .form-input {
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    font-size: 16px;
+    font-family: var(--font-sans);
     color: var(--color-text-primary);
-    cursor: pointer;
+    outline: none;
+    transition: all var(--transition);
+  }
+  
+  .form-input:focus {
+    border-color: var(--color-mdb-green);
+    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.1);
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 28px;
+    flex-wrap: wrap;
   }
 
-  /* Modal */
+  /* Modal - Mobile Responsive */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -692,7 +524,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 16px;
     background: rgba(13, 17, 23, 0.92);
     backdrop-filter: blur(4px);
   }
@@ -700,197 +532,139 @@ const STYLES = `
   .modal {
     width: 100%;
     max-width: 560px;
+    max-height: 90vh;
     background: var(--color-surface-elevated);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   
   .modal-header {
-    padding: 20px 24px;
+    padding: 16px 20px;
     display: flex;
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--color-border);
-  }
-  
-  .modal-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-error);
-  }
-  
-  .modal-title {
-    font-size: 16px;
-    font-weight: 600;
-  }
-  
-  .modal-subtitle {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    margin-top: 4px;
+    flex-shrink: 0;
   }
   
   .modal-body {
-    padding: 20px 24px;
-  }
-  
-  .job-name-badge {
-    display: inline-block;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    padding: 6px 12px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    margin-top: 8px;
-  }
-  
-  .warning-text {
-    font-size: 12px;
-    color: var(--color-warning);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 12px;
+    padding: 16px 20px;
+    overflow-y: auto;
+    flex: 1;
   }
   
   .modal-footer {
-    padding: 16px 24px;
+    padding: 16px 20px;
     display: flex;
     gap: 12px;
     justify-content: flex-end;
     border-top: 1px solid var(--color-border);
     background: var(--color-surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
   }
 
-  /* Job Details Modal */
-  .details-modal {
-    max-width: 680px;
-    max-height: 85vh;
-  }
-  
-  .details-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 24px;
-  }
-  
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  
-  .stat-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 14px;
-    text-align: center;
-  }
-  
-  .stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--color-info);
-  }
-  
-  .stat-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-top: 4px;
-  }
-  
-  .info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  
-  .info-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
-  }
-  
-  .info-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  
-  .info-value {
-    font-size: 13px;
-    color: var(--color-text-primary);
-    word-break: break-all;
-  }
-  
-  .preview-section {
-    margin-top: 20px;
-  }
-  
-  .preview-header {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-  }
-  
-  .preview-content {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 14px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.6;
-    color: var(--color-text-secondary);
-    max-height: 200px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-  }
-
+  /* Responsive */
   @media (max-width: 768px) {
     .form-grid {
       grid-template-columns: 1fr;
     }
+    
     .pagination-wrapper {
       flex-direction: column;
       align-items: stretch;
     }
+    
     .pagination-controls {
       justify-content: center;
     }
+    
     .table-header {
       flex-direction: column;
       align-items: stretch;
     }
-    .stats-grid {
-      grid-template-columns: 1fr;
+    
+    .table-title {
+      flex-direction: column;
+      align-items: stretch;
     }
-    .info-grid {
-      grid-template-columns: 1fr;
+    
+    .filter-group {
+      justify-content: center;
+    }
+    
+    .jobs-table th,
+    .jobs-table td {
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+    
+    .action-group {
+      gap: 2px;
+    }
+    
+    .action-btn {
+      width: 28px;
+      height: 28px;
+    }
+    
+    .page-btn span {
+      display: none;
+    }
+    
+    .modal {
+      max-width: 100%;
+      margin: 0 8px;
+      max-height: 95vh;
+    }
+    
+    .modal-header {
+      padding: 14px 16px;
+    }
+    
+    .modal-body {
+      padding: 14px 16px;
+    }
+    
+    .modal-footer {
+      padding: 14px 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .table-header {
+      padding: 12px 16px;
+    }
+    
+    .jobs-table th,
+    .jobs-table td {
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    
+    .filter-chip {
+      font-size: 10px;
+      padding: 4px 10px;
+    }
+    
+    .pagination-info {
+      font-size: 11px;
+      padding: 4px 10px;
+    }
+    
+    .page-number {
+      min-width: 30px;
+      height: 30px;
+      font-size: 11px;
+    }
+    
+    .page-btn {
+      padding: 4px 8px;
+      font-size: 11px;
     }
   }
 `;
@@ -912,6 +686,7 @@ function StatusPill({ status }) {
   const statusMap = {
     running: { label: 'Running', class: 'running' },
     success: { label: 'Success', class: 'success' },
+    completed: { label: 'Completed', class: 'success' },
     failed: { label: 'Failed', class: 'failed' },
     paused: { label: 'Paused', class: 'paused' },
     queued: { label: 'Queued', class: 'queued' },
@@ -928,7 +703,7 @@ function StatusPill({ status }) {
 }
 
 // ============================================================
-// PAGINATION COMPONENT
+// PAGINATION COMPONENT - Mobile Responsive
 // ============================================================
 
 function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onItemsPerPageChange }) {
@@ -974,10 +749,10 @@ function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onIte
         
         <div className="pagination-controls">
           <button className="page-btn" onClick={() => onPageChange(1)} disabled={currentPage === 1}>
-            <ChevronsLeft size={12} /> First
+            <ChevronsLeft size={12} /> <span>First</span>
           </button>
           <button className="page-btn" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-            <ChevronLeft size={12} /> Prev
+            <ChevronLeft size={12} /> <span>Prev</span>
           </button>
           
           {getPageNumbers().map((page, idx) => (
@@ -997,21 +772,22 @@ function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onIte
           ))}
           
           <button className="page-btn" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-            Next <ChevronRight size={12} />
+            <span>Next</span> <ChevronRight size={12} />
           </button>
           <button className="page-btn" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages}>
-            Last <ChevronsRight size={12} />
+            <span>Last</span> <ChevronsRight size={12} />
           </button>
         </div>
         
-        <div className="page-size-select">
-          <label>Rows per page:</label>
+        <div className="page-size-select" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-canvas)', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--color-border)' }}>
+          <label style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Rows:</label>
           <select
             value={itemsPerPage}
             onChange={(e) => {
               onItemsPerPageChange(Number(e.target.value));
               onPageChange(1);
             }}
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontSize: '11px', color: 'var(--color-text-primary)', cursor: 'pointer' }}
           >
             <option value={5}>5</option>
             <option value={8}>8</option>
@@ -1035,20 +811,22 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <div className="modal-icon">
-            <AlertTriangle size={24} />
+          <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-error)', flexShrink: 0 }}>
+            <AlertTriangle size={20} />
           </div>
           <div>
-            <div className="modal-title">Delete Job</div>
-            <div className="modal-subtitle">This action cannot be undone</div>
+            <div style={{ fontSize: '16px', fontWeight: 600 }}>Delete Job</div>
+            <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>This action cannot be undone</div>
           </div>
         </div>
         <div className="modal-body">
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
             You are about to permanently delete:
           </p>
-          <div className="job-name-badge">{jobName}</div>
-          <div className="warning-text">
+          <div style={{ display: 'inline-block', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: '13px', marginTop: '8px' }}>
+            {jobName}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px' }}>
             <AlertTriangle size={12} />
             All scraped data and configurations will be lost
           </div>
@@ -1113,29 +891,23 @@ function JobDetailsModal({ job, onClose }) {
   
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal details-modal" style={{ maxWidth: 900, display: 'flex', flexDirection: 'column', maxHeight: '95vh' }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 40, height: 40,
-              background: 'rgba(88, 166, 255, 0.1)',
-              border: '1px solid rgba(88, 166, 255, 0.25)',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
+      <div className="modal" style={{ maxWidth: 900 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+            <div style={{ width: 40, height: 40, background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Briefcase size={18} color="#58A6FF" />
             </div>
-            <div>
-              <div className="modal-title">{d.name}</div>
-              <div className="modal-subtitle" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.id}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '16px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
+              <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.id}</div>
             </div>
           </div>
-          <button className="action-btn" onClick={onClose} style={{ marginLeft: 'auto' }}>
+          <button className="action-btn" onClick={onClose} style={{ flexShrink: 0 }}>
             <X size={14} />
           </button>
         </div>
         
-        <div className="details-body" style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+        <div className="modal-body">
           {/* Progress */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -1147,79 +919,80 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           </div>
           
-          {/* Status */}
           <div style={{ marginBottom: 20 }}>
             <StatusPill status={status} />
           </div>
           
-          {/* Error */}
           {d.error_message && (
-            <div className="alert alert-error" style={{ marginBottom: 20 }}>
+            <div style={{ background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.25)', borderRadius: 'var(--radius-md)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--color-error)', marginBottom: 20 }}>
               <AlertCircle size={14} />
-              <span style={{ fontSize: 12 }}>{d.error_message}</span>
+              <span>{d.error_message}</span>
             </div>
           )}
           
-          {/* Stats */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-value">{recordCount.toLocaleString() || '0'}</div>
-              <div className="stat-label">Records</div>
+          {/* Stats Grid - Responsive */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{recordCount.toLocaleString() || '0'}</div>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginTop: '4px' }}>Records</div>
             </div>
-            <div className="stat-card">
-              <div className="stat-value">{wordCount.toLocaleString()}</div>
-              <div className="stat-label">Words</div>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{wordCount.toLocaleString()}</div>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginTop: '4px' }}>Words</div>
             </div>
-            <div className="stat-card">
-              <div className="stat-value">{charCount > 999 ? `${(charCount / 1000).toFixed(1)}k` : charCount}</div>
-              <div className="stat-label">Characters</div>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{charCount > 999 ? `${(charCount / 1000).toFixed(1)}k` : charCount}</div>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginTop: '4px' }}>Characters</div>
             </div>
           </div>
           
-          {/* Info Grid */}
-          <div className="info-grid">
-            <div className="info-card">
-              <div className="info-label"><LinkIcon size={10} /> Target URL</div>
-              <div className="info-value">
+          {/* Info Grid - Responsive */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <LinkIcon size={10} /> Target URL
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
                 <a href={d.target || d.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-info)', textDecoration: 'none' }}>
                   {(d.target || d.url || 'N/A').substring(0, 60)}
                 </a>
               </div>
             </div>
-            <div className="info-card">
-              <div className="info-label"><Zap size={10} /> Frequency</div>
-              <div className="info-value">{d.frequency || 'One-time'}</div>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Zap size={10} /> Frequency
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{d.frequency || 'One-time'}</div>
             </div>
-            <div className="info-card">
-              <div className="info-label"><Calendar size={10} /> Created</div>
-              <div className="info-value">{formatDate(d.created_at)}</div>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Calendar size={10} /> Created
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{formatDate(d.created_at)}</div>
             </div>
-            <div className="info-card">
-              <div className="info-label"><Clock size={10} /> Last Scraped</div>
-              <div className="info-value">{formatDate(d.scraped_at) || 'Never'}</div>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Clock size={10} /> Last Scraped
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{formatDate(d.scraped_at) || 'Never'}</div>
             </div>
           </div>
           
-          {/* Content Preview - SHOW ENTIRE CONTENT */}
+          {/* Content Preview */}
           {scrapedContent && !loading && (
-            <div className="preview-section">
-              <div className="preview-header">
+            <div style={{ marginTop: '20px' }}>
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
                 <span>Full Content</span>
                 <span>{charCount.toLocaleString()} chars</span>
               </div>
-              <div className="preview-content" style={{ 
-                maxHeight: '400px', 
-                overflowY: 'auto',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word'
-              }}>
-                {scrapedContent} {/* ENTIRE CONTENT - NO TRUNCATION */}
+              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', fontFamily: 'var(--font-mono)', fontSize: '11px', lineHeight: '1.6', color: 'var(--color-text-secondary)', maxHeight: '400px', overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {scrapedContent}
               </div>
             </div>
           )}
         </div>
         
-        <div className="modal-footer" style={{ flexShrink: 0 }}>
+        <div className="modal-footer">
           <button className="btn btn-secondary btn-sm" onClick={onClose}>
             Close
           </button>
@@ -1272,19 +1045,14 @@ export default function Jobs() {
     setError(null);
     try {
       const response = await api.get('/api/jobs');
-      console.log('API Response:', response.data);
-      
       let jobsData = [];
       if (response.data) {
         if (Array.isArray(response.data)) {
           jobsData = response.data;
-          console.log('Array format, length:', jobsData.length);
         } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
           jobsData = response.data.jobs;
-          console.log('Jobs property format, length:', jobsData.length);
         } else if (response.data.data && Array.isArray(response.data.data)) {
           jobsData = response.data.data;
-          console.log('Data property format, length:', jobsData.length);
         }
       }
       setJobs(jobsData);
@@ -1393,34 +1161,34 @@ export default function Jobs() {
     <div className="jobs-root page-enter">
       {/* Alerts */}
       {error && (
-        <div className="alert alert-error">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '20px', fontSize: '13px', background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.3)', color: 'var(--color-error)' }}>
           <AlertCircle size={16} />
-          <span>{error}</span>
-          <button className="alert-close" onClick={() => setError(null)}>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', opacity: 0.7 }} onClick={() => setError(null)}>
             <X size={14} />
           </button>
         </div>
       )}
       {success && (
-        <div className="alert alert-success">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '20px', fontSize: '13px', background: 'rgba(0, 237, 100, 0.1)', border: '1px solid rgba(0, 237, 100, 0.3)', color: 'var(--color-success)' }}>
           <CheckCircle size={16} />
-          <span>{success}</span>
-          <button className="alert-close" onClick={() => setSuccess(null)}>
+          <span style={{ flex: 1 }}>{success}</span>
+          <button style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', opacity: 0.7 }} onClick={() => setSuccess(null)}>
             <X size={14} />
           </button>
         </div>
       )}
       
-      {/* Tab Navigation */}
-      <div className="tab-nav">
+      {/* Tab Navigation - Responsive */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--color-border)', paddingBottom: '0', overflowX: 'auto', flexWrap: 'wrap' }}>
         <button
           className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
           onClick={() => setActiveTab('list')}
+          style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, background: 'none', border: 'none', color: activeTab === 'list' ? 'var(--color-mdb-green)' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all var(--transition)', borderBottom: activeTab === 'list' ? '2px solid var(--color-mdb-green)' : '2px solid transparent', marginBottom: '-1px', whiteSpace: 'nowrap' }}
         >
           <Briefcase size={14} style={{ marginRight: 6 }} />
           All Jobs
         </button>
-        
       </div>
       
       {/* Jobs List Tab */}
@@ -1442,7 +1210,7 @@ export default function Jobs() {
               </div>
               {loading && <RefreshCw size={14} className="spin" />}
               {runningCount > 0 && (
-                <span className="running-badge">
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: '20px', fontSize: '11px', fontWeight: 500, color: 'var(--color-info)' }}>
                   <Activity size={11} /> {runningCount} running
                 </span>
               )}
@@ -1453,15 +1221,19 @@ export default function Jobs() {
           </div>
           
           {loading && jobs.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon"><Loader size={24} className="spin" /></div>
-              <div className="empty-title">Loading jobs...</div>
+            <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+                <Loader size={24} className="spin" />
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>Loading jobs...</div>
             </div>
           ) : paginatedJobs.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon"><Briefcase size={24} /></div>
-              <div className="empty-title">No jobs found</div>
-              <div className="empty-description">
+            <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+                <Briefcase size={24} />
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>No jobs found</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
                 {statusFilter !== 'all'
                   ? `No jobs with status: ${statusFilter}`
                   : 'Create your first job to get started'}
@@ -1469,85 +1241,88 @@ export default function Jobs() {
             </div>
           ) : (
             <>
-              <table className="jobs-table">
-                <thead>
-                  <tr>
-                    <th>Job Name</th>
-                    <th>Target URL</th>
-                    <th>Status</th>
-                    <th>Progress</th>
-                    <th>Records</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedJobs.map(job => (
-                    <tr key={job.id}>
-                      <td style={{ fontWeight: 600 }}>{job.name}</td>
-                      <td>
-                        <span className="mono-text url-cell">
-                          {job.target || job.url || 'N/A'}
-                        </span>
-                      </td>
-                      <td><StatusPill status={job.status} /></td>
-                      <td>
-                        <div className="progress-container">
-                          <div className="progress-bar">
-                            <div className="progress-fill" style={{ width: `${job.progress || 0}%` }} />
-                          </div>
-                          <span className="progress-text">{job.progress || 0}%</span>
-                        </div>
-                      </td>
-                      <td className="mono-text">{job.records?.toLocaleString() || '0'}</td>
-                      <td className="mono-text">{formatDate(job.created_at)}</td>
-                      <td>
-                        <div className="action-group">
-                          <button
-                            className="action-btn"
-                            title="View details"
-                            onClick={() => setSelectedJob(job)}
-                          >
-                            <Eye size={13} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            title="Extract with AI"
-                            onClick={() => setParsingJob(job)}
-                          >
-                            <Brain size={13} />
-                          </button>
-                          {job.status === 'running' ? (
-                            <button
-                              className="action-btn"
-                              title="Pause job"
-                              onClick={() => handlePauseJob(job.id)}
-                            >
-                              <Pause size={13} />
-                            </button>
-                          ) : (
-                            <button
-                              className="action-btn"
-                              title="Start job"
-                              onClick={() => handleStartJob(job.id)}
-                              disabled={job.status === 'queued'}
-                            >
-                              <Play size={13} />
-                            </button>
-                          )}
-                          <button
-                            className="action-btn danger"
-                            title="Delete job"
-                            onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
+              {/* Table with horizontal scroll on mobile */}
+              <div className="table-wrapper">
+                <table className="jobs-table">
+                  <thead>
+                    <tr>
+                      <th>Job Name</th>
+                      <th>Target URL</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                      <th>Records</th>
+                      <th>Created</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedJobs.map(job => (
+                      <tr key={job.id}>
+                        <td style={{ fontWeight: 600 }}>{job.name}</td>
+                        <td>
+                          <span className="mono-text url-cell">
+                            {job.target || job.url || 'N/A'}
+                          </span>
+                        </td>
+                        <td><StatusPill status={job.status} /></td>
+                        <td>
+                          <div className="progress-container">
+                            <div className="progress-bar">
+                              <div className="progress-fill" style={{ width: `${job.progress || 0}%` }} />
+                            </div>
+                            <span className="progress-text">{job.progress || 0}%</span>
+                          </div>
+                        </td>
+                        <td className="mono-text">{job.records?.toLocaleString() || '0'}</td>
+                        <td className="mono-text">{formatDate(job.created_at)}</td>
+                        <td>
+                          <div className="action-group">
+                            <button
+                              className="action-btn"
+                              title="View details"
+                              onClick={() => setSelectedJob(job)}
+                            >
+                              <Eye size={13} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              title="Extract with AI"
+                              onClick={() => setParsingJob(job)}
+                            >
+                              <Brain size={13} />
+                            </button>
+                            {job.status === 'running' ? (
+                              <button
+                                className="action-btn"
+                                title="Pause job"
+                                onClick={() => handlePauseJob(job.id)}
+                              >
+                                <Pause size={13} />
+                              </button>
+                            ) : (
+                              <button
+                                className="action-btn"
+                                title="Start job"
+                                onClick={() => handleStartJob(job.id)}
+                                disabled={job.status === 'queued'}
+                              >
+                                <Play size={13} />
+                              </button>
+                            )}
+                            <button
+                              className="action-btn danger"
+                              title="Delete job"
+                              onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               
               <Pagination
                 currentPage={currentPage}
@@ -1565,9 +1340,9 @@ export default function Jobs() {
       {activeTab === 'new' && (
         <form onSubmit={handleCreateJob}>
           <div className="form-card">
-            <div className="form-header">
-              <div className="form-title">Configure Scraping Job</div>
-              <div className="form-description">Define the parameters for your data extraction job</div>
+            <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Configure Scraping Job</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Define the parameters for your data extraction job</div>
             </div>
             
             <div className="form-grid">

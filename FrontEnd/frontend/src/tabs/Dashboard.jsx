@@ -11,13 +11,14 @@ import {
   Settings, 
   LogOut,
   Menu,
+  Database,
   X,
   BarChart3,
   Clock,
   CheckCircle2,
   XCircle,
   PlayCircle,
-  Database,
+  Bot,
   TrendingUp,
   Activity,
   PieChart as PieChartIcon,
@@ -39,6 +40,8 @@ import JobsTab from './JobsTab';
 import ExportTab from './ExportTab';
 import SettingsPage from './SettingsTab';
 import ModelsTab from './ModelsTab';
+import React from 'react';
+import logo from '../logowebby.png';
 
 // ============================================================
 // ENTERPRISE REDESIGN - MONGODB ATLAS INSPIRED
@@ -660,13 +663,17 @@ function StatusBadge({ status }) {
 // Sidebar Component
 function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
   const navigate = useNavigate();
-  const initials = user ? `${(user.first_name?.[0] || user.name?.[0] || 'U')}`.toUpperCase() : 'U';
-
+  
+  // Get user initials for avatar
+  const initials = user?.first_name 
+    ? user.first_name.charAt(0).toUpperCase() + (user.last_name?.charAt(0).toUpperCase() || '')
+    : user?.name?.charAt(0).toUpperCase() || 'U';
+  
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'export', label: 'Export', icon: Download },
-    { id: 'models', label: 'Models', icon: Database },
+    { id: 'models', label: 'Models', icon: Bot },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -677,11 +684,14 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
       }} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <Link to="/" className="logo">
-            <div className="logo-icon">
-              <span>W</span>
-            </div>
-            <span className="logo-text">Webby</span>
+          <Link to="/" className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+            {/* Use the imported logo image */}
+            <img 
+              src={logo} 
+              alt="Webby" 
+              style={{ height: '70px', width: 'auto' }} 
+            />
+            
           </Link>
         </div>
 
@@ -707,7 +717,8 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
               width: 36, height: 36, borderRadius: 'var(--radius-md)',
               background: 'var(--bg-tertiary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 600
+              fontSize: 13, fontWeight: 600,
+              color: 'var(--text-primary)'
             }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -867,7 +878,7 @@ function DashboardTab() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <span style={{ color: 'var(--text-muted)' }}>Loading dashboard...</span>
+        <span style={{ color: 'var(--text-muted)' }}>Plss Wait a Moment...</span>
       </div>
     );
   }
