@@ -1,4 +1,4 @@
-// frontend/src/pages/ModelsTab.jsx - MongoDB Atlas Enterprise Edition
+// frontend/src/pages/ModelsTab.jsx - MongoDB Atlas Enterprise Edition WITH LOADING STATE
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -78,6 +78,25 @@ const STYLES = `
 
   .spin {
     animation: spin 0.6s linear infinite;
+  }
+
+  /* Loading State - Same as AppShell */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px;
+    gap: 16px;
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-mdb-green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 
   /* Layout */
@@ -611,15 +630,6 @@ const STYLES = `
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
-  .loading-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 48px;
-    color: var(--color-text-muted);
-  }
 `;
 
 function injectStyles(id, css) {
@@ -710,6 +720,7 @@ export default function ModelsTab() {
   const [testStatus, setTestStatus] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total_requests: 0,
     success_rate: 0,
@@ -721,6 +732,7 @@ export default function ModelsTab() {
 
   // Load providers
   const loadProviders = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await api.get('/api/llm/providers');
       setProviders(res.data);
@@ -733,6 +745,8 @@ export default function ModelsTab() {
       }
     } catch (err) {
       console.error('Failed to load providers:', err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -775,14 +789,16 @@ export default function ModelsTab() {
   }, [loadProviders]);
 
   useEffect(() => {
-    if (selectedProvider) {
+    if (selectedProvider && !loading) {
       loadConfig();
     }
-  }, [selectedProvider, loadConfig]);
+  }, [selectedProvider, loadConfig, loading]);
 
   useEffect(() => {
-    loadStats();
-  }, [loadStats, providers]);
+    if (!loading) {
+      loadStats();
+    }
+  }, [loadStats, loading, providers]);
 
   const handleConfigChange = (key, value) => {
     setConfig(prev => ({ ...prev, [key]: value }));
@@ -833,13 +849,17 @@ export default function ModelsTab() {
   const currentProvider = providers[selectedProvider];
   const currentModels = currentProvider?.models || [];
 
-  if (Object.keys(providers).length === 0) {
+  // ============================================================
+  // LOADING STATE - Same as AppShell
+  // ============================================================
+  
+  if (loading) {
     return (
       <div className="models-root">
         <div className="models-container">
           <div className="loading-state">
-            <RefreshCw size={20} className="spin" />
-            <span>Loading configuration...</span>
+            <div className="loading-spinner" />
+            <span style={{ color: 'var(--color-text-muted)' }}>Loading models configuration...</span>
           </div>
         </div>
       </div>

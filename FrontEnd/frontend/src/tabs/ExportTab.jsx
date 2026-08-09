@@ -1,3 +1,5 @@
+// frontend/src/pages/ExportTab.jsx - WITH LOADING STATE
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Download, FileSpreadsheet, FileJson, FileText, Database,
@@ -479,7 +481,26 @@ const STYLES = `
     color: var(--color-text-muted);
   }
 
-    /* Mobile Responsive Fixes for Export */
+  /* Loading State - Same as AppShell */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px;
+    gap: 16px;
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-mdb-green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  /* Mobile Responsive Fixes for Export */
   @media (max-width: 768px) {
     .export-root {
       padding: 12px !important;
@@ -964,7 +985,7 @@ export default function ExportTab() {
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState('csv');
   const [includeMetadata, setIncludeMetadata] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Changed to true for initial load
   const [exporting, setExporting] = useState(false);
   const [stats, setStats] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -975,7 +996,7 @@ export default function ExportTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fullDataset, setFullDataset] = useState(null);
   const [loadingFullPreview, setLoadingFullPreview] = useState(false);
-  const [fileName, setFileName] = useState(''); // NEW: State for custom filename
+  const [fileName, setFileName] = useState('');
   const itemsPerPage = 10;
 
   const loadJobs = useCallback(async () => {
@@ -1021,7 +1042,6 @@ export default function ExportTab() {
       setStats(statsRes.data);
       setPreviewData(previewRes.data);
       
-      // Auto-generate filename based on job name when selected
       const job = jobs.find(j => j.id === selectedJobId);
       if (job && job.name) {
         const baseName = job.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
@@ -1063,7 +1083,6 @@ export default function ExportTab() {
       return;
     }
     
-    // Validate filename
     if (!fileName.trim()) {
       setError('Please enter a filename');
       return;
@@ -1078,7 +1097,6 @@ export default function ExportTab() {
         include_metadata: includeMetadata
       }, { responseType: 'blob' });
       
-      // Use custom filename
       const format = EXPORT_FORMATS.find(f => f.id === selectedFormat);
       const finalFilename = `${fileName.trim()}${format?.extension || '.csv'}`;
       
@@ -1153,7 +1171,6 @@ export default function ExportTab() {
   const paginatedJobs = filteredJobs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
 
-  // Reset filename when job changes
   useEffect(() => {
     if (selectedJob && selectedJob.name) {
       const baseName = selectedJob.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
@@ -1161,6 +1178,25 @@ export default function ExportTab() {
       setFileName(`dataset_${baseName}_${timestamp}`);
     }
   }, [selectedJob]);
+
+  // ============================================================
+  // LOADING STATE - Same as AppShell
+  // ============================================================
+  
+  if (loading && jobs.length === 0) {
+    return (
+      <div className="export-root">
+        <div className="loading-state">
+          <div className="loading-spinner" />
+          <span style={{ color: 'var(--color-text-muted)' }}>Plss Wait a Moment...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <div className="export-root" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -1253,7 +1289,7 @@ export default function ExportTab() {
                 </div>
               </div>
 
-              {/* Filename Input - NEW */}
+              {/* Filename Input */}
               <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D' }}>
                   <div style={{ fontWeight: '600', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>

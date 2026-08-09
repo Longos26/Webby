@@ -1,6 +1,6 @@
-// frontend/src/pages/JobsTab.jsx - FULLY RESPONSIVE VERSION
+// frontend/src/pages/JobsTab.jsx - COMPLETE UPDATED VERSION WITH AUTO-POLLING
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Briefcase, Play, Eye, AlertCircle,
   Pause, Trash2, RefreshCw, X, Loader,
@@ -14,7 +14,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import ParsingPanel from '../components/ParsingPanel';
 
 // ============================================================
-// STYLES - INCLUDING FULL RESPONSIVE
+// STYLES - FULL RESPONSIVE
 // ============================================================
 
 const STYLES = `
@@ -81,7 +81,24 @@ const STYLES = `
     animation: spin 0.6s linear infinite;
   }
 
-  /* Status Pills */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px;
+    gap: 16px;
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-mdb-green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
   .status-pill {
     display: inline-flex;
     align-items: center;
@@ -145,7 +162,6 @@ const STYLES = `
     background: var(--color-text-muted);
   }
 
-  /* Buttons */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -194,7 +210,6 @@ const STYLES = `
     cursor: not-allowed;
   }
 
-  /* Table - Mobile Responsive */
   .table-container {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -259,7 +274,6 @@ const STYLES = `
     color: var(--color-mdb-green);
   }
   
-  /* Table wrapper for horizontal scroll on mobile */
   .table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -313,7 +327,6 @@ const STYLES = `
     display: inline-block;
   }
   
-  /* Progress Bar */
   .progress-container {
     display: flex;
     align-items: center;
@@ -332,9 +345,8 @@ const STYLES = `
   
   .progress-fill {
     height: 100%;
-    background: var(--color-mdb-green);
     border-radius: 4px;
-    transition: width var(--transition);
+    transition: width 0.5s ease-in-out;
   }
   
   .progress-text {
@@ -344,7 +356,6 @@ const STYLES = `
     min-width: 36px;
   }
   
-  /* Action Buttons */
   .action-group {
     display: flex;
     gap: 4px;
@@ -365,19 +376,23 @@ const STYLES = `
     transition: all var(--transition);
   }
   
-  .action-btn:hover {
+  .action-btn:hover:not(:disabled) {
     background: var(--color-surface-elevated);
     border-color: var(--color-text-muted);
     color: var(--color-text-primary);
   }
   
-  .action-btn.danger:hover {
+  .action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  
+  .action-btn.danger:hover:not(:disabled) {
     border-color: var(--color-error);
     color: var(--color-error);
     background: rgba(248, 81, 73, 0.1);
   }
 
-  /* Pagination - Mobile Responsive */
   .pagination-container {
     padding: 16px 20px;
     border-top: 1px solid var(--color-border);
@@ -461,7 +476,6 @@ const STYLES = `
     color: var(--color-mdb-green);
   }
 
-  /* Form - Mobile Responsive */
   .form-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -516,7 +530,6 @@ const STYLES = `
     flex-wrap: wrap;
   }
 
-  /* Modal - Mobile Responsive */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -568,7 +581,6 @@ const STYLES = `
     flex-wrap: wrap;
   }
 
-  /* Responsive */
   @media (max-width: 768px) {
     .form-grid {
       grid-template-columns: 1fr;
@@ -703,7 +715,7 @@ function StatusPill({ status }) {
 }
 
 // ============================================================
-// PAGINATION COMPONENT - Mobile Responsive
+// PAGINATION COMPONENT
 // ============================================================
 
 function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onItemsPerPageChange }) {
@@ -908,14 +920,13 @@ function JobDetailsModal({ job, onClose }) {
         </div>
         
         <div className="modal-body">
-          {/* Progress */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Progress</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{d.progress || 0}%</span>
             </div>
             <div className="progress-bar" style={{ height: 6 }}>
-              <div className="progress-fill" style={{ width: `${d.progress || 0}%` }} />
+              <div className="progress-fill" style={{ width: `${d.progress || 0}%`, background: d.status === 'failed' ? 'var(--color-error)' : 'var(--color-mdb-green)' }} />
             </div>
           </div>
           
@@ -930,7 +941,6 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           )}
           
-          {/* Stats Grid - Responsive */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px', marginBottom: '20px' }}>
             <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
               <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{recordCount.toLocaleString() || '0'}</div>
@@ -946,7 +956,6 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           </div>
           
-          {/* Info Grid - Responsive */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
             <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
               <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -978,7 +987,6 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           </div>
           
-          {/* Content Preview */}
           {scrapedContent && !loading && (
             <div style={{ marginTop: '20px' }}>
               <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
@@ -1003,14 +1011,14 @@ function JobDetailsModal({ job, onClose }) {
 }
 
 // ============================================================
-// MAIN JOBS COMPONENT
+// MAIN JOBS COMPONENT - WITH AUTO-POLLING
 // ============================================================
 
 export default function Jobs() {
   const [activeTab, setActiveTab] = useState('list');
   const [statusFilter, setStatusFilter] = useState('all');
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -1021,6 +1029,8 @@ export default function Jobs() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
   const [formData, setFormData] = useState({ name: '', url: '' });
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingInterval = useRef(null);
   
   const { jobUpdates } = useWebSocket(null);
   
@@ -1040,6 +1050,7 @@ export default function Jobs() {
   
   const runningCount = jobs.filter(j => j.status === 'running').length;
   
+  // Load jobs function
   const loadJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -1056,6 +1067,14 @@ export default function Jobs() {
         }
       }
       setJobs(jobsData);
+      
+      // Check if any jobs are running
+      const hasRunning = jobsData.some(j => j.status === 'running');
+      if (hasRunning && !isPolling) {
+        startPolling();
+      } else if (!hasRunning && isPolling) {
+        stopPolling();
+      }
     } catch (err) {
       console.error('Failed to load jobs:', err);
       setError(err.response?.data?.detail || err.message || 'Failed to load jobs');
@@ -1063,8 +1082,116 @@ export default function Jobs() {
     } finally {
       setLoading(false);
     }
+  }, [isPolling]);
+
+  // Start polling for updates
+  const startPolling = useCallback(() => {
+    if (pollingInterval.current) return;
+    
+    console.log('Starting auto-polling for job updates...');
+    setIsPolling(true);
+    
+    pollingInterval.current = setInterval(() => {
+      // Check if any jobs are still running
+      const hasRunning = jobs.some(j => j.status === 'running');
+      if (!hasRunning) {
+        stopPolling();
+        return;
+      }
+      
+      // Refresh jobs to get latest status
+      loadJobs();
+    }, 3000); // Poll every 3 seconds
+  }, [jobs, loadJobs]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+      pollingInterval.current = null;
+      setIsPolling(false);
+      console.log('Stopped auto-polling');
+    }
   }, []);
-  
+
+  // Handle WebSocket updates if available
+  useEffect(() => {
+    if (jobUpdates) {
+      console.log('Received job update:', jobUpdates);
+      
+      // Update the job in the list
+      setJobs(prevJobs => {
+        const updatedJobs = prevJobs.map(job => {
+          if (job.id === jobUpdates.job_id) {
+            return {
+              ...job,
+              status: jobUpdates.status || job.status,
+              progress: jobUpdates.progress || job.progress,
+              records: jobUpdates.records || job.records
+            };
+          }
+          return job;
+        });
+        return updatedJobs;
+      });
+      
+      // If job completed or failed, stop polling
+      if (jobUpdates.status === 'success' || jobUpdates.status === 'failed' || jobUpdates.status === 'completed') {
+        stopPolling();
+        // Refresh full list after a moment
+        setTimeout(() => loadJobs(), 2000);
+      }
+    }
+  }, [jobUpdates, loadJobs, stopPolling]);
+
+  // Start job with auto-refresh
+  const handleStartJob = async (jobId) => {
+    try {
+      await api.post(`/api/jobs/${jobId}/start`);
+      setSuccess('Job started - refreshing automatically...');
+      
+      // Immediately refresh to show running status
+      await loadJobs();
+      
+      // Start polling for updates
+      startPolling();
+      
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Failed to start job');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handlePauseJob = async (jobId) => {
+    try {
+      await api.post(`/api/jobs/${jobId}/pause`);
+      setSuccess('Job paused');
+      await loadJobs();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Failed to pause job');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleDeleteJob = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/jobs/${deleteTarget.id}`);
+      setSuccess(`"${deleteTarget.name}" deleted`);
+      setDeleteTarget(null);
+      await loadJobs();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || 'Failed to delete job');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleCreateJob = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -1096,67 +1223,43 @@ export default function Jobs() {
       setSubmitting(false);
     }
   };
-  
-  const handleStartJob = async (jobId) => {
-    try {
-      await api.post(`/api/jobs/${jobId}/start`);
-      setSuccess('Job started');
-      await loadJobs();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to start job');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-  
-  const handlePauseJob = async (jobId) => {
-    try {
-      await api.post(`/api/jobs/${jobId}/pause`);
-      setSuccess('Job paused');
-      await loadJobs();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to pause job');
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-  
-  const handleDeleteJob = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await api.delete(`/api/jobs/${deleteTarget.id}`);
-      setSuccess(`"${deleteTarget.name}" deleted`);
-      setDeleteTarget(null);
-      await loadJobs();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to delete job');
-      setTimeout(() => setError(null), 3000);
-    } finally {
-      setDeleting(false);
-    }
-  };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
-  
+
+  // Initial load
   useEffect(() => {
     loadJobs();
   }, [loadJobs]);
-  
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (jobUpdates) {
-      loadJobs();
-    }
-  }, [jobUpdates, loadJobs]);
-  
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+        pollingInterval.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter]);
-  
+
+  // Loading State
+  if (loading && jobs.length === 0) {
+    return (
+      <div className="jobs-root page-enter">
+        <div className="loading-state">
+          <div className="loading-spinner" />
+          <span style={{ color: 'var(--color-text-muted)' }}>Loading jobs...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="jobs-root page-enter">
       {/* Alerts */}
@@ -1179,7 +1282,7 @@ export default function Jobs() {
         </div>
       )}
       
-      {/* Tab Navigation - Responsive */}
+      {/* Tab Navigation */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--color-border)', paddingBottom: '0', overflowX: 'auto', flexWrap: 'wrap' }}>
         <button
           className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
@@ -1209,7 +1312,12 @@ export default function Jobs() {
                 ))}
               </div>
               {loading && <RefreshCw size={14} className="spin" />}
-              {runningCount > 0 && (
+              {isPolling && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: '20px', fontSize: '11px', fontWeight: 500, color: 'var(--color-info)' }}>
+                  <Activity size={11} className="spin" /> Auto-refreshing
+                </span>
+              )}
+              {runningCount > 0 && !isPolling && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: '20px', fontSize: '11px', fontWeight: 500, color: 'var(--color-info)' }}>
                   <Activity size={11} /> {runningCount} running
                 </span>
@@ -1220,14 +1328,7 @@ export default function Jobs() {
             </button>
           </div>
           
-          {loading && jobs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-              <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-                <Loader size={24} className="spin" />
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>Loading jobs...</div>
-            </div>
-          ) : paginatedJobs.length === 0 ? (
+          {paginatedJobs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 24px' }}>
               <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
                 <Briefcase size={24} />
@@ -1241,7 +1342,6 @@ export default function Jobs() {
             </div>
           ) : (
             <>
-              {/* Table with horizontal scroll on mobile */}
               <div className="table-wrapper">
                 <table className="jobs-table">
                   <thead>
@@ -1256,70 +1356,101 @@ export default function Jobs() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedJobs.map(job => (
-                      <tr key={job.id}>
-                        <td style={{ fontWeight: 600 }}>{job.name}</td>
-                        <td>
-                          <span className="mono-text url-cell">
-                            {job.target || job.url || 'N/A'}
-                          </span>
-                        </td>
-                        <td><StatusPill status={job.status} /></td>
-                        <td>
-                          <div className="progress-container">
-                            <div className="progress-bar">
-                              <div className="progress-fill" style={{ width: `${job.progress || 0}%` }} />
-                            </div>
-                            <span className="progress-text">{job.progress || 0}%</span>
-                          </div>
-                        </td>
-                        <td className="mono-text">{job.records?.toLocaleString() || '0'}</td>
-                        <td className="mono-text">{formatDate(job.created_at)}</td>
-                        <td>
-                          <div className="action-group">
-                            <button
-                              className="action-btn"
-                              title="View details"
-                              onClick={() => setSelectedJob(job)}
-                            >
-                              <Eye size={13} />
-                            </button>
-                            <button
-                              className="action-btn"
-                              title="Extract with AI"
-                              onClick={() => setParsingJob(job)}
-                            >
-                              <Brain size={13} />
-                            </button>
-                            {job.status === 'running' ? (
-                              <button
-                                className="action-btn"
-                                title="Pause job"
-                                onClick={() => handlePauseJob(job.id)}
-                              >
-                                <Pause size={13} />
-                              </button>
+                    {paginatedJobs.map(job => {
+                      const isRunning = job.status === 'running';
+                      
+                      return (
+                        <tr key={job.id}>
+                          <td style={{ fontWeight: 600 }}>{job.name}</td>
+                          <td>
+                            <span className="mono-text url-cell">
+                              {job.target || job.url || 'N/A'}
+                            </span>
+                          </td>
+                          <td>
+                            {isRunning ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className="status-pill running">
+                                  <span className="status-dot" />
+                                  Running
+                                </span>
+                                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+                                  {job.progress || 0}%
+                                </span>
+                              </div>
                             ) : (
+                              <StatusPill status={job.status} />
+                            )}
+                          </td>
+                          <td>
+                            <div className="progress-container">
+                              <div className="progress-bar">
+                                <div 
+                                  className="progress-fill" 
+                                  style={{ 
+                                    width: `${job.progress || 0}%`,
+                                    background: isRunning ? 'var(--color-info)' : 
+                                               job.status === 'failed' ? 'var(--color-error)' : 
+                                               'var(--color-mdb-green)'
+                                  }} 
+                                />
+                              </div>
+                              <span className="progress-text">{job.progress || 0}%</span>
+                            </div>
+                          </td>
+                          <td className="mono-text">{job.records?.toLocaleString() || '0'}</td>
+                          <td className="mono-text">{formatDate(job.created_at)}</td>
+                          <td>
+                            <div className="action-group">
                               <button
                                 className="action-btn"
-                                title="Start job"
-                                onClick={() => handleStartJob(job.id)}
-                                disabled={job.status === 'queued'}
+                                title="View details"
+                                onClick={() => setSelectedJob(job)}
                               >
-                                <Play size={13} />
+                                <Eye size={13} />
                               </button>
-                            )}
-                            <button
-                              className="action-btn danger"
-                              title="Delete job"
-                              onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <button
+                                className="action-btn"
+                                title="Extract with AI"
+                                onClick={() => setParsingJob(job)}
+                                disabled={!job.scraped_content}
+                              >
+                                <Brain size={13} />
+                              </button>
+                              {job.status === 'running' ? (
+                                <button
+                                  className="action-btn"
+                                  title="Pause job"
+                                  onClick={() => handlePauseJob(job.id)}
+                                >
+                                  <Pause size={13} />
+                                </button>
+                              ) : (
+                                <button
+                                  className="action-btn"
+                                  title={job.status === 'queued' ? 'Start job' : 'Re-run job'}
+                                  onClick={() => handleStartJob(job.id)}
+                                  disabled={job.status === 'running'}
+                                >
+                                  {job.status === 'running' ? (
+                                    <Loader size={13} className="spin" />
+                                  ) : (
+                                    <Play size={13} />
+                                  )}
+                                </button>
+                              )}
+                              <button
+                                className="action-btn danger"
+                                title="Delete job"
+                                onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -1,4 +1,5 @@
-# backend/routes/scraping.py
+# backend/routes/scraping.py - COMPLETE UPDATED ROUTES
+
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List
@@ -15,12 +16,13 @@ from services.scraper_utils import (
     clean_body_content, 
     split_dom_content,
 )
+from services.job_executor import job_executor
 from parsing.Ollama import parse_with_openrouter
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/scraping", tags=["scraping"])
+router = APIRouter(prefix="/api", tags=["scraping"])
 
 # Request/Response models
 class ScrapeRequest(BaseModel):
@@ -36,7 +38,7 @@ class CreateJobRequest(BaseModel):
     url: str
     frequency: Optional[str] = "one-time"
 
-@router.post("/scrape")
+@router.post("/scraping/scrape")
 async def scrape_endpoint(req: ScrapeRequest, current_user: dict = Depends(get_current_user)):
     """Scrape a website and return cleaned content"""
     try:
@@ -64,7 +66,7 @@ async def scrape_endpoint(req: ScrapeRequest, current_user: dict = Depends(get_c
         logger.error(f"Scraping error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/parse")
+@router.post("/scraping/parse")
 async def parse_endpoint(req: ParseRequest, current_user: dict = Depends(get_current_user)):
     """Parse DOM content using keyword extraction"""
     try:
@@ -183,6 +185,115 @@ async def get_scraping_job(job_id: str, current_user: dict = Depends(get_current
         "scraped_content": job.get("scraped_content", ""),
         "created_at": job.get("created_at").isoformat() if job.get("created_at") else None
     }
+
+@router.post("/jobs/{job_id}/start")
+async def start_job(
+    job_id: str, 
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """Start a scraping job - FIXED with proper background task"""
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+    
+    db = await get_database()
+    user_id = current_user.get("id") or current_user.get("_id")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User authentication failed")
+    
+    # Get job
+    job = await db.jobs.find_one({
+        "_id": ObjectId(job_id),
+        "user_id": user_id
+    })
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check if already running
+    if job.get("status") == "running":
+        return {"message": "Job is already running", "job_id": job_id}
+    
+    # Reset job status to queued before starting
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {
+            "status": "queued",
+            "progress": 0,
+            "error_message": None
+        }}
+    )
+    
+    # Add to background tasks - THIS IS THE KEY FIX
+    background_tasks.add_task(
+        job_executor.execute_job, 
+        job_id, 
+        user_id
+    )
+    
+    logger.info(f"Job {job_id} added to background tasks for user {user_id}")
+    
+    return {
+        "message": "Job started successfully",
+        "job_id": job_id,
+        "status": "queued"
+    }
+
+@router.post("/jobs/{job_id}/pause")
+async def pause_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Pause a running job"""
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+    
+    db = await get_database()
+    user_id = current_user.get("id") or current_user.get("_id")
+    
+    job = await db.jobs.find_one({
+        "_id": ObjectId(job_id),
+        "user_id": user_id
+    })
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.get("status") != "running":
+        raise HTTPException(status_code=400, detail="Job is not running")
+    
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {"status": "paused"}}
+    )
+    
+    return {"message": "Job paused", "job_id": job_id}
+
+@router.delete("/jobs/{job_id}")
+async def delete_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a job"""
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+    
+    db = await get_database()
+    user_id = current_user.get("id") or current_user.get("_id")
+    
+    result = await db.jobs.delete_one({
+        "_id": ObjectId(job_id),
+        "user_id": user_id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Also delete parsed results
+    await db.parsed_results.delete_many({"job_id": ObjectId(job_id)})
+    
+    return {"message": "Job deleted successfully"}
 
 @router.post("/jobs/{job_id}/parse")
 async def parse_job_content(
@@ -308,7 +419,7 @@ async def get_parsed_results(
         logger.error(f"Get parsed results error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get parsed results: {str(e)}")
 
-@router.get("/test")
+@router.get("/scraping/test")
 async def test_endpoint():
     """Test if the scraping module is working"""
     SBR_WEBDRIVER = os.getenv("SBR_WEBDRIVER")

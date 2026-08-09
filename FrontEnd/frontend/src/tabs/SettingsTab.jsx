@@ -1,4 +1,5 @@
-// frontend/src/pages/SettingsPage.jsx
+// frontend/src/pages/SettingsPage.jsx - WITH LOADING STATE
+
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -14,8 +15,6 @@ import api from '../api';
 // ============================================================
 // MONGODB ATLAS ENTERPRISE DESIGN SYSTEM - STYLES
 // ============================================================
-
-// frontend/src/pages/SettingsPage.jsx - Updated responsive styles
 
 const styles = `
   /* Enterprise Design Tokens - MongoDB Atlas Inspired */
@@ -75,6 +74,25 @@ const styles = `
 
   .spin {
     animation: spin 0.6s linear infinite;
+  }
+
+  /* Loading State - Same as AppShell */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px;
+    gap: 16px;
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-mdb-green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 
   .settings-container {
@@ -480,15 +498,6 @@ const styles = `
     word-break: break-all;
   }
 
-  .loading-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 48px;
-    color: var(--color-text-muted);
-  }
-
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -842,6 +851,19 @@ function ProfileSettings() {
     fetchProfile();
   }, []);
 
+  // ============================================================
+  // LOADING STATE - Same as AppShell
+  // ============================================================
+  
+  if (loading) {
+    return (
+      <div className="loading-state">
+        <div className="loading-spinner" />
+        <span style={{ color: 'var(--color-text-muted)' }}>Loading profile...</span>
+      </div>
+    );
+  }
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -862,15 +884,6 @@ function ProfileSettings() {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="loading-state">
-        <Loader2 size={20} className="spin" />
-        <span>Loading profile...</span>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -1008,6 +1021,19 @@ function NotificationSettings() {
     fetchNotifications();
   }, []);
 
+  // ============================================================
+  // LOADING STATE - Same as AppShell
+  // ============================================================
+  
+  if (loading) {
+    return (
+      <div className="loading-state">
+        <div className="loading-spinner" />
+        <span style={{ color: 'var(--color-text-muted)' }}>Loading notifications...</span>
+      </div>
+    );
+  }
+
   const toggle = (key) => {
     setNotifications(p => ({ ...p, [key]: !p[key] }));
   };
@@ -1031,15 +1057,6 @@ function NotificationSettings() {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="loading-state">
-        <Loader2 size={20} className="spin" />
-        <span>Loading notifications...</span>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -1189,6 +1206,19 @@ function SecuritySettings() {
     }
   };
 
+  // ============================================================
+  // LOADING STATE - Same as AppShell
+  // ============================================================
+  
+  if (loading) {
+    return (
+      <div className="loading-state">
+        <div className="loading-spinner" />
+        <span style={{ color: 'var(--color-text-muted)' }}>Loading security settings...</span>
+      </div>
+    );
+  }
+
   const updatePassword = async () => {
     setPasswordError(null);
     setPasswordSuccess(false);
@@ -1273,14 +1303,12 @@ function SecuritySettings() {
   const confirmRevokeSession = async () => {
     try {
       await api.delete(`/api/settings/security/sessions/${confirmModal.sessionId}`);
-      // Refresh sessions
       const res = await api.get('/api/settings/security/sessions');
       setSessions(res.data || []);
     } catch (err) {
       console.error('Failed to revoke session:', err);
       if (err.response?.status === 404) {
         alert('Session already revoked');
-        // Refresh to update the list
         const res = await api.get('/api/settings/security/sessions');
         setSessions(res.data || []);
       } else {
@@ -1290,15 +1318,6 @@ function SecuritySettings() {
       setConfirmModal({ isOpen: false, type: '', sessionId: null });
     }
   };
-
-  if (loading) {
-    return (
-      <div className="loading-state">
-        <Loader2 size={20} className="spin" />
-        <span>Loading security settings...</span>
-      </div>
-    );
-  }
 
   return (
     <>

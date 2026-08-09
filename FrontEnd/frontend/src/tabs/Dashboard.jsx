@@ -41,7 +41,7 @@ import ExportTab from './ExportTab';
 import SettingsPage from './SettingsTab';
 import ModelsTab from './ModelsTab';
 import React from 'react';
-import logo from '../logowebby.png';
+import logo from '../newlogo.png';
 
 // ============================================================
 // ENTERPRISE REDESIGN - MONGODB ATLAS INSPIRED

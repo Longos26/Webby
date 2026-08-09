@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import api from '../api';
 import { authService } from '../api';
 import React from 'react';
-import logo from '../logowebby.png';
+import logo from '../newlogo.png';
 
 // ============================================================
 // ENTERPRISE-GRADE UI - MongoDB Atlas Inspired

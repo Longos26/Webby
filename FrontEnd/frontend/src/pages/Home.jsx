@@ -15,7 +15,7 @@ import {
   X,
   RefreshCw
 } from 'lucide-react';
-import logo from '../logowebby.png';
+import logo from '../newlogo.png';
 import api from '../api';
 
 // ============================================================
