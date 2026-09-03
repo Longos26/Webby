@@ -1,4 +1,4 @@
-// frontend/src/pages/JobsTab.jsx - COMPLETE UPDATED VERSION WITH AUTO-POLLING
+// frontend/src/pages/JobsTab.jsx - REFINED ENTERPRISE DESIGN
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -14,11 +14,11 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import ParsingPanel from '../components/ParsingPanel';
 
 // ============================================================
-// STYLES - FULL RESPONSIVE
+// STYLES - REFINED ENTERPRISE
 // ============================================================
 
 const STYLES = `
-  /* Enterprise Design Tokens */
+  /* Enterprise Design Tokens - Refined */
   .jobs-root {
     --color-mdb-green: #00ED64;
     --color-mdb-green-dark: #00C355;
@@ -28,22 +28,23 @@ const STYLES = `
     --color-border: #30363D;
     --color-border-subtle: #21262D;
     --color-text-primary: #F0F6FC;
-    --color-text-secondary: #8B949E;
+    --color-text-secondary: #9BA4B0;
     --color-text-muted: #6E7681;
     --color-success: #00ED64;
     --color-warning: #D29922;
     --color-error: #F85149;
     --color-info: #58A6FF;
-    --color-accent-dim: rgba(0, 237, 100, 0.12);
-    --color-accent-border: rgba(0, 237, 100, 0.25);
-    --shadow-sm: 0 1px 0 0 rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --color-accent-dim: rgba(0, 237, 100, 0.06);
+    --color-accent-border: rgba(0, 237, 100, 0.12);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-full: 9999px;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
-    --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .jobs-root * {
@@ -60,7 +61,7 @@ const STYLES = `
   }
 
   @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
   
@@ -68,9 +69,9 @@ const STYLES = `
     to { transform: rotate(360deg); }
   }
   
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.95); }
   }
 
   .page-enter {
@@ -86,13 +87,13 @@ const STYLES = `
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 64px;
-    gap: 16px;
+    padding: 48px;
+    gap: 14px;
   }
 
   .loading-spinner {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: 2px solid var(--color-border);
     border-top-color: var(--color-mdb-green);
     border-radius: 50%;
@@ -102,59 +103,59 @@ const STYLES = `
   .status-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
     font-weight: 500;
     font-family: var(--font-mono);
   }
   
   .status-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
   }
   
   .status-pill.running {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--status-info-bg);
     color: var(--color-info);
-    border: 1px solid rgba(88, 166, 255, 0.25);
+    border: 1px solid var(--status-info-border);
   }
   .status-pill.running .status-dot {
     background: var(--color-info);
-    animation: pulse 1.5s infinite;
+    animation: pulse-dot 1.5s infinite;
   }
   
   .status-pill.success {
-    background: rgba(0, 237, 100, 0.1);
+    background: var(--status-success-bg);
     color: var(--color-success);
-    border: 1px solid rgba(0, 237, 100, 0.25);
+    border: 1px solid var(--status-success-border);
   }
   .status-pill.success .status-dot {
     background: var(--color-success);
   }
   
   .status-pill.failed {
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--status-error-bg);
     color: var(--color-error);
-    border: 1px solid rgba(248, 81, 73, 0.25);
+    border: 1px solid var(--status-error-border);
   }
   .status-pill.failed .status-dot {
     background: var(--color-error);
   }
   
   .status-pill.paused {
-    background: rgba(210, 153, 34, 0.1);
+    background: var(--status-warning-bg);
     color: var(--color-warning);
-    border: 1px solid rgba(210, 153, 34, 0.25);
+    border: 1px solid var(--status-warning-border);
   }
   .status-pill.paused .status-dot {
     background: var(--color-warning);
   }
   
   .status-pill.queued {
-    background: rgba(139, 148, 158, 0.1);
+    background: rgba(139, 148, 158, 0.06);
     color: var(--color-text-muted);
     border: 1px solid var(--color-border);
   }
@@ -165,10 +166,10 @@ const STYLES = `
   .btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
+    gap: 6px;
+    padding: 7px 14px;
     border-radius: var(--radius-md);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     font-family: var(--font-sans);
     cursor: pointer;
@@ -185,6 +186,7 @@ const STYLES = `
   .btn-primary:hover:not(:disabled) {
     background: var(--color-mdb-green-dark);
     transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
   }
   
   .btn-secondary {
@@ -200,9 +202,9 @@ const STYLES = `
   }
   
   .btn-sm {
-    padding: 6px 12px;
-    font-size: 12px;
-    gap: 6px;
+    padding: 5px 10px;
+    font-size: 11px;
+    gap: 5px;
   }
   
   .btn:disabled {
@@ -221,42 +223,42 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 14px 18px;
     border-bottom: 1px solid var(--color-border);
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
   }
   
   .table-title {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
   }
   
   .job-count {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-text-muted);
     background: var(--color-canvas);
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
     border: 1px solid var(--color-border);
   }
   
   .filter-group {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     flex-wrap: wrap;
   }
   
   .filter-chip {
-    padding: 5px 12px;
-    font-size: 12px;
+    padding: 4px 10px;
+    font-size: 11px;
     font-weight: 500;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
-    border-radius: 20px;
+    border-radius: var(--radius-full);
     color: var(--color-text-secondary);
     cursor: pointer;
     transition: all var(--transition);
@@ -282,13 +284,13 @@ const STYLES = `
   .jobs-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 700px;
+    min-width: 650px;
   }
   
   .jobs-table th {
     text-align: left;
-    padding: 12px 16px;
-    font-size: 11px;
+    padding: 10px 14px;
+    font-size: 10px;
     font-weight: 600;
     font-family: var(--font-mono);
     text-transform: uppercase;
@@ -299,8 +301,8 @@ const STYLES = `
   }
   
   .jobs-table td {
-    padding: 14px 16px;
-    font-size: 13px;
+    padding: 12px 14px;
+    font-size: 12px;
     border-bottom: 1px solid var(--color-border-subtle);
     vertical-align: middle;
   }
@@ -315,7 +317,7 @@ const STYLES = `
   
   .mono-text {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-secondary);
   }
   
@@ -330,41 +332,41 @@ const STYLES = `
   .progress-container {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-width: 100px;
+    gap: 8px;
+    min-width: 70px;
   }
   
   .progress-bar {
     flex: 1;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-full);
     overflow: hidden;
-    min-width: 40px;
+    min-width: 30px;
   }
   
   .progress-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: var(--radius-full);
     transition: width 0.5s ease-in-out;
   }
   
   .progress-text {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 10px;
     color: var(--color-text-muted);
-    min-width: 36px;
+    min-width: 32px;
   }
   
   .action-group {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
   }
   
   .action-btn {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -390,11 +392,11 @@ const STYLES = `
   .action-btn.danger:hover:not(:disabled) {
     border-color: var(--color-error);
     color: var(--color-error);
-    background: rgba(248, 81, 73, 0.1);
+    background: var(--status-error-bg);
   }
 
   .pagination-container {
-    padding: 16px 20px;
+    padding: 12px 18px;
     border-top: 1px solid var(--color-border);
   }
   
@@ -403,34 +405,34 @@ const STYLES = `
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
   }
   
   .pagination-info {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-muted);
     background: var(--color-canvas);
-    padding: 5px 12px;
-    border-radius: 20px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
     border: 1px solid var(--color-border);
   }
   
   .pagination-controls {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
   }
   
   .page-btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
+    gap: 3px;
+    padding: 5px 10px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-text-secondary);
     cursor: pointer;
@@ -449,15 +451,15 @@ const STYLES = `
   }
   
   .page-number {
-    min-width: 34px;
-    height: 34px;
+    min-width: 30px;
+    height: 30px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-text-secondary);
     cursor: pointer;
@@ -480,19 +482,19 @@ const STYLES = `
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: 24px;
+    padding: 20px;
   }
   
   .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 16px;
   }
   
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
   
   .form-group.full-width {
@@ -500,17 +502,19 @@ const STYLES = `
   }
   
   .form-label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   
   .form-input {
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: 10px 12px;
-    font-size: 16px;
+    padding: 8px 12px;
+    font-size: 14px;
     font-family: var(--font-sans);
     color: var(--color-text-primary);
     outline: none;
@@ -519,14 +523,14 @@ const STYLES = `
   
   .form-input:focus {
     border-color: var(--color-mdb-green);
-    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.1);
+    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.06);
   }
   
   .form-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: flex-end;
-    margin-top: 28px;
+    margin-top: 20px;
     flex-wrap: wrap;
   }
 
@@ -539,12 +543,12 @@ const STYLES = `
     justify-content: center;
     padding: 16px;
     background: rgba(13, 17, 23, 0.92);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
   }
   
   .modal {
     width: 100%;
-    max-width: 560px;
+    max-width: 540px;
     max-height: 90vh;
     background: var(--color-surface-elevated);
     border: 1px solid var(--color-border);
@@ -556,24 +560,24 @@ const STYLES = `
   }
   
   .modal-header {
-    padding: 16px 20px;
+    padding: 14px 18px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
   }
   
   .modal-body {
-    padding: 16px 20px;
+    padding: 14px 18px;
     overflow-y: auto;
     flex: 1;
   }
   
   .modal-footer {
-    padding: 16px 20px;
+    padding: 14px 18px;
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: flex-end;
     border-top: 1px solid var(--color-border);
     background: var(--color-surface);
@@ -581,6 +585,30 @@ const STYLES = `
     flex-wrap: wrap;
   }
 
+  .tab-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover {
+    color: var(--color-text-primary);
+  }
+
+  .tab-btn.active {
+    color: var(--color-mdb-green);
+    border-bottom-color: var(--color-mdb-green);
+  }
+
+  /* Responsive Breakpoints */
   @media (max-width: 768px) {
     .form-grid {
       grid-template-columns: 1fr;
@@ -611,8 +639,8 @@ const STYLES = `
     
     .jobs-table th,
     .jobs-table td {
-      padding: 10px 12px;
-      font-size: 12px;
+      padding: 8px 10px;
+      font-size: 11px;
     }
     
     .action-group {
@@ -620,8 +648,13 @@ const STYLES = `
     }
     
     .action-btn {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
+    }
+    
+    .action-btn svg {
+      width: 12px;
+      height: 12px;
     }
     
     .page-btn span {
@@ -635,48 +668,87 @@ const STYLES = `
     }
     
     .modal-header {
-      padding: 14px 16px;
+      padding: 12px 14px;
     }
     
     .modal-body {
-      padding: 14px 16px;
+      padding: 12px 14px;
     }
     
     .modal-footer {
-      padding: 14px 16px;
+      padding: 12px 14px;
+    }
+
+    .form-card {
+      padding: 14px;
+    }
+
+    .jobs-table {
+      min-width: 450px;
+    }
+
+    .url-cell {
+      max-width: 100px;
+    }
+
+    .progress-container {
+      min-width: 60px;
+    }
+
+    .progress-text {
+      font-size: 9px;
+      min-width: 28px;
     }
   }
 
   @media (max-width: 480px) {
     .table-header {
-      padding: 12px 16px;
+      padding: 10px 12px;
     }
     
     .jobs-table th,
     .jobs-table td {
-      padding: 8px 10px;
-      font-size: 11px;
+      padding: 6px 8px;
+      font-size: 10px;
     }
     
     .filter-chip {
-      font-size: 10px;
-      padding: 4px 10px;
+      font-size: 9px;
+      padding: 3px 8px;
     }
     
     .pagination-info {
-      font-size: 11px;
-      padding: 4px 10px;
+      font-size: 10px;
+      padding: 3px 8px;
     }
     
     .page-number {
-      min-width: 30px;
-      height: 30px;
-      font-size: 11px;
+      min-width: 26px;
+      height: 26px;
+      font-size: 10px;
     }
     
     .page-btn {
-      padding: 4px 8px;
-      font-size: 11px;
+      padding: 3px 6px;
+      font-size: 10px;
+    }
+
+    .action-btn {
+      width: 24px;
+      height: 24px;
+    }
+
+    .action-btn svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    .jobs-table {
+      min-width: 350px;
+    }
+
+    .url-cell {
+      max-width: 70px;
     }
   }
 `;
@@ -750,21 +822,20 @@ function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onIte
     <div className="pagination-container">
       <div className="pagination-wrapper">
         <div className="pagination-info">
-          <ChevronsLeft size={12} />
+          <ChevronsLeft size={11} />
           <strong>{(currentPage - 1) * itemsPerPage + 1}</strong>
           <span>–</span>
           <strong>{Math.min(currentPage * itemsPerPage, totalPages * itemsPerPage)}</strong>
           <span>of</span>
           <strong>{totalPages * itemsPerPage}</strong>
-          <span>jobs</span>
         </div>
         
         <div className="pagination-controls">
           <button className="page-btn" onClick={() => onPageChange(1)} disabled={currentPage === 1}>
-            <ChevronsLeft size={12} /> <span>First</span>
+            <ChevronsLeft size={11} /> <span>First</span>
           </button>
           <button className="page-btn" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
-            <ChevronLeft size={12} /> <span>Prev</span>
+            <ChevronLeft size={11} /> <span>Prev</span>
           </button>
           
           {getPageNumbers().map((page, idx) => (
@@ -784,22 +855,22 @@ function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onIte
           ))}
           
           <button className="page-btn" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-            <span>Next</span> <ChevronRight size={12} />
+            <span>Next</span> <ChevronRight size={11} />
           </button>
           <button className="page-btn" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages}>
-            <span>Last</span> <ChevronsRight size={12} />
+            <span>Last</span> <ChevronsRight size={11} />
           </button>
         </div>
         
-        <div className="page-size-select" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-canvas)', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--color-border)' }}>
-          <label style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Rows:</label>
+        <div className="page-size-select" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-canvas)', padding: '3px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}>
+          <label style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>Rows:</label>
           <select
             value={itemsPerPage}
             onChange={(e) => {
               onItemsPerPageChange(Number(e.target.value));
               onPageChange(1);
             }}
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontSize: '11px', color: 'var(--color-text-primary)', cursor: 'pointer' }}
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '3px 6px', fontSize: '10px', color: 'var(--color-text-primary)', cursor: 'pointer' }}
           >
             <option value={5}>5</option>
             <option value={8}>8</option>
@@ -823,23 +894,23 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-error)', flexShrink: 0 }}>
-            <AlertTriangle size={20} />
+          <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-error)', flexShrink: 0 }}>
+            <AlertTriangle size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 600 }}>Delete Job</div>
-            <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>This action cannot be undone</div>
+            <div style={{ fontSize: '15px', fontWeight: 600 }}>Delete Job</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>This action cannot be undone</div>
           </div>
         </div>
         <div className="modal-body">
-          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+          <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
             You are about to permanently delete:
           </p>
-          <div style={{ display: 'inline-block', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: '13px', marginTop: '8px' }}>
+          <div style={{ display: 'inline-block', background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '5px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginTop: '6px', wordBreak: 'break-all' }}>
             {jobName}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px' }}>
-            <AlertTriangle size={12} />
+          <div style={{ fontSize: '11px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '10px' }}>
+            <AlertTriangle size={11} />
             All scraped data and configurations will be lost
           </div>
         </div>
@@ -849,11 +920,11 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
           </button>
           <button
             className="btn btn-sm"
-            style={{ background: 'rgba(248, 81, 73, 0.1)', color: 'var(--color-error)', border: '1px solid rgba(248, 81, 73, 0.25)' }}
+            style={{ background: 'var(--status-error-bg)', color: 'var(--color-error)', border: '1px solid var(--status-error-border)' }}
             onClick={onConfirm}
             disabled={deleting}
           >
-            {deleting ? <Loader size={12} className="spin" /> : <Trash2 size={12} />}
+            {deleting ? <Loader size={11} className="spin" /> : <Trash2 size={11} />}
             Delete Permanently
           </button>
         </div>
@@ -903,97 +974,97 @@ function JobDetailsModal({ job, onClose }) {
   
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 900 }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 860 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-            <div style={{ width: 40, height: 40, background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Briefcase size={18} color="#58A6FF" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+            <div style={{ width: 36, height: 36, background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Briefcase size={16} color="var(--color-info)" />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '16px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
-              <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.id}</div>
+              <div style={{ fontSize: '15px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
+              <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.id}</div>
             </div>
           </div>
           <button className="action-btn" onClick={onClose} style={{ flexShrink: 0 }}>
-            <X size={14} />
+            <X size={13} />
           </button>
         </div>
         
         <div className="modal-body">
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Progress</span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{d.progress || 0}%</span>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Progress</span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{d.progress || 0}%</span>
             </div>
-            <div className="progress-bar" style={{ height: 6 }}>
+            <div className="progress-bar" style={{ height: 4 }}>
               <div className="progress-fill" style={{ width: `${d.progress || 0}%`, background: d.status === 'failed' ? 'var(--color-error)' : 'var(--color-mdb-green)' }} />
             </div>
           </div>
           
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 16 }}>
             <StatusPill status={status} />
           </div>
           
           {d.error_message && (
-            <div style={{ background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.25)', borderRadius: 'var(--radius-md)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--color-error)', marginBottom: 20 }}>
-              <AlertCircle size={14} />
-              <span>{d.error_message}</span>
+            <div style={{ background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-error)', marginBottom: 16 }}>
+              <AlertCircle size={13} />
+              <span style={{ wordBreak: 'break-word' }}>{d.error_message}</span>
             </div>
           )}
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{recordCount.toLocaleString() || '0'}</div>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginTop: '4px' }}>Records</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px', marginBottom: 16 }}>
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{recordCount.toLocaleString() || '0'}</div>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Records</div>
             </div>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{wordCount.toLocaleString()}</div>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginTop: '4px' }}>Words</div>
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{wordCount.toLocaleString()}</div>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Words</div>
             </div>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-info)' }}>{charCount > 999 ? `${(charCount / 1000).toFixed(1)}k` : charCount}</div>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginTop: '4px' }}>Characters</div>
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{charCount > 999 ? `${(charCount / 1000).toFixed(1)}k` : charCount}</div>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Characters</div>
             </div>
           </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <LinkIcon size={10} /> Target URL
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: 16 }}>
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <LinkIcon size={9} /> Target URL
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
                 <a href={d.target || d.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-info)', textDecoration: 'none' }}>
                   {(d.target || d.url || 'N/A').substring(0, 60)}
                 </a>
               </div>
             </div>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Zap size={10} /> Frequency
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Zap size={9} /> Frequency
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{d.frequency || 'One-time'}</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{d.frequency || 'One-time'}</div>
             </div>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Calendar size={10} /> Created
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar size={9} /> Created
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{formatDate(d.created_at)}</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{formatDate(d.created_at)}</div>
             </div>
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Clock size={10} /> Last Scraped
+            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={9} /> Last Scraped
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{formatDate(d.scraped_at) || 'Never'}</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{formatDate(d.scraped_at) || 'Never'}</div>
             </div>
           </div>
           
           {scrapedContent && !loading && (
-            <div style={{ marginTop: '20px' }}>
-              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                 <span>Full Content</span>
                 <span>{charCount.toLocaleString()} chars</span>
               </div>
-              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px', fontFamily: 'var(--font-mono)', fontSize: '11px', lineHeight: '1.6', color: 'var(--color-text-secondary)', maxHeight: '400px', overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '10px', lineHeight: '1.6', color: 'var(--color-text-secondary)', maxHeight: '300px', overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {scrapedContent}
               </div>
             </div>
@@ -1050,7 +1121,6 @@ export default function Jobs() {
   
   const runningCount = jobs.filter(j => j.status === 'running').length;
   
-  // Load jobs function
   const loadJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -1068,7 +1138,6 @@ export default function Jobs() {
       }
       setJobs(jobsData);
       
-      // Check if any jobs are running
       const hasRunning = jobsData.some(j => j.status === 'running');
       if (hasRunning && !isPolling) {
         startPolling();
@@ -1084,7 +1153,6 @@ export default function Jobs() {
     }
   }, [isPolling]);
 
-  // Start polling for updates
   const startPolling = useCallback(() => {
     if (pollingInterval.current) return;
     
@@ -1092,19 +1160,15 @@ export default function Jobs() {
     setIsPolling(true);
     
     pollingInterval.current = setInterval(() => {
-      // Check if any jobs are still running
       const hasRunning = jobs.some(j => j.status === 'running');
       if (!hasRunning) {
         stopPolling();
         return;
       }
-      
-      // Refresh jobs to get latest status
       loadJobs();
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
   }, [jobs, loadJobs]);
 
-  // Stop polling
   const stopPolling = useCallback(() => {
     if (pollingInterval.current) {
       clearInterval(pollingInterval.current);
@@ -1114,12 +1178,10 @@ export default function Jobs() {
     }
   }, []);
 
-  // Handle WebSocket updates if available
   useEffect(() => {
     if (jobUpdates) {
       console.log('Received job update:', jobUpdates);
       
-      // Update the job in the list
       setJobs(prevJobs => {
         const updatedJobs = prevJobs.map(job => {
           if (job.id === jobUpdates.job_id) {
@@ -1135,27 +1197,19 @@ export default function Jobs() {
         return updatedJobs;
       });
       
-      // If job completed or failed, stop polling
       if (jobUpdates.status === 'success' || jobUpdates.status === 'failed' || jobUpdates.status === 'completed') {
         stopPolling();
-        // Refresh full list after a moment
         setTimeout(() => loadJobs(), 2000);
       }
     }
   }, [jobUpdates, loadJobs, stopPolling]);
 
-  // Start job with auto-refresh
   const handleStartJob = async (jobId) => {
     try {
       await api.post(`/api/jobs/${jobId}/start`);
       setSuccess('Job started - refreshing automatically...');
-      
-      // Immediately refresh to show running status
       await loadJobs();
-      
-      // Start polling for updates
       startPolling();
-      
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to start job');
@@ -1229,12 +1283,10 @@ export default function Jobs() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  // Initial load
   useEffect(() => {
     loadJobs();
   }, [loadJobs]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (pollingInterval.current) {
@@ -1264,34 +1316,34 @@ export default function Jobs() {
     <div className="jobs-root page-enter">
       {/* Alerts */}
       {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '20px', fontSize: '13px', background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.3)', color: 'var(--color-error)' }}>
-          <AlertCircle size={16} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '12px', background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', color: 'var(--color-error)', flexWrap: 'wrap' }}>
+          <AlertCircle size={14} />
           <span style={{ flex: 1 }}>{error}</span>
           <button style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', opacity: 0.7 }} onClick={() => setError(null)}>
-            <X size={14} />
+            <X size={13} />
           </button>
         </div>
       )}
       {success && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '20px', fontSize: '13px', background: 'rgba(0, 237, 100, 0.1)', border: '1px solid rgba(0, 237, 100, 0.3)', color: 'var(--color-success)' }}>
-          <CheckCircle size={16} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '12px', background: 'var(--status-success-bg)', border: '1px solid var(--status-success-border)', color: 'var(--color-success)', flexWrap: 'wrap' }}>
+          <CheckCircle size={14} />
           <span style={{ flex: 1 }}>{success}</span>
           <button style={{ background: 'none', border: 'none', color: 'currentColor', cursor: 'pointer', opacity: 0.7 }} onClick={() => setSuccess(null)}>
-            <X size={14} />
+            <X size={13} />
           </button>
         </div>
       )}
       
       {/* Tab Navigation */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--color-border)', paddingBottom: '0', overflowX: 'auto', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', borderBottom: '1px solid var(--color-border)', paddingBottom: '0', overflowX: 'auto', flexWrap: 'wrap' }}>
         <button
           className={`tab-btn ${activeTab === 'list' ? 'active' : ''}`}
           onClick={() => setActiveTab('list')}
-          style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 500, background: 'none', border: 'none', color: activeTab === 'list' ? 'var(--color-mdb-green)' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all var(--transition)', borderBottom: activeTab === 'list' ? '2px solid var(--color-mdb-green)' : '2px solid transparent', marginBottom: '-1px', whiteSpace: 'nowrap' }}
         >
-          <Briefcase size={14} style={{ marginRight: 6 }} />
+          <Briefcase size={13} style={{ marginRight: '5px' }} />
           All Jobs
         </button>
+      
       </div>
       
       {/* Jobs List Tab */}
@@ -1311,30 +1363,30 @@ export default function Jobs() {
                   </button>
                 ))}
               </div>
-              {loading && <RefreshCw size={14} className="spin" />}
+              {loading && <RefreshCw size={13} className="spin" />}
               {isPolling && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: '20px', fontSize: '11px', fontWeight: 500, color: 'var(--color-info)' }}>
-                  <Activity size={11} className="spin" /> Auto-refreshing
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 500, color: 'var(--color-info)' }}>
+                  <Activity size={10} className="spin" /> Auto-refreshing
                 </span>
               )}
               {runningCount > 0 && !isPolling && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(88, 166, 255, 0.1)', border: '1px solid rgba(88, 166, 255, 0.25)', borderRadius: '20px', fontSize: '11px', fontWeight: 500, color: 'var(--color-info)' }}>
-                  <Activity size={11} /> {runningCount} running
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 500, color: 'var(--color-info)' }}>
+                  <Activity size={10} /> {runningCount} running
                 </span>
               )}
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('new')}>
-              <Play size={12} /> New Job
+              <Play size={11} /> New Job
             </button>
           </div>
           
           {paginatedJobs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-              <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-                <Briefcase size={24} />
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ width: '48px', height: '48px', margin: '0 auto 12px', background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+                <Briefcase size={20} />
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>No jobs found</div>
-              <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>No jobs found</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                 {statusFilter !== 'all'
                   ? `No jobs with status: ${statusFilter}`
                   : 'Create your first job to get started'}
@@ -1361,7 +1413,7 @@ export default function Jobs() {
                       
                       return (
                         <tr key={job.id}>
-                          <td style={{ fontWeight: 600 }}>{job.name}</td>
+                          <td style={{ fontWeight: 500, wordBreak: 'break-word' }}>{job.name}</td>
                           <td>
                             <span className="mono-text url-cell">
                               {job.target || job.url || 'N/A'}
@@ -1369,12 +1421,12 @@ export default function Jobs() {
                           </td>
                           <td>
                             {isRunning ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                                 <span className="status-pill running">
                                   <span className="status-dot" />
                                   Running
                                 </span>
-                                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+                                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
                                   {job.progress || 0}%
                                 </span>
                               </div>
@@ -1407,7 +1459,7 @@ export default function Jobs() {
                                 title="View details"
                                 onClick={() => setSelectedJob(job)}
                               >
-                                <Eye size={13} />
+                                <Eye size={12} />
                               </button>
                               <button
                                 className="action-btn"
@@ -1415,7 +1467,7 @@ export default function Jobs() {
                                 onClick={() => setParsingJob(job)}
                                 disabled={!job.scraped_content}
                               >
-                                <Brain size={13} />
+                                <Brain size={12} />
                               </button>
                               {job.status === 'running' ? (
                                 <button
@@ -1423,7 +1475,7 @@ export default function Jobs() {
                                   title="Pause job"
                                   onClick={() => handlePauseJob(job.id)}
                                 >
-                                  <Pause size={13} />
+                                  <Pause size={12} />
                                 </button>
                               ) : (
                                 <button
@@ -1433,9 +1485,9 @@ export default function Jobs() {
                                   disabled={job.status === 'running'}
                                 >
                                   {job.status === 'running' ? (
-                                    <Loader size={13} className="spin" />
+                                    <Loader size={12} className="spin" />
                                   ) : (
-                                    <Play size={13} />
+                                    <Play size={12} />
                                   )}
                                 </button>
                               )}
@@ -1444,7 +1496,7 @@ export default function Jobs() {
                                 title="Delete job"
                                 onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           </td>
@@ -1471,9 +1523,9 @@ export default function Jobs() {
       {activeTab === 'new' && (
         <form onSubmit={handleCreateJob}>
           <div className="form-card">
-            <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Configure Scraping Job</div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Define the parameters for your data extraction job</div>
+            <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '2px' }}>Configure Scraping Job</div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Define the parameters for your data extraction job</div>
             </div>
             
             <div className="form-grid">
@@ -1517,7 +1569,7 @@ export default function Jobs() {
                 className="btn btn-primary btn-sm"
                 disabled={submitting}
               >
-                {submitting ? <Loader size={12} className="spin" /> : <Play size={12} />}
+                {submitting ? <Loader size={11} className="spin" /> : <Play size={11} />}
                 {submitting ? 'Creating...' : 'Create Job'}
               </button>
             </div>

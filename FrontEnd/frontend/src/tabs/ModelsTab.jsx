@@ -1,4 +1,4 @@
-// frontend/src/pages/ModelsTab.jsx - MongoDB Atlas Enterprise Edition WITH LOADING STATE
+// frontend/src/pages/ModelsTab.jsx - REFINED ENTERPRISE DESIGN
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -9,11 +9,11 @@ import {
 import api from '../api';
 
 // ============================================================
-// MONGODB ATLAS ENTERPRISE DESIGN SYSTEM
+// STYLES - REFINED ENTERPRISE
 // ============================================================
 
 const STYLES = `
-  /* Enterprise Design Tokens - MongoDB Atlas Inspired */
+  /* Enterprise Design Tokens - Refined */
   .models-root {
     --color-mdb-green: #00ED64;
     --color-mdb-green-dark: #00C355;
@@ -22,33 +22,26 @@ const STYLES = `
     --color-surface-elevated: #1F242E;
     --color-border: #30363D;
     --color-border-subtle: #21262D;
-    
     --color-text-primary: #F0F6FC;
-    --color-text-secondary: #8B949E;
+    --color-text-secondary: #9BA4B0;
     --color-text-muted: #6E7681;
-    
     --color-success: #00ED64;
     --color-warning: #D29922;
     --color-error: #F85149;
     --color-info: #58A6FF;
-    
-    --color-accent-dim: rgba(0, 237, 100, 0.12);
-    --color-accent-border: rgba(0, 237, 100, 0.25);
-    
-    --shadow-sm: 0 1px 0 0 rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-    
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    
-    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --color-accent-dim: rgba(0, 237, 100, 0.06);
+    --color-accent-border: rgba(0, 237, 100, 0.12);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-full: 9999px;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
-    
-    --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Base */
   .models-root * {
     margin: 0;
     padding: 0;
@@ -62,9 +55,8 @@ const STYLES = `
     line-height: 1.5;
   }
 
-  /* Animations */
   @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
   
@@ -80,106 +72,74 @@ const STYLES = `
     animation: spin 0.6s linear infinite;
   }
 
-  /* Loading State - Same as AppShell */
   .loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 64px;
-    gap: 16px;
+    padding: 48px;
+    gap: 14px;
   }
 
   .loading-spinner {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: 2px solid var(--color-border);
     border-top-color: var(--color-mdb-green);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
 
-  /* Layout */
   .models-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 24px;
+    padding: 20px;
   }
 
-  /* Header */
-  .page-header {
-    margin-bottom: 28px;
-  }
-  
-  .page-title {
-    font-size: 28px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    margin-bottom: 6px;
-  }
-  
-  .page-description {
-    font-size: 14px;
-    color: var(--color-text-muted);
-  }
-
-  /* Stats Grid */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 28px;
+    gap: 12px;
+    margin-bottom: 24px;
   }
   
   .stat-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: 16px 20px;
+    padding: 14px 18px;
     transition: all var(--transition);
   }
   
   .stat-card:hover {
-    border-color: var(--color-border-subtle);
-    background: var(--color-surface-elevated);
+    border-color: var(--color-accent-border);
   }
   
   .stat-value {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 600;
     font-family: var(--font-mono);
     color: var(--color-text-primary);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   
   .stat-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     color: var(--color-text-muted);
     display: flex;
     align-items: center;
-    gap: 6px;
-  }
-  
-  /* Two Column Layout */
-  .two-column {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 24px;
-  }
-  
-  @media (max-width: 900px) {
-    .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .two-column {
-      grid-template-columns: 1fr;
-    }
+    gap: 5px;
   }
 
-  /* Provider Sidebar */
+  .two-column {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+  }
+
   .providers-sidebar {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -189,9 +149,9 @@ const STYLES = `
   }
   
   .sidebar-header {
-    padding: 16px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--color-border);
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -203,7 +163,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px;
+    padding: 12px 16px;
     cursor: pointer;
     border-bottom: 1px solid var(--color-border-subtle);
     transition: all var(--transition);
@@ -219,7 +179,7 @@ const STYLES = `
   
   .provider-item.active {
     background: var(--color-accent-dim);
-    border-left: 3px solid var(--color-mdb-green);
+    border-left: 2px solid var(--color-mdb-green);
   }
   
   .provider-info {
@@ -227,13 +187,13 @@ const STYLES = `
   }
   
   .provider-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
   
   .provider-desc {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--color-text-muted);
   }
   
@@ -247,7 +207,6 @@ const STYLES = `
     color: var(--color-mdb-green);
   }
 
-  /* Config Panel */
   .config-panel {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -259,54 +218,53 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 24px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--color-border);
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
     background: rgba(255, 255, 255, 0.02);
   }
   
   .config-title h3 {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
   
   .config-title p {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-muted);
   }
   
   .config-body {
-    padding: 24px;
+    padding: 20px;
   }
 
-  /* Form Elements */
   .form-group {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   
   .form-label {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
+    gap: 5px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     color: var(--color-text-muted);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   
   .form-input,
   .form-select {
     width: 100%;
-    padding: 10px 14px;
+    padding: 8px 12px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     color: var(--color-text-primary);
-    font-size: 13px;
+    font-size: 14px;
     font-family: var(--font-sans);
     outline: none;
     transition: all var(--transition);
@@ -315,7 +273,7 @@ const STYLES = `
   .form-input:focus,
   .form-select:focus {
     border-color: var(--color-mdb-green);
-    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.1);
+    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.06);
   }
   
   .form-input::placeholder {
@@ -323,19 +281,18 @@ const STYLES = `
   }
   
   .form-hint {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--color-text-muted);
-    margin-top: 6px;
+    margin-top: 4px;
   }
-  
-  /* API Key Input with Toggle */
+
   .api-key-wrapper {
     position: relative;
   }
   
   .api-key-toggle {
     position: absolute;
-    right: 12px;
+    right: 10px;
     top: 50%;
     transform: translateY(-50%);
     background: none;
@@ -352,17 +309,16 @@ const STYLES = `
     color: var(--color-text-primary);
   }
 
-  /* Test Button */
   .test-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
+    gap: 6px;
+    padding: 6px 14px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition);
@@ -389,10 +345,9 @@ const STYLES = `
     color: var(--color-error);
   }
 
-  /* Models Section */
   .models-section {
-    margin-top: 32px;
-    padding-top: 24px;
+    margin-top: 24px;
+    padding-top: 20px;
     border-top: 1px solid var(--color-border);
   }
   
@@ -400,37 +355,37 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
   }
   
   .models-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
   }
   
   .models-count {
-    font-size: 11px;
+    font-size: 10px;
     font-family: var(--font-mono);
     color: var(--color-text-muted);
     background: var(--color-canvas);
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
     border: 1px solid var(--color-border);
   }
   
   .models-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
   }
   
   .model-card {
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: 14px 16px;
+    padding: 12px 14px;
     cursor: pointer;
     transition: all var(--transition);
   }
@@ -449,146 +404,75 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   
   .model-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
   }
   
   .model-badge {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 20px;
+    padding: 1px 8px;
+    border-radius: var(--radius-full);
     text-transform: uppercase;
   }
   
   .model-badge.recommended {
-    background: rgba(0, 237, 100, 0.1);
+    background: var(--status-success-bg);
     color: var(--color-success);
   }
   
   .model-badge.fast {
-    background: rgba(88, 166, 255, 0.1);
+    background: var(--status-info-bg);
     color: var(--color-info);
   }
   
   .model-description {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--color-text-secondary);
     line-height: 1.4;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   
   .model-meta {
     display: flex;
-    gap: 12px;
-    font-size: 10px;
+    gap: 10px;
+    font-size: 9px;
     font-family: var(--font-mono);
     color: var(--color-text-muted);
+    flex-wrap: wrap;
   }
 
-  /* Advanced Settings */
-  .advanced-toggle {
-    margin-top: 24px;
-    border-top: 1px solid var(--color-border);
-  }
-  
-  .advanced-summary {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 16px 0;
-    cursor: pointer;
-    color: var(--color-text-secondary);
-    font-size: 12px;
-    font-weight: 500;
-    list-style: none;
-  }
-  
-  .advanced-summary::-webkit-details-marker {
-    display: none;
-  }
-  
-  .advanced-summary:hover {
-    color: var(--color-text-primary);
-  }
-  
-  .advanced-content {
-    padding: 16px 0 8px;
-  }
-  
-  /* Slider */
-  .slider-input {
-    width: 100%;
-    height: 4px;
-    -webkit-appearance: none;
-    background: var(--color-border);
-    border-radius: 4px;
-    outline: none;
-  }
-  
-  .slider-input::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    background: var(--color-mdb-green);
-    border-radius: 50%;
-    cursor: pointer;
-  }
-  
-  .slider-value {
-    font-size: 12px;
-    font-family: var(--font-mono);
-    color: var(--color-text-secondary);
-    margin-top: 8px;
-  }
-  
-  /* Number Input */
-  .number-input {
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--color-canvas);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    color: var(--color-text-primary);
-    font-size: 13px;
-    font-family: var(--font-mono);
-  }
-  
-  .number-input:focus {
-    border-color: var(--color-mdb-green);
-    outline: none;
-  }
-
-  /* Alert */
   .alert {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 10px;
+    padding: 10px 14px;
     border-radius: var(--radius-md);
-    margin-bottom: 20px;
-    font-size: 13px;
+    margin-bottom: 16px;
+    font-size: 12px;
   }
   
   .alert-success {
-    background: rgba(0, 237, 100, 0.1);
-    border: 1px solid rgba(0, 237, 100, 0.25);
+    background: var(--status-success-bg);
+    border: 1px solid var(--status-success-border);
     color: var(--color-success);
   }
   
   .alert-error {
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.25);
+    background: var(--status-error-bg);
+    border: 1px solid var(--status-error-border);
     color: var(--color-error);
   }
   
   .alert-info {
-    background: rgba(88, 166, 255, 0.1);
-    border: 1px solid rgba(88, 166, 255, 0.25);
+    background: var(--status-info-bg);
+    border: 1px solid var(--status-info-border);
     color: var(--color-info);
   }
   
@@ -601,14 +485,13 @@ const STYLES = `
     opacity: 0.7;
   }
 
-  /* Buttons */
   .btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
+    gap: 6px;
+    padding: 8px 18px;
     border-radius: var(--radius-md);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     font-family: var(--font-sans);
     cursor: pointer;
@@ -624,11 +507,193 @@ const STYLES = `
   .btn-primary:hover:not(:disabled) {
     background: var(--color-mdb-green-dark);
     transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
   }
   
   .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* ============================================================ */
+  /* RESPONSIVE BREAKPOINTS */
+  /* ============================================================ */
+
+  @media (max-width: 1024px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .two-column {
+      grid-template-columns: 220px 1fr;
+      gap: 16px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .models-container {
+      padding: 14px;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .stat-card {
+      padding: 10px 14px;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+    }
+    
+    .stat-label {
+      font-size: 9px;
+    }
+    
+    .two-column {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    
+    .providers-sidebar {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding: 6px 10px;
+      gap: 6px;
+      height: auto;
+      border-radius: var(--radius-lg);
+    }
+    
+    .providers-sidebar .sidebar-header {
+      display: none;
+    }
+    
+    .provider-item {
+      padding: 8px 14px;
+      border-bottom: none;
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .provider-item.active {
+      border-left: none;
+      border-bottom-color: var(--color-mdb-green);
+    }
+    
+    .provider-desc {
+      display: none;
+    }
+    
+    .provider-arrow {
+      display: none;
+    }
+    
+    .config-header {
+      padding: 12px 16px;
+    }
+    
+    .config-title h3 {
+      font-size: 14px;
+    }
+    
+    .config-body {
+      padding: 14px;
+    }
+    
+    .models-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .model-card {
+      padding: 10px 12px;
+    }
+    
+    .form-input,
+    .form-select {
+      font-size: 16px;
+      padding: 7px 10px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .models-container {
+      padding: 10px;
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    
+    .stat-card {
+      padding: 8px 12px;
+    }
+    
+    .stat-value {
+      font-size: 18px;
+    }
+    
+    .stat-label {
+      font-size: 8px;
+    }
+    
+    .config-body {
+      padding: 10px;
+    }
+    
+    .model-name {
+      font-size: 12px;
+    }
+    
+    .model-description {
+      font-size: 9px;
+    }
+    
+    .model-meta {
+      font-size: 8px;
+      gap: 6px;
+    }
+    
+    .btn {
+      padding: 6px 14px;
+      font-size: 11px;
+    }
+    
+    .alert {
+      font-size: 11px;
+      padding: 8px 10px;
+    }
+
+    .providers-sidebar {
+      padding: 4px 8px;
+      gap: 4px;
+    }
+    
+    .provider-item {
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+    
+    .provider-name {
+      font-size: 11px;
+    }
+    
+    .config-header {
+      padding: 10px 12px;
+    }
+    
+    .config-title h3 {
+      font-size: 13px;
+    }
+    
+    .config-title p {
+      font-size: 10px;
+    }
   }
 `;
 
@@ -650,7 +715,7 @@ function StatCard({ value, label, icon: Icon }) {
     <div className="stat-card">
       <div className="stat-value">{value}</div>
       <div className="stat-label">
-        {Icon && <Icon size={12} />}
+        {Icon && <Icon size={11} />}
         {label}
       </div>
     </div>
@@ -671,7 +736,7 @@ function ProviderItem({ id, provider, isActive, onSelect }) {
         <div className="provider-name">{provider.name}</div>
         <div className="provider-desc">{provider.description}</div>
       </div>
-      <ChevronRight size={14} className="provider-arrow" />
+      <ChevronRight size={13} className="provider-arrow" />
     </div>
   );
 }
@@ -688,7 +753,7 @@ function ModelCard({ model, isSelected, onSelect }) {
     >
       <div className="model-name-row">
         <span className="model-name">{model.name}</span>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {model.recommended && (
             <span className="model-badge recommended">Recommended</span>
           )}
@@ -730,7 +795,6 @@ export default function ModelsTab() {
 
   injectStyles('models-styles', STYLES);
 
-  // Load providers
   const loadProviders = useCallback(async () => {
     setLoading(true);
     try {
@@ -750,7 +814,6 @@ export default function ModelsTab() {
     }
   }, []);
 
-  // Load config for selected provider
   const loadConfig = useCallback(async () => {
     try {
       const res = await api.get(`/api/llm/config/${selectedProvider}`);
@@ -767,7 +830,6 @@ export default function ModelsTab() {
     }
   }, [selectedProvider, providers]);
 
-  // Load stats
   const loadStats = useCallback(async () => {
     try {
       const res = await api.get('/api/llm/stats');
@@ -849,10 +911,7 @@ export default function ModelsTab() {
   const currentProvider = providers[selectedProvider];
   const currentModels = currentProvider?.models || [];
 
-  // ============================================================
-  // LOADING STATE - Same as AppShell
-  // ============================================================
-  
+  // Loading State
   if (loading) {
     return (
       <div className="models-root">
@@ -869,7 +928,6 @@ export default function ModelsTab() {
   return (
     <div className="models-root page-enter">
       <div className="models-container">
-        
         <div className="two-column">
           {/* Provider Sidebar */}
           <div className="providers-sidebar">
@@ -892,14 +950,13 @@ export default function ModelsTab() {
                 <h3>{currentProvider?.name}</h3>
                 <p>{currentProvider?.description}</p>
               </div>
-              
             </div>
 
             <div className="config-body">
               {/* Test Result Alert */}
               {testStatus && (
                 <div className={`alert alert-${testStatus.success ? 'success' : 'error'}`}>
-                  {testStatus.success ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                  {testStatus.success ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
                   {testStatus.message}
                 </div>
               )}
@@ -907,12 +964,10 @@ export default function ModelsTab() {
               {/* Success Message */}
               {message && (
                 <div className={`alert alert-${message.type}`}>
-                  {message.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                  {message.type === 'success' ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
                   {message.text}
                 </div>
               )}
-
-              
 
               {/* Models Section */}
               <div className="models-section">
@@ -932,12 +987,10 @@ export default function ModelsTab() {
                 </div>
               </div>
 
-             
-
               {/* Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 28 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', flexWrap: 'wrap', gap: '10px' }}>
                 <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                  {saving ? <RefreshCw size={14} className="spin" /> : <Save size={14} />}
+                  {saving ? <RefreshCw size={13} className="spin" /> : <Save size={13} />}
                   {saving ? 'Saving...' : 'Save Configuration'}
                 </button>
               </div>

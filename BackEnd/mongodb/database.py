@@ -55,7 +55,7 @@ async def connect_to_mongo():
         # Create indexes in background
         asyncio.create_task(create_indexes())
         
-        return database.db
+        return database.db  # Return AsyncIOMotorDatabase
         
     except Exception as e:
         logger.error(f"❌ MongoDB connection error: {e}")
@@ -93,10 +93,10 @@ async def close_mongo_connection():
         logger.info("Closed MongoDB connection")
 
 async def get_database() -> AsyncIOMotorDatabase:
-    """Get database instance"""
+    """Get database instance - returns AsyncIOMotorDatabase"""
     if database.db is None:
         await connect_to_mongo()
-    return database.db
+    return database.db  # Returns AsyncIOMotorDatabase
 
 async def ping_mongo():
     """Check MongoDB connection"""

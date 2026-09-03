@@ -1,4 +1,4 @@
-// frontend/src/AppShell.jsx - ENTERPRISE REDESIGN
+// frontend/src/AppShell.jsx - ENTERPRISE REDESIGN - REFINED
 
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
@@ -44,8 +44,8 @@ import React from 'react';
 import logo from '../newlogo.png';
 
 // ============================================================
-// ENTERPRISE REDESIGN - MONGODB ATLAS INSPIRED
-// Professional, clean, data-platform aesthetic
+// ENTERPRISE REDESIGN - REFINED MONGODB ATLAS INSPIRED
+// Clean, professional, data-platform aesthetic
 // ============================================================
 
 const globalStyles = `
@@ -56,46 +56,54 @@ const globalStyles = `
     box-sizing: border-box;
   }
 
-  /* Design System - MongoDB Atlas Inspired */
+  /* Design System - Refined Enterprise */
   :root {
-    /* Primary Colors */
+    /* Primary Colors - Maintained */
     --color-primary: #00ED64;
     --color-primary-dark: #00C950;
     --color-primary-light: #2EED7E;
+    --color-primary-glow: rgba(0, 237, 100, 0.08);
     
     /* Background Colors */
     --bg-primary: #0D1117;
     --bg-secondary: #161B22;
-    --bg-tertiary: #1A1F2B;
-    --bg-hover: #21262D;
+    --bg-tertiary: #1C2128;
+    --bg-hover: #252B33;
+    --bg-elevated: #21262D;
     
     /* Border Colors */
     --border-default: #30363D;
     --border-muted: #21262D;
+    --border-subtle: rgba(48, 54, 61, 0.4);
     --border-active: #00ED64;
     
     /* Text Colors */
     --text-primary: #F0F6FC;
-    --text-secondary: #8B949E;
+    --text-secondary: #9BA4B0;
     --text-muted: #6E7681;
     --text-link: #58A6FF;
     
-    /* Status Colors */
+    /* Status Colors - Refined */
     --status-success: #00ED64;
-    --status-success-bg: rgba(0, 237, 100, 0.12);
+    --status-success-bg: rgba(0, 237, 100, 0.08);
+    --status-success-border: rgba(0, 237, 100, 0.15);
     --status-warning: #D29922;
-    --status-warning-bg: rgba(210, 153, 34, 0.12);
+    --status-warning-bg: rgba(210, 153, 34, 0.08);
+    --status-warning-border: rgba(210, 153, 34, 0.15);
     --status-error: #F85149;
-    --status-error-bg: rgba(248, 81, 73, 0.12);
+    --status-error-bg: rgba(248, 81, 73, 0.08);
+    --status-error-border: rgba(248, 81, 73, 0.15);
     --status-info: #58A6FF;
-    --status-info-bg: rgba(88, 166, 255, 0.12);
+    --status-info-bg: rgba(88, 166, 255, 0.08);
+    --status-info-border: rgba(88, 166, 255, 0.15);
     
-    /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+    /* Shadows - Softer */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 30px rgba(0, 237, 100, 0.05);
     
-    /* Spacing - 8px system */
+    /* Spacing - Refined */
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -105,81 +113,81 @@ const globalStyles = `
     --space-7: 32px;
     --space-8: 40px;
     --space-9: 48px;
-    --space-10: 56px;
     
-    /* Border Radius */
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
+    /* Border Radius - Refined */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-full: 9999px;
     
     /* Typography */
-    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
     
     /* Transitions */
-    --transition: 150ms ease-in-out;
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   body {
     background: var(--bg-primary);
     color: var(--text-primary);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Typography */
+  /* Typography - Cleaner */
   h1, .h1 {
-    font-size: 36px;
-    font-weight: 700;
+    font-size: 32px;
+    font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.2;
   }
 
   h2, .h2 {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 600;
     letter-spacing: -0.01em;
     line-height: 1.3;
   }
 
   h3, .h3 {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 600;
     line-height: 1.4;
   }
 
-  /* Scrollbar */
+  /* Scrollbar - Subtle */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
     background: var(--border-default);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-full);
   }
 
   ::-webkit-scrollbar-thumb:hover {
     background: var(--border-active);
   }
 
-  /* Focus States */
+  /* Focus States - Cleaner */
   *:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
 
-  /* Animations - Subtle Only */
+  /* Animations - Subtle */
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
@@ -187,8 +195,13 @@ const globalStyles = `
     to { transform: rotate(360deg); }
   }
 
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.95); }
+  }
+
   .fade-in {
-    animation: fadeIn 0.2s ease-out;
+    animation: fadeIn 0.25s ease-out;
   }
 
   .spin {
@@ -201,9 +214,9 @@ const globalStyles = `
     min-height: 100vh;
   }
 
-  /* Sidebar */
+  /* Sidebar - Cleaner */
   .sidebar {
-    width: 260px;
+    width: 240px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-default);
     display: flex;
@@ -213,10 +226,11 @@ const globalStyles = `
     left: 0;
     bottom: 0;
     z-index: 50;
+    transition: transform var(--transition);
   }
 
   .sidebar-header {
-    padding: 24px 20px;
+    padding: 20px 16px;
     border-bottom: 1px solid var(--border-default);
   }
 
@@ -227,45 +241,28 @@ const globalStyles = `
     text-decoration: none;
   }
 
-  .logo-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--color-primary);
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .logo-icon span {
-    color: var(--bg-primary);
-    font-weight: 700;
-    font-size: 14px;
-  }
-
-  .logo-text {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: -0.01em;
+  .logo img {
+    height: 60px;
+    width: auto;
   }
 
   .nav-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 16px;
-    margin: 4px 12px;
+    padding: 8px 14px;
+    margin: 2px 10px;
     border-radius: var(--radius-md);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
     background: transparent;
     border: none;
-    width: calc(100% - 24px);
+    width: calc(100% - 20px);
     text-align: left;
     cursor: pointer;
     transition: all var(--transition);
+    position: relative;
   }
 
   .nav-item:hover {
@@ -278,6 +275,18 @@ const globalStyles = `
     color: var(--color-primary);
   }
 
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: var(--color-primary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+
   .nav-item.active svg {
     color: var(--color-primary);
   }
@@ -285,18 +294,19 @@ const globalStyles = `
   /* Main Content */
   .main-content {
     flex: 1;
-    margin-left: 260px;
+    margin-left: 240px;
     min-height: 100vh;
   }
 
-  /* Top Bar */
+  /* Top Bar - Cleaner */
   .topbar {
     position: sticky;
     top: 0;
-    background: var(--bg-primary);
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-default);
     padding: 0 32px;
-    height: 64px;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -304,68 +314,91 @@ const globalStyles = `
   }
 
   .page-title h1 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
+    letter-spacing: -0.01em;
   }
 
   .page-title p {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-muted);
+    font-weight: 400;
   }
 
-  /* Cards */
+  /* Cards - Cleaner */
   .card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
-    transition: border-color var(--transition);
+    transition: border-color var(--transition), box-shadow var(--transition);
   }
 
   .card:hover {
     border-color: var(--border-active);
+    box-shadow: var(--shadow-glow);
   }
 
   .card-header {
-    padding: 20px 24px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--border-default);
   }
 
   .card-body {
-    padding: 24px;
+    padding: 20px;
   }
 
-  /* Stats Grid */
+  /* Stats Grid - Refined */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-bottom: 28px;
+    gap: 16px;
+    margin-bottom: 24px;
   }
 
   .stat-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
-    padding: 20px;
-    transition: border-color var(--transition);
+    padding: 16px 20px;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--color-primary), transparent);
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .stat-card:hover::after {
+    opacity: 1;
   }
 
   .stat-card:hover {
     border-color: var(--border-active);
+    transform: translateY(-2px);
   }
 
   .stat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
   .stat-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(0, 237, 100, 0.1);
+    width: 36px;
+    height: 36px;
+    background: var(--status-success-bg);
+    border: 1px solid var(--status-success-border);
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
@@ -374,37 +407,47 @@ const globalStyles = `
   }
 
   .stat-trend {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
     background: var(--status-success-bg);
     color: var(--color-primary);
   }
 
+  .stat-trend.down {
+    background: var(--status-error-bg);
+    color: var(--status-error);
+  }
+
   .stat-value {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     margin-bottom: 4px;
+    font-family: var(--font-mono);
   }
 
   .stat-label {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-muted);
+    font-weight: 400;
   }
 
-  /* Buttons */
+  /* Buttons - Cleaner */
   .btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
     border-radius: var(--radius-md);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition);
     border: none;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
   }
 
   .btn-primary {
@@ -415,6 +458,7 @@ const globalStyles = `
   .btn-primary:hover {
     background: var(--color-primary-dark);
     transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 237, 100, 0.25);
   }
 
   .btn-secondary {
@@ -430,11 +474,12 @@ const globalStyles = `
   }
 
   .btn-sm {
-    padding: 6px 12px;
+    padding: 5px 12px;
     font-size: 12px;
+    gap: 6px;
   }
 
-  /* Tables */
+  /* Tables - Cleaner */
   .data-table {
     width: 100%;
     border-collapse: collapse;
@@ -442,69 +487,78 @@ const globalStyles = `
 
   .data-table th {
     text-align: left;
-    padding: 12px 16px;
-    font-size: 12px;
+    padding: 10px 16px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: var(--text-muted);
     border-bottom: 1px solid var(--border-default);
   }
 
   .data-table td {
-    padding: 16px;
-    font-size: 14px;
+    padding: 12px 16px;
+    font-size: 13px;
     border-bottom: 1px solid var(--border-muted);
     color: var(--text-secondary);
+  }
+
+  .data-table tbody tr {
+    transition: background var(--transition);
   }
 
   .data-table tbody tr:hover td {
     background: var(--bg-hover);
   }
 
-  /* Status Badges */
+  /* Status Badges - Refined */
   .badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 3px 10px;
     border-radius: var(--radius-full);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
   }
 
   .badge-success {
     background: var(--status-success-bg);
     color: var(--color-primary);
+    border: 1px solid var(--status-success-border);
   }
 
   .badge-warning {
     background: var(--status-warning-bg);
     color: var(--status-warning);
+    border: 1px solid var(--status-warning-border);
   }
 
   .badge-error {
     background: var(--status-error-bg);
     color: var(--status-error);
+    border: 1px solid var(--status-error-border);
   }
 
   .badge-info {
     background: var(--status-info-bg);
     color: var(--status-info);
+    border: 1px solid var(--status-info-border);
   }
 
-  /* Forms */
+  /* Forms - Cleaner */
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 6px;
+    margin-bottom: 16px;
   }
 
   .form-label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--text-secondary);
+    letter-spacing: 0.02em;
   }
 
   .form-input,
@@ -513,10 +567,11 @@ const globalStyles = `
     background: var(--bg-tertiary);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
-    padding: 10px 14px;
+    padding: 9px 14px;
     font-size: 14px;
     color: var(--text-primary);
     transition: all var(--transition);
+    font-family: var(--font-sans);
   }
 
   .form-input:focus,
@@ -524,11 +579,16 @@ const globalStyles = `
   .form-textarea:focus {
     outline: none;
     border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--status-success-bg);
   }
 
-  /* Filter Chips */
+  .form-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  /* Filter Chips - Refined */
   .filter-chip {
-    padding: 6px 14px;
+    padding: 4px 14px;
     border-radius: var(--radius-full);
     font-size: 12px;
     font-weight: 500;
@@ -550,59 +610,100 @@ const globalStyles = `
     color: var(--color-primary);
   }
 
-  /* Empty State */
+  /* Empty State - Refined */
   .empty-state {
     text-align: center;
-    padding: 64px 32px;
+    padding: 48px 24px;
   }
 
   .empty-icon {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 20px;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
     background: var(--bg-tertiary);
     border-radius: var(--radius-xl);
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
+    border: 1px solid var(--border-default);
   }
 
   .empty-title {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .empty-description {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-muted);
   }
 
-  /* Loading State */
+  /* Loading State - Refined */
   .loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 64px;
+    padding: 48px;
     gap: 16px;
   }
 
   .loading-spinner {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: 2px solid var(--border-default);
     border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
 
-  /* Responsive */
+  /* Sidebar Overlay */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 45;
+  }
+
+  .menu-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 8px;
+    display: none;
+    border-radius: var(--radius-md);
+    transition: background var(--transition);
+  }
+
+  .menu-toggle:hover {
+    background: var(--bg-hover);
+  }
+
+  /* ============================================================ */
+  /* RESPONSIVE BREAKPOINTS */
+  /* ============================================================ */
+
+  @media (max-width: 1024px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+  }
+
   @media (max-width: 768px) {
+    .menu-toggle {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+
     .sidebar {
       transform: translateX(-100%);
-      transition: transform var(--transition);
+      width: 280px;
     }
     
     .sidebar.open {
@@ -613,27 +714,207 @@ const globalStyles = `
       margin-left: 0;
     }
     
+    .topbar {
+      padding: 0 16px;
+      height: 52px;
+    }
+
+    .page-title h1 {
+      font-size: 16px;
+    }
+
+    .page-title p {
+      font-size: 11px;
+      display: none;
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      padding: 12px 16px;
+    }
+
+    .stat-value {
+      font-size: 22px;
+    }
+
+    .stat-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .stat-trend {
+      font-size: 10px;
+      padding: 2px 6px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+    }
+
+    .card-header {
+      padding: 12px 16px;
+    }
+
+    .card-body {
+      padding: 14px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    main {
+      padding: 16px !important;
+    }
+
+    .filter-chip {
+      font-size: 11px;
+      padding: 3px 10px;
+    }
+
+    .btn {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+
+    .btn-sm {
+      font-size: 11px;
+      padding: 4px 10px;
+    }
+
+    .empty-state {
+      padding: 24px 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
     .stats-grid {
       grid-template-columns: 1fr;
+      gap: 8px;
     }
-    
+
+    .stat-card {
+      padding: 10px 14px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+    }
+
+    .stat-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .stat-trend {
+      font-size: 9px;
+      padding: 1px 6px;
+    }
+
     .topbar {
-      padding: 0 20px;
+      padding: 0 12px;
+      height: 48px;
     }
-  }
 
-  @media (min-width: 769px) {
-    .menu-toggle {
-      display: none !important;
+    .page-title h1 {
+      font-size: 14px;
     }
-  }
 
-  .menu-toggle {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 8px;
+    .sidebar {
+      width: 260px;
+    }
+
+    .sidebar-header {
+      padding: 14px;
+    }
+
+    .nav-item {
+      padding: 7px 12px;
+      font-size: 12px;
+      margin: 1px 8px;
+    }
+
+    .nav-item svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .data-table {
+      font-size: 11px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 8px;
+    }
+
+    .filter-chip {
+      font-size: 10px;
+      padding: 2px 8px;
+    }
+
+    main {
+      padding: 12px !important;
+    }
+
+    .card-header {
+      padding: 10px 12px;
+    }
+
+    .card-body {
+      padding: 12px;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      font-size: 16px;
+      padding: 8px 12px;
+    }
+
+    .btn {
+      font-size: 11px;
+      padding: 5px 10px;
+    }
+
+    .empty-state {
+      padding: 20px 12px;
+    }
+
+    .empty-icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    .empty-title {
+      font-size: 14px;
+    }
+
+    .empty-description {
+      font-size: 12px;
+    }
+
+    .loading-state {
+      padding: 24px;
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+    }
   }
 `;
 
@@ -654,17 +935,16 @@ function StatusBadge({ status }) {
   
   return (
     <span className={`badge badge-${c.variant}`}>
-      <Icon size={12} />
+      <Icon size={11} />
       {c.label}
     </span>
   );
 }
 
-// Sidebar Component
+// Sidebar Component - Refined
 function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
   const navigate = useNavigate();
   
-  // Get user initials for avatar
   const initials = user?.first_name 
     ? user.first_name.charAt(0).toUpperCase() + (user.last_name?.charAt(0).toUpperCase() || '')
     : user?.name?.charAt(0).toUpperCase() || 'U';
@@ -679,23 +959,15 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
 
   return (
     <>
-      {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 45
-      }} />}
+      {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <Link to="/" className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-            {/* Use the imported logo image */}
-            <img 
-              src={logo} 
-              alt="Webby" 
-              style={{ height: '70px', width: 'auto' }} 
-            />
-            
+          <Link to="/" className="logo">
+            <img src={logo} alt="Webby" style={{ height: '60px', width: 'auto' }} />
           </Link>
         </div>
 
-        <div style={{ padding: '20px 0', flex: 1 }}>
+        <div style={{ padding: '16px 0', flex: 1 }}>
           {navItems.map(item => {
             const Icon = item.icon;
             return (
@@ -711,20 +983,21 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
           })}
         </div>
 
-        <div style={{ padding: '20px', borderTop: '1px solid var(--border-default)' }}>
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-default)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <div style={{
-              width: 36, height: 36, borderRadius: 'var(--radius-md)',
+              width: 34, height: 34, borderRadius: 'var(--radius-md)',
               background: 'var(--bg-tertiary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 600,
-              color: 'var(--text-primary)'
+              fontSize: 12, fontWeight: 600,
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-default)'
             }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.first_name || user?.name || 'User'}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.email || ''}
               </div>
             </div>
@@ -775,7 +1048,7 @@ function Topbar({ activeTab, open, setOpen }) {
   );
 }
 
-// Dashboard Tab
+// Dashboard Tab - Refined
 function DashboardTab() {
   const [stats, setStats] = useState([
     { label: 'Active Jobs', value: '0', trend: '+0%', icon: Activity },
@@ -859,7 +1132,8 @@ function DashboardTab() {
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-md)',
-          padding: '8px 12px'
+          padding: '8px 12px',
+          boxShadow: 'var(--shadow-md)'
         }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
           {payload.map((p, i) => (
@@ -878,7 +1152,7 @@ function DashboardTab() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <span style={{ color: 'var(--text-muted)' }}>Plss Wait a Moment...</span>
+        <span style={{ color: 'var(--text-muted)' }}>Loading dashboard...</span>
       </div>
     );
   }
@@ -886,12 +1160,30 @@ function DashboardTab() {
   return (
     <div className="fade-in">
       {/* Refresh Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="badge badge-info" style={{ gap: 4 }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 20,
+        flexWrap: 'wrap',
+        gap: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 6,
+            padding: '4px 12px',
+            background: 'var(--status-info-bg)',
+            border: '1px solid var(--status-info-border)',
+            borderRadius: 'var(--radius-full)',
+            fontSize: 12,
+            fontWeight: 500,
+            color: 'var(--status-info)'
+          }}>
             <Activity size={10} />
-            {realtimeMetrics.active_jobs} active jobs
-          </div>
+            {realtimeMetrics.active_jobs} active
+          </span>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             Updated {lastUpdated.toLocaleTimeString()}
           </span>
@@ -913,7 +1205,7 @@ function DashboardTab() {
           return (
             <div key={i} className="stat-card">
               <div className="stat-header">
-                <div className="stat-icon"><Icon size={18} /></div>
+                <div className="stat-icon"><Icon size={16} /></div>
                 <span className="stat-trend">{s.trend}</span>
               </div>
               <div className="stat-value">{s.value}</div>
@@ -924,21 +1216,25 @@ function DashboardTab() {
       </div>
 
       {/* Performance Metrics */}
-      <div className="card" style={{ marginBottom: 28 }}>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-header">
-          <h3 style={{ fontSize: 16, fontWeight: 600 }}>Performance Overview</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>Performance Overview</h3>
         </div>
         <div className="card-body">
-          <div style={{ display: 'flex', gap: 40 }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: 48, 
+            flexWrap: 'wrap' 
+          }}>
             <div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Average Job Duration</div>
-              <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--color-primary)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Average Duration</div>
+              <div style={{ fontSize: 26, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-primary)' }}>
                 {performanceMetrics.avg_duration.toFixed(1)}s
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>7-Day Success Rate</div>
-              <div style={{ fontSize: 28, fontWeight: 600, color: performanceMetrics.success_rate_7d > 70 ? 'var(--color-primary)' : 'var(--status-warning)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>7-Day Success Rate</div>
+              <div style={{ fontSize: 26, fontWeight: 600, fontFamily: 'var(--font-mono)', color: performanceMetrics.success_rate_7d > 70 ? 'var(--color-primary)' : 'var(--status-warning)' }}>
                 {performanceMetrics.success_rate_7d}%
               </div>
             </div>
@@ -947,23 +1243,25 @@ function DashboardTab() {
       </div>
 
       {/* Analytics Chart */}
-      <div className="card" style={{ marginBottom: 28 }}>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-header">
-          <h3 style={{ fontSize: 16, fontWeight: 600 }}>Success Rate Trends</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>Success Rate Trends</h3>
         </div>
         <div className="card-body">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={successRateData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-muted)" />
-              <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} />
-              <YAxis stroke="var(--text-muted)" fontSize={11} unit="%" />
-              <Tooltip content={<CustomTooltip />} />
-              <Line type="monotone" dataKey="success_rate" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4, fill: 'var(--color-primary)' }} />
-              <Line type="monotone" dataKey="total_jobs" name="Total Jobs" stroke="var(--status-info)" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-          <div style={{ marginTop: 20, textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--color-primary)' }}>
+          <div style={{ width: '100%', height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={successRateData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-muted)" strokeOpacity={0.5} />
+                <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tick={{ fill: 'var(--text-muted)' }} />
+                <YAxis stroke="var(--text-muted)" fontSize={11} unit="%" tick={{ fill: 'var(--text-muted)' }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="success_rate" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--color-primary)' }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="total_jobs" name="Total Jobs" stroke="var(--status-info)" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-primary)' }}>
               {getAvgSuccessRate()}%
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>7-Day Average Success Rate</div>
@@ -973,9 +1271,15 @@ function DashboardTab() {
 
       {/* Recent Jobs */}
       <div className="card">
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600 }}>Recent Jobs</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div className="card-header" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 10
+        }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>Recent Jobs</h3>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {filters.map(f => (
               <button
                 key={f}
@@ -987,8 +1291,8 @@ function DashboardTab() {
             ))}
           </div>
         </div>
-        <div className="card-body" style={{ padding: 0 }}>
-          <table className="data-table">
+        <div className="card-body" style={{ padding: 0, overflowX: 'auto' }}>
+          <table className="data-table" style={{ minWidth: 500 }}>
             <thead>
               <tr>
                 <th>Job Name</th>
@@ -1000,7 +1304,7 @@ function DashboardTab() {
             <tbody>
               {filteredJobs.slice(0, 8).map((job, i) => (
                 <tr key={i}>
-                  <td style={{ fontWeight: 500 }}>{job.name || 'Untitled'}</td>
+                  <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{job.name || 'Untitled'}</td>
                   <td><StatusBadge status={job.status} /></td>
                   <td>{job.records?.toLocaleString() || '-'}</td>
                   <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -1012,7 +1316,7 @@ function DashboardTab() {
           </table>
           {filteredJobs.length === 0 && (
             <div className="empty-state">
-              <div className="empty-icon"><Briefcase size={28} /></div>
+              <div className="empty-icon"><Briefcase size={24} /></div>
               <div className="empty-title">No jobs found</div>
               <div className="empty-description">No jobs with status: {filter}</div>
             </div>
@@ -1056,7 +1360,7 @@ export default function AppShell() {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} open={sidebarOpen} setOpen={setSidebarOpen} user={currentUser} />
       <div className="main-content">
         <Topbar activeTab={activeTab} open={sidebarOpen} setOpen={setSidebarOpen} />
-        <main style={{ padding: '32px' }}>
+        <main style={{ padding: '28px' }}>
           {tabComponents[activeTab] || <DashboardTab />}
         </main>
       </div>

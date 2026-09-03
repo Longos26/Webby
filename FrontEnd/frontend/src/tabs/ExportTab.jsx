@@ -1,4 +1,4 @@
-// frontend/src/pages/ExportTab.jsx - WITH LOADING STATE
+// frontend/src/pages/ExportTab.jsx - REFINED ENTERPRISE DESIGN
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -27,7 +27,7 @@ const getErrorMessage = (err) => {
 };
 
 // ============================================================
-// STYLES
+// STYLES - REFINED ENTERPRISE
 // ============================================================
 
 const STYLES = `
@@ -40,22 +40,22 @@ const STYLES = `
     --color-border: #30363D;
     --color-border-subtle: #21262D;
     --color-text-primary: #F0F6FC;
-    --color-text-secondary: #8B949E;
+    --color-text-secondary: #9BA4B0;
     --color-text-muted: #6E7681;
     --color-success: #00ED64;
     --color-warning: #D29922;
     --color-error: #F85149;
     --color-info: #58A6FF;
-    --color-accent-dim: rgba(0, 237, 100, 0.12);
-    --color-accent-border: rgba(0, 237, 100, 0.25);
-    --shadow-sm: 0 1px 0 0 rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --color-accent-dim: rgba(0, 237, 100, 0.06);
+    --color-accent-border: rgba(0, 237, 100, 0.12);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
-    --transition: 120ms cubic-bezier(0.2, 0.8, 0.4, 1);
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .export-root * {
@@ -72,7 +72,7 @@ const STYLES = `
   }
 
   @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
   
@@ -93,22 +93,27 @@ const STYLES = `
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    transition: border-color var(--transition);
+  }
+
+  .export-card:hover {
+    border-color: var(--color-accent-border);
   }
 
   .export-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--color-border);
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
   }
 
   .export-card-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-size: 13px;
     font-weight: 600;
   }
@@ -119,48 +124,49 @@ const STYLES = `
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
   .stat-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: 16px;
+    padding: 14px 16px;
     transition: all var(--transition);
   }
 
   .stat-card:hover {
     border-color: var(--color-accent-border);
-    background: var(--color-surface-elevated);
   }
 
   .stat-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-md);
     background: var(--color-accent-dim);
     border: 1px solid var(--color-accent-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
 
   .stat-value {
-    font-size: 28px;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 600;
+    font-family: var(--font-mono);
     color: var(--color-mdb-green);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .stat-label {
     font-size: 11px;
     color: var(--color-text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
+    font-weight: 500;
   }
 
   .job-selector {
@@ -171,7 +177,7 @@ const STYLES = `
   }
 
   .job-search {
-    padding: 12px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -180,9 +186,10 @@ const STYLES = `
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 7px 12px;
+    font-size: 14px;
     color: var(--color-text-primary);
+    transition: border-color var(--transition);
   }
 
   .job-search-input:focus {
@@ -199,7 +206,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 10px 14px;
     cursor: pointer;
     transition: all var(--transition);
     border-bottom: 1px solid var(--color-border-subtle);
@@ -211,7 +218,7 @@ const STYLES = `
 
   .job-item.selected {
     background: var(--color-accent-dim);
-    border-left: 3px solid var(--color-mdb-green);
+    border-left: 2px solid var(--color-mdb-green);
   }
 
   .job-info {
@@ -220,12 +227,12 @@ const STYLES = `
   }
 
   .job-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
   }
 
@@ -241,26 +248,26 @@ const STYLES = `
   .job-badge {
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
-    border-radius: 20px;
-    padding: 4px 10px;
-    font-size: 11px;
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: 10px;
     color: var(--color-text-secondary);
     white-space: nowrap;
   }
 
   .format-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 12px;
-    margin-top: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
   }
 
   .format-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 16px 12px;
+    gap: 6px;
+    padding: 14px 10px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -271,7 +278,7 @@ const STYLES = `
   .format-btn:hover:not(:disabled) {
     border-color: var(--color-mdb-green);
     background: var(--color-accent-dim);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 
   .format-btn.selected {
@@ -285,23 +292,23 @@ const STYLES = `
   }
 
   .format-icon {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 20px;
   }
 
   .format-name {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
   }
 
   .options-panel {
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 16px;
+    padding-top: 14px;
     border-top: 1px solid var(--color-border);
   }
 
@@ -309,13 +316,15 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
+    padding: 6px 0;
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 40px;
+    width: 38px;
     height: 20px;
   }
 
@@ -334,16 +343,16 @@ const STYLES = `
     bottom: 0;
     background-color: var(--color-border);
     transition: 0.2s;
-    border-radius: 20px;
+    border-radius: var(--radius-full);
   }
 
   .toggle-slider:before {
     position: absolute;
     content: "";
-    height: 16px;
-    width: 16px;
-    left: 2px;
-    bottom: 2px;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
     background-color: white;
     transition: 0.2s;
     border-radius: 50%;
@@ -354,30 +363,31 @@ const STYLES = `
   }
 
   input:checked + .toggle-slider:before {
-    transform: translateX(20px);
+    transform: translateX(18px);
   }
 
   .export-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
-    padding: 14px;
+    padding: 12px;
     background: linear-gradient(135deg, var(--color-mdb-green) 0%, var(--color-mdb-green-dark) 100%);
     border: none;
     border-radius: var(--radius-md);
     color: #0D1117;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: all var(--transition);
-    margin-top: 20px;
+    margin-top: 16px;
+    font-family: var(--font-sans);
   }
 
   .export-btn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(0, 237, 100, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
   }
 
   .export-btn:disabled {
@@ -394,21 +404,25 @@ const STYLES = `
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
+    min-width: 400px;
   }
 
   .preview-table th {
     text-align: left;
-    padding: 10px 12px;
+    padding: 8px 12px;
     background: var(--color-canvas);
     border-bottom: 1px solid var(--color-border);
     font-weight: 600;
     color: var(--color-text-secondary);
     position: sticky;
     top: 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   .preview-table td {
-    padding: 10px 12px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--color-border-subtle);
     color: var(--color-text-primary);
   }
@@ -417,50 +431,43 @@ const STYLES = `
     background: rgba(255, 255, 255, 0.02);
   }
 
-  .truncate-text {
-    max-width: 250px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .alert {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-radius: var(--radius-md);
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     font-size: 13px;
   }
 
   .alert-error {
-    background: rgba(248, 81, 73, 0.1);
-    border: 1px solid rgba(248, 81, 73, 0.3);
+    background: var(--status-error-bg);
+    border: 1px solid var(--status-error-border);
     color: var(--color-error);
   }
 
   .alert-success {
-    background: rgba(0, 237, 100, 0.1);
-    border: 1px solid rgba(0, 237, 100, 0.3);
+    background: var(--status-success-bg);
+    border: 1px solid var(--status-success-border);
     color: var(--color-success);
   }
 
   .alert-info {
-    background: rgba(88, 166, 255, 0.1);
-    border: 1px solid rgba(88, 166, 255, 0.3);
+    background: var(--status-info-bg);
+    border: 1px solid var(--status-info-border);
     color: var(--color-info);
   }
 
   .empty-state {
     text-align: center;
-    padding: 48px 24px;
+    padding: 32px 20px;
   }
 
   .empty-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 16px;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -473,122 +480,233 @@ const STYLES = `
   .empty-title {
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .empty-description {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-text-muted);
   }
 
-  /* Loading State - Same as AppShell */
   .loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 64px;
-    gap: 16px;
+    padding: 48px;
+    gap: 14px;
   }
 
   .loading-spinner {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: 2px solid var(--color-border);
     border-top-color: var(--color-mdb-green);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
 
-  /* Mobile Responsive Fixes for Export */
+  .two-column {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .section-subtitle {
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  /* ============================================================ */
+  /* RESPONSIVE BREAKPOINTS */
+  /* ============================================================ */
+
+  @media (max-width: 1024px) {
+    .two-column {
+      grid-template-columns: 260px 1fr;
+      gap: 16px;
+    }
+  }
+
   @media (max-width: 768px) {
     .export-root {
       padding: 12px !important;
     }
     
-    .export-root .two-column {
+    .two-column {
       grid-template-columns: 1fr !important;
-      gap: 16px !important;
+      gap: 14px !important;
     }
     
-    .export-root .stats-grid {
+    .stats-grid {
       grid-template-columns: repeat(2, 1fr) !important;
       gap: 8px !important;
     }
     
-    .export-root .format-grid {
+    .format-grid {
       grid-template-columns: repeat(3, 1fr) !important;
-      gap: 8px !important;
+      gap: 6px !important;
     }
     
-    .export-root .format-btn {
-      padding: 12px 8px !important;
+    .format-btn {
+      padding: 10px 6px !important;
     }
     
-    .export-root .format-btn .format-icon {
-      width: 32px !important;
-      height: 32px !important;
-      font-size: 18px !important;
+    .format-btn .format-icon {
+      width: 28px !important;
+      height: 28px !important;
+      font-size: 16px !important;
     }
     
-    .export-root .format-btn .format-name {
+    .format-btn .format-name {
       font-size: 10px !important;
     }
     
-    .export-root .job-list {
+    .job-list {
       max-height: 200px !important;
     }
     
-    .export-root .job-item {
-      padding: 10px 12px !important;
+    .job-item {
+      padding: 8px 12px !important;
     }
     
-    .export-root .job-name {
+    .job-name {
       font-size: 12px !important;
     }
     
-    .export-root .preview-table-container {
-      max-height: 200px !important;
+    .preview-table-container {
+      max-height: 180px !important;
     }
     
-    .export-root .preview-table th,
-    .export-root .preview-table td {
-      padding: 6px 8px !important;
+    .preview-table th,
+    .preview-table td {
+      padding: 5px 8px !important;
       font-size: 10px !important;
     }
     
-    .export-root .option-row {
+    .option-row {
       flex-wrap: wrap !important;
-      gap: 8px !important;
+      gap: 6px !important;
     }
     
-    .export-root .export-btn {
-      font-size: 13px !important;
-      padding: 12px !important;
+    .export-btn {
+      font-size: 12px !important;
+      padding: 10px !important;
+    }
+
+    .job-search-input {
+      font-size: 16px !important;
     }
   }
   
   @media (max-width: 480px) {
-    .export-root .stats-grid {
+    .export-root {
+      padding: 8px !important;
+    }
+
+    .stats-grid {
       grid-template-columns: 1fr !important;
+      gap: 6px !important;
     }
     
-    .export-root .format-grid {
+    .format-grid {
       grid-template-columns: 1fr 1fr !important;
+      gap: 6px !important;
     }
     
-    .export-root .modal {
+    .format-btn {
+      padding: 8px 4px !important;
+    }
+    
+    .format-btn .format-icon {
+      width: 24px !important;
+      height: 24px !important;
+      font-size: 14px !important;
+    }
+    
+    .format-btn .format-name {
+      font-size: 9px !important;
+    }
+    
+    .modal {
       max-width: 100% !important;
       margin: 8px !important;
     }
     
-    .export-root .preview-table-container {
-      max-height: 150px !important;
+    .preview-table-container {
+      max-height: 120px !important;
     }
     
-    .export-root .export-btn {
+    .export-btn {
+      font-size: 11px !important;
+      padding: 8px !important;
+    }
+
+    .stat-card {
+      padding: 8px 12px !important;
+    }
+
+    .stat-value {
+      font-size: 18px !important;
+    }
+
+    .stat-label {
+      font-size: 9px !important;
+    }
+
+    .stat-icon {
+      width: 24px !important;
+      height: 24px !important;
+    }
+
+    .job-search-input {
+      font-size: 16px !important;
+      padding: 5px 10px !important;
+    }
+
+    .alert {
+      font-size: 11px !important;
+      padding: 8px 10px !important;
+    }
+
+    .empty-state {
+      padding: 20px 12px !important;
+    }
+
+    .empty-icon {
+      width: 36px !important;
+      height: 36px !important;
+    }
+
+    .empty-title {
       font-size: 12px !important;
-      padding: 10px !important;
+    }
+
+    .empty-description {
+      font-size: 11px !important;
+    }
+
+    .section-label {
+      font-size: 10px !important;
+    }
+
+    .section-title {
+      font-size: 13px !important;
     }
   }
 `;
@@ -601,7 +719,7 @@ if (typeof document !== 'undefined' && !document.getElementById('export-styles')
 }
 
 // ============================================================
-// PREVIEW MODAL
+// PREVIEW MODAL - REFINED
 // ============================================================
 
 const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
@@ -631,73 +749,74 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
         right: 0,
         bottom: 0,
         background: 'rgba(0, 0, 0, 0.85)',
-        backdropFilter: 'blur(4px)',
+        backdropFilter: 'blur(8px)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '16px',
         animation: 'fadeIn 0.2s ease-out'
       }}
       onClick={onClose}
     >
       <div 
         style={{
-          background: '#161B22',
-          borderRadius: '16px',
-          width: '90vw',
+          background: 'var(--color-surface)',
+          borderRadius: '12px',
+          width: '95vw',
           maxWidth: '1400px',
-          height: '85vh',
+          height: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          border: '1px solid #30363D',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
           animation: 'slideUp 0.25s ease-out'
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid #30363D',
+          padding: '14px 20px',
+          borderBottom: '1px solid var(--color-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '12px'
+          gap: '10px'
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-              <Eye size={20} color="#00ED64" />
-              <h2 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>Dataset Preview</h2>
-              {jobName && <span style={{ fontSize: '12px', background: '#0D1117', padding: '4px 12px', borderRadius: '20px', border: '1px solid #30363D' }}>{jobName}</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
+              <Eye size={18} color="var(--color-mdb-green)" />
+              <h2 style={{ fontSize: '17px', fontWeight: 600, margin: 0 }}>Dataset Preview</h2>
+              {jobName && <span style={{ fontSize: '11px', background: 'var(--color-canvas)', padding: '2px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}>{jobName}</span>}
             </div>
-            <div style={{ fontSize: '13px', color: '#8B949E' }}>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
               {data?.length || 0} total records • {fields?.length || 0} fields
             </div>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: '#0D1117',
-              border: '1px solid #30363D',
-              borderRadius: '8px',
-              padding: '8px',
+              background: 'var(--color-canvas)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 10px',
               cursor: 'pointer',
-              color: '#8B949E',
+              color: 'var(--color-text-muted)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
+              gap: '6px',
+              transition: 'all 0.2s',
+              fontSize: '12px'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#F85149'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = '#30363D'}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-error)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
           >
-            <X size={16} />
-            <span style={{ fontSize: '12px' }}>Esc</span>
+            <X size={14} />
+            <span>Esc</span>
           </button>
         </div>
 
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid #21262D' }}>
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--color-border-subtle)' }}>
           <div style={{ position: 'relative' }}>
             <input
               type="text"
@@ -709,14 +828,17 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
               }}
               style={{
                 width: '100%',
-                background: '#0D1117',
-                border: '1px solid #30363D',
-                borderRadius: '8px',
-                padding: '10px 16px',
-                fontSize: '13px',
-                color: '#F0F6FC',
-                outline: 'none'
+                background: 'var(--color-canvas)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '8px 14px',
+                fontSize: '14px',
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                transition: 'border-color 0.2s'
               }}
+              onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-mdb-green)'}
+              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
             />
             {searchTerm && (
               <button
@@ -732,7 +854,7 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#6E7681'
+                  color: 'var(--color-text-muted)'
                 }}
               >
                 <X size={14} />
@@ -740,40 +862,44 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
             )}
           </div>
           {searchTerm && (
-            <div style={{ fontSize: '11px', color: '#6E7681', marginTop: '8px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
               Found {filteredData.length} matching records
             </div>
           )}
         </div>
 
-        <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px 24px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '0 20px 20px 20px' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
               fontSize: '12px',
-              minWidth: '800px'
+              minWidth: '500px'
             }}>
               <thead>
-                <tr style={{ position: 'sticky', top: 0, background: '#161B22', zIndex: 10 }}>
+                <tr style={{ position: 'sticky', top: 0, background: 'var(--color-surface)', zIndex: 10 }}>
                   <th style={{
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     textAlign: 'left',
                     fontWeight: '600',
-                    color: '#8B949E',
-                    borderBottom: '2px solid #30363D',
-                    background: '#161B22',
-                    fontSize: '12px'
+                    color: 'var(--color-text-muted)',
+                    borderBottom: '2px solid var(--color-border)',
+                    background: 'var(--color-surface)',
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
                   }}>#</th>
-                  {fields?.map(field => (
+                  {fields?.slice(0, 6).map(field => (
                     <th key={field} style={{
-                      padding: '12px 16px',
+                      padding: '8px 12px',
                       textAlign: 'left',
                       fontWeight: '600',
-                      color: '#8B949E',
-                      borderBottom: '2px solid #30363D',
-                      background: '#161B22',
-                      fontSize: '12px'
+                      color: 'var(--color-text-muted)',
+                      borderBottom: '2px solid var(--color-border)',
+                      background: 'var(--color-surface)',
+                      fontSize: '10px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
                     }}>
                       {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </th>
@@ -782,37 +908,38 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
               </thead>
               <tbody>
                 {paginatedData.map((record, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #21262D' }}>
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
                     <td style={{
-                      padding: '10px 16px',
-                      color: '#6E7681',
-                      fontFamily: 'monospace',
-                      fontSize: '11px'
+                      padding: '6px 12px',
+                      color: 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '10px'
                     }}>
                       {(currentPage - 1) * itemsPerPage + idx + 1}
                     </td>
-                    {fields?.map(field => {
+                    {fields?.slice(0, 6).map(field => {
                       let value = record[field];
                       const isObject = typeof value === 'object' && value !== null;
                       const displayValue = isObject ? JSON.stringify(value, null, 2) : String(value || '-');
-                      const isLong = displayValue.length > 100;
+                      const isLong = displayValue.length > 80;
                       
                       return (
                         <td key={field} style={{
-                          padding: '10px 16px',
-                          color: '#F0F6FC',
-                          maxWidth: '300px',
+                          padding: '6px 12px',
+                          color: 'var(--color-text-primary)',
+                          maxWidth: '200px',
                           verticalAlign: 'top'
                         }}>
                           <div style={{
-                            maxHeight: isLong ? '60px' : 'auto',
+                            maxHeight: isLong ? '48px' : 'auto',
                             overflow: 'auto',
-                            fontFamily: isObject ? 'monospace' : 'inherit',
-                            fontSize: isObject ? '11px' : '12px',
+                            fontFamily: isObject ? 'var(--font-mono)' : 'inherit',
+                            fontSize: isObject ? '10px' : '11px',
                             whiteSpace: isLong ? 'pre-wrap' : 'normal',
-                            wordBreak: 'break-word'
+                            wordBreak: 'break-word',
+                            color: isObject ? 'var(--color-text-secondary)' : 'var(--color-text-primary)'
                           }}>
-                            {isLong ? `${displayValue.substring(0, 100)}...` : displayValue}
+                            {isLong ? `${displayValue.substring(0, 80)}...` : displayValue}
                           </div>
                         </td>
                       );
@@ -824,11 +951,11 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
             {filteredData.length === 0 && (
               <div style={{
                 textAlign: 'center',
-                padding: '60px 20px',
-                color: '#6E7681'
+                padding: '32px 20px',
+                color: 'var(--color-text-muted)'
               }}>
-                <Package size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                <div>No matching records found</div>
+                <Package size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                <div style={{ fontSize: '13px' }}>No matching records found</div>
               </div>
             )}
           </div>
@@ -836,109 +963,78 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
 
         {totalPages > 1 && (
           <div style={{
-            padding: '16px 24px',
-            borderTop: '1px solid #30363D',
+            padding: '10px 20px',
+            borderTop: '1px solid var(--color-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '12px'
+            gap: '10px'
           }}>
-            <div style={{ fontSize: '12px', color: '#8B949E' }}>
-              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+              Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length}
             </div>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
                 style={{
-                  background: '#0D1117',
-                  border: '1px solid #30363D',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
+                  background: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
                   cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                   opacity: currentPage === 1 ? 0.5 : 1,
-                  color: '#F0F6FC'
+                  color: 'var(--color-text-primary)'
                 }}
               >
-                <ChevronsLeft size={14} />
+                <ChevronsLeft size={12} />
               </button>
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 style={{
-                  background: '#0D1117',
-                  border: '1px solid #30363D',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
+                  background: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
                   cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
                   opacity: currentPage === 1 ? 0.5 : 1,
-                  color: '#F0F6FC'
+                  color: 'var(--color-text-primary)'
                 }}
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={12} />
               </button>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {(() => {
-                  const pages = [];
-                  const maxVisible = 5;
-                  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-                  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-                  if (endPage - startPage + 1 < maxVisible) {
-                    startPage = Math.max(1, endPage - maxVisible + 1);
-                  }
-                  for (let i = startPage; i <= endPage; i++) {
-                    pages.push(i);
-                  }
-                  return pages.map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      style={{
-                        background: currentPage === page ? '#00ED64' : '#0D1117',
-                        border: currentPage === page ? '1px solid #00ED64' : '1px solid #30363D',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
-                        cursor: 'pointer',
-                        color: currentPage === page ? '#0D1117' : '#F0F6FC',
-                        fontWeight: currentPage === page ? '600' : '400',
-                        fontSize: '12px'
-                      }}
-                    >
-                      {page}
-                    </button>
-                  ));
-                })()}
-              </div>
+              <span style={{ fontSize: '11px', padding: '0 8px', color: 'var(--color-text-secondary)' }}>{currentPage} / {totalPages}</span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 style={{
-                  background: '#0D1117',
-                  border: '1px solid #30363D',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
+                  background: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
                   cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
                   opacity: currentPage === totalPages ? 0.5 : 1,
-                  color: '#F0F6FC'
+                  color: 'var(--color-text-primary)'
                 }}
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={12} />
               </button>
               <button
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
                 style={{
-                  background: '#0D1117',
-                  border: '1px solid #30363D',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
+                  background: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
                   cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
                   opacity: currentPage === totalPages ? 0.5 : 1,
-                  color: '#F0F6FC'
+                  color: 'var(--color-text-primary)'
                 }}
               >
-                <ChevronsRight size={14} />
+                <ChevronsRight size={12} />
               </button>
             </div>
           </div>
@@ -953,11 +1049,18 @@ const PreviewModal = ({ isOpen, onClose, data, fields, jobName }) => {
         @keyframes slideUp {
           from { 
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(16px);
           }
           to { 
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+        @media (max-width: 480px) {
+          .preview-modal-content {
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
           }
         }
       `}</style>
@@ -976,7 +1079,7 @@ const EXPORT_FORMATS = [
 ];
 
 // ============================================================
-// MAIN COMPONENT
+// MAIN COMPONENT - REFINED
 // ============================================================
 
 export default function ExportTab() {
@@ -985,7 +1088,7 @@ export default function ExportTab() {
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState('csv');
   const [includeMetadata, setIncludeMetadata] = useState(true);
-  const [loading, setLoading] = useState(true); // Changed to true for initial load
+  const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [stats, setStats] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -1179,27 +1282,21 @@ export default function ExportTab() {
     }
   }, [selectedJob]);
 
-  // ============================================================
-  // LOADING STATE - Same as AppShell
-  // ============================================================
-  
+  // Loading State
   if (loading && jobs.length === 0) {
     return (
       <div className="export-root">
         <div className="loading-state">
           <div className="loading-spinner" />
-          <span style={{ color: 'var(--color-text-muted)' }}>Plss Wait a Moment...</span>
+          <span style={{ color: 'var(--color-text-muted)' }}>Loading jobs...</span>
         </div>
       </div>
     );
   }
 
-  // ============================================================
-  // RENDER
-  // ============================================================
-
+  // Render
   return (
-    <div className="export-root" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="export-root" style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Modal */}
       <PreviewModal
         isOpen={isModalOpen}
@@ -1214,58 +1311,70 @@ export default function ExportTab() {
 
       {/* Alerts */}
       {error && (
-        <div style={{ background: 'rgba(248, 81, 73, 0.1)', border: '1px solid rgba(248, 81, 73, 0.3)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <AlertCircle size={16} color="#F85149" />
-          <span style={{ flex: 1, fontSize: '13px', color: '#F85149' }}>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F85149' }}><X size={14} /></button>
+        <div className="alert alert-error">
+          <AlertCircle size={14} />
+          <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'currentColor' }}><X size={14} /></button>
         </div>
       )}
       {success && (
-        <div style={{ background: 'rgba(0, 237, 100, 0.1)', border: '1px solid rgba(0, 237, 100, 0.3)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <CheckCircle size={16} color="#00ED64" />
-          <span style={{ flex: 1, fontSize: '13px', color: '#00ED64' }}>{success}</span>
-          <button onClick={() => setSuccess(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00ED64' }}><X size={14} /></button>
+        <div className="alert alert-success">
+          <CheckCircle size={14} />
+          <span style={{ flex: 1 }}>{success}</span>
+          <button onClick={() => setSuccess(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'currentColor' }}><X size={14} /></button>
         </div>
       )}
 
       {/* Two Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '24px' }}>
+      <div className="two-column">
         {/* Left Panel - Job Selection */}
-        <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Package size={16} color="#00ED64" />
-              <span style={{ fontWeight: '600' }}>Available Jobs</span>
-              <span style={{ fontSize: '11px', background: '#0D1117', padding: '4px 10px', borderRadius: '20px', border: '1px solid #30363D' }}>{filteredJobs.length} jobs</span>
+        <div className="export-card">
+          <div className="export-card-header">
+            <div className="export-card-title">
+              <Package size={15} />
+              Available Jobs
+              <span style={{ fontSize: '11px', background: 'var(--color-canvas)', padding: '2px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}>{filteredJobs.length}</span>
             </div>
-            <button onClick={loadJobs} style={{ background: 'none', border: 'none', color: '#6E7681', cursor: 'pointer' }}><RefreshCw size={14} /></button>
+            <button onClick={loadJobs} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}><RefreshCw size={13} /></button>
           </div>
           
-          <div style={{ padding: '12px', borderBottom: '1px solid #30363D' }}>
-            <input type="text" placeholder="Search jobs..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', background: '#0D1117', border: '1px solid #30363D', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', color: '#F0F6FC' }} />
+          <div className="job-search">
+            <input 
+              type="text" 
+              placeholder="Search jobs..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="job-search-input"
+            />
           </div>
           
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <div className="job-list">
             {paginatedJobs.map(job => (
-              <div key={job.id} onClick={() => setSelectedJobId(job.id)} style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #21262D', background: selectedJobId === job.id ? 'rgba(0, 237, 100, 0.08)' : 'transparent', borderLeft: selectedJobId === job.id ? '3px solid #00ED64' : '3px solid transparent' }}>
-                <div style={{ fontWeight: '500', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {job.name}
-                  {job.status === 'success' && <CheckCircle size={12} color="#00ED64" />}
+              <div 
+                key={job.id} 
+                onClick={() => setSelectedJobId(job.id)} 
+                className={`job-item ${selectedJobId === job.id ? 'selected' : ''}`}
+              >
+                <div className="job-info">
+                  <div className="job-name">
+                    {job.name}
+                    {job.status === 'success' && <CheckCircle size={11} color="var(--color-success)" />}
+                  </div>
+                  <div className="job-meta">{job.url}</div>
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--color-text-muted)' }}>{job.parsed_count} parsed results</div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#6E7681', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.url}</div>
-                <div style={{ marginTop: '6px', fontSize: '10px', color: '#6E7681' }}>{job.parsed_count} parsed results</div>
               </div>
             ))}
           </div>
           
           {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{ padding: '12px 16px', borderTop: '1px solid #30363D', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={{ background: '#0D1117', border: '1px solid #30363D', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}><ChevronsLeft size={12} /></button>
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ background: '#0D1117', border: '1px solid #30363D', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}><ChevronLeft size={12} /></button>
-              <span style={{ fontSize: '12px', padding: '0 12px' }}>{currentPage} / {totalPages}</span>
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ background: '#0D1117', border: '1px solid #30363D', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}><ChevronRight size={12} /></button>
-              <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} style={{ background: '#0D1117', border: '1px solid #30363D', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}><ChevronsRight size={12} /></button>
+            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', flexWrap: 'wrap' }}>
+              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1, color: 'var(--color-text-primary)' }}><ChevronsLeft size={12} /></button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', opacity: currentPage === 1 ? 0.5 : 1, color: 'var(--color-text-primary)' }}><ChevronLeft size={12} /></button>
+              <span style={{ fontSize: '11px', padding: '0 8px', color: 'var(--color-text-secondary)' }}>{currentPage} / {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, color: 'var(--color-text-primary)' }}><ChevronRight size={12} /></button>
+              <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', cursor: 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, color: 'var(--color-text-primary)' }}><ChevronsRight size={12} /></button>
             </div>
           )}
         </div>
@@ -1275,31 +1384,32 @@ export default function ExportTab() {
           {selectedJob ? (
             <>
               {/* Selected Job Info */}
-              <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', padding: '16px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <div style={{ fontSize: '12px', color: '#6E7681', marginBottom: '4px' }}>Selected Job</div>
-                    <div style={{ fontWeight: '600', fontSize: '16px' }}>{selectedJob.name}</div>
-                    <div style={{ fontSize: '12px', color: '#8B949E', fontFamily: 'monospace', marginTop: '4px' }}>{selectedJob.url}</div>
-                  </div>
-                  <div style={{ background: '#0D1117', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '11px', color: '#6E7681' }}>Parsed Records</div>
-                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#00ED64' }}>{selectedJob.parsed_count || 0}</div>
+              <div className="export-card" style={{ marginBottom: '16px' }}>
+                <div className="export-card-body" style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '2px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Selected Job</div>
+                      <div style={{ fontWeight: 600, fontSize: '15px', wordBreak: 'break-word' }}>{selectedJob.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px', wordBreak: 'break-all' }}>{selectedJob.url}</div>
+                    </div>
+                    <div style={{ background: 'var(--color-canvas)', padding: '6px 14px', borderRadius: 'var(--radius-md)', textAlign: 'center', border: '1px solid var(--color-border)', flexShrink: 0 }}>
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Parsed Records</div>
+                      <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-mdb-green)' }}>{selectedJob.parsed_count || 0}</div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Filename Input */}
-              <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D' }}>
-                  <div style={{ fontWeight: '600', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Pencil size={16} color="#00ED64" />
+              <div className="export-card" style={{ marginBottom: '16px' }}>
+                <div className="export-card-header">
+                  <div className="export-card-title">
+                    <Pencil size={14} color="var(--color-mdb-green)" />
                     Export Filename
                   </div>
-                  <div style={{ fontSize: '12px', color: '#8B949E' }}>Customize the name of your exported file</div>
                 </div>
-                <div style={{ padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <input
                       type="text"
                       value={fileName}
@@ -1307,76 +1417,102 @@ export default function ExportTab() {
                       placeholder="Enter filename..."
                       style={{
                         flex: 1,
-                        background: '#0D1117',
-                        border: '1px solid #30363D',
-                        borderRadius: '6px',
-                        padding: '10px 14px',
-                        fontSize: '13px',
-                        color: '#F0F6FC',
+                        minWidth: '120px',
+                        background: 'var(--color-canvas)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '8px 12px',
+                        fontSize: '14px',
+                        color: 'var(--color-text-primary)',
                         outline: 'none',
                         transition: 'border-color 0.2s'
                       }}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#00ED64'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = '#30363D'}
+                      onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-mdb-green)'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
                     />
                     <span style={{
-                      fontSize: '12px',
-                      color: '#6E7681',
-                      padding: '8px 12px',
-                      background: '#0D1117',
-                      borderRadius: '4px',
-                      border: '1px solid #30363D',
-                      whiteSpace: 'nowrap'
+                      fontSize: '11px',
+                      color: 'var(--color-text-muted)',
+                      padding: '6px 10px',
+                      background: 'var(--color-canvas)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--color-border)',
+                      whiteSpace: 'nowrap',
+                      fontFamily: 'var(--font-mono)'
                     }}>
                       {EXPORT_FORMATS.find(f => f.id === selectedFormat)?.extension || '.csv'}
                     </span>
                   </div>
-                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#6E7681' }}>
-                    <span>📄 Full filename: <strong style={{ color: '#F0F6FC' }}>{fileName || 'untitled'}{EXPORT_FORMATS.find(f => f.id === selectedFormat)?.extension || '.csv'}</strong></span>
+                  <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    <span>📄 Full filename: <strong style={{ color: 'var(--color-text-primary)' }}>{fileName || 'untitled'}{EXPORT_FORMATS.find(f => f.id === selectedFormat)?.extension || '.csv'}</strong></span>
                   </div>
                 </div>
               </div>
 
               {/* Export Format */}
-              <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D' }}>
-                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>Export Format</div>
-                  <div style={{ fontSize: '12px', color: '#8B949E' }}>Choose the output format for your dataset</div>
+              <div className="export-card" style={{ marginBottom: '16px' }}>
+                <div className="export-card-header">
+                  <div className="export-card-title">Export Format</div>
                 </div>
-                <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                  {EXPORT_FORMATS.map(format => (
-                    <button key={format.id} onClick={() => setSelectedFormat(format.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '16px', background: selectedFormat === format.id ? 'rgba(0, 237, 100, 0.08)' : '#0D1117', border: selectedFormat === format.id ? '1px solid #00ED64' : '1px solid #30363D', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}>
-                      <format.icon size={32} color={selectedFormat === format.id ? '#00ED64' : '#8B949E'} />
-                      <div style={{ fontWeight: '500', fontSize: '13px' }}>{format.name}</div>
-                      <div style={{ fontSize: '10px', color: '#6E7681' }}>{format.description}</div>
-                    </button>
-                  ))}
+                <div style={{ padding: '14px 16px' }}>
+                  <div className="format-grid">
+                    {EXPORT_FORMATS.map(format => (
+                      <button 
+                        key={format.id} 
+                        onClick={() => setSelectedFormat(format.id)} 
+                        className={`format-btn ${selectedFormat === format.id ? 'selected' : ''}`}
+                      >
+                        <format.icon size={24} color={selectedFormat === format.id ? 'var(--color-mdb-green)' : 'var(--color-text-muted)'} />
+                        <div className="format-name">{format.name}</div>
+                        <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>{format.description}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Options */}
-              <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', marginBottom: '20px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontWeight: '500', fontSize: '13px' }}>Include Metadata</div>
-                  <div style={{ fontSize: '11px', color: '#6E7681' }}>Add job info, timestamps, and statistics</div>
+              <div className="export-card" style={{ marginBottom: '16px' }}>
+                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: '13px' }}>Include Metadata</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Add job info, timestamps, and statistics</div>
+                  </div>
+                  <label className="toggle-switch" style={{ flexShrink: 0 }}>
+                    <input type="checkbox" checked={includeMetadata} onChange={(e) => setIncludeMetadata(e.target.checked)} />
+                    <span className="toggle-slider" />
+                  </label>
                 </div>
-                <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
-                  <input type="checkbox" checked={includeMetadata} onChange={(e) => setIncludeMetadata(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-                  <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: includeMetadata ? '#00ED64' : '#30363D', transition: '0.2s', borderRadius: '20px' }}>
-                    <span style={{ position: 'absolute', content: '""', height: '16px', width: '16px', left: '2px', bottom: '2px', backgroundColor: 'white', transition: '0.2s', borderRadius: '50%', transform: includeMetadata ? 'translateX(20px)' : 'none' }}></span>
-                  </span>
-                </label>
               </div>
 
               {/* Export Buttons */}
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={handleExport} disabled={exporting || !fileName.trim()} style={{ flex: 2, padding: '14px', background: 'linear-gradient(135deg, #00ED64 0%, #00C355 100%)', border: 'none', borderRadius: '8px', color: '#0D1117', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: (exporting || !fileName.trim()) ? 'not-allowed' : 'pointer', opacity: (exporting || !fileName.trim()) ? 0.6 : 1 }}>
-                  {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button onClick={handleExport} disabled={exporting || !fileName.trim()} className="export-btn" style={{ flex: '2 1 140px' }}>
+                  {exporting ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
                   Export Dataset
                 </button>
                 {jobs.length > 1 && (
-                  <button onClick={handleBulkExport} disabled={exporting || !fileName.trim()} style={{ flex: 1, padding: '14px', background: '#0D1117', border: '1px solid #30363D', borderRadius: '8px', color: '#F0F6FC', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: (exporting || !fileName.trim()) ? 'not-allowed' : 'pointer', opacity: (exporting || !fileName.trim()) ? 0.5 : 1 }}>
-                    <HardDrive size={14} />
+                  <button onClick={handleBulkExport} disabled={exporting || !fileName.trim()} style={{ 
+                    flex: '1 1 90px', 
+                    padding: '10px', 
+                    background: 'var(--color-canvas)', 
+                    border: '1px solid var(--color-border)', 
+                    borderRadius: 'var(--radius-md)', 
+                    color: 'var(--color-text-secondary)', 
+                    fontSize: '12px', 
+                    fontWeight: 500, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '6px', 
+                    cursor: (exporting || !fileName.trim()) ? 'not-allowed' : 'pointer', 
+                    opacity: (exporting || !fileName.trim()) ? 0.5 : 1,
+                    transition: 'all var(--transition)'
+                  }}
+                  onMouseEnter={(e) => { if (!exporting && fileName.trim()) { e.currentTarget.style.borderColor = 'var(--color-mdb-green)'; e.currentTarget.style.color = 'var(--color-text-primary)'; } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
+                  >
+                    <HardDrive size={13} />
                     Bulk ({jobs.length})
                   </button>
                 )}
@@ -1384,19 +1520,19 @@ export default function ExportTab() {
 
               {/* Stats Footer */}
               {stats && (
-                <div style={{ marginTop: '16px', fontSize: '11px', color: '#6E7681', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+                <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--color-text-muted)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
                   <span><Database size={10} style={{ marginRight: '4px' }} />{stats.total_parsed_records || 0} records</span>
                   <span><Clock size={10} style={{ marginRight: '4px' }} />Last parsed: {stats.last_parsed_date ? new Date(stats.last_parsed_date).toLocaleDateString() : 'Never'}</span>
                 </div>
               )}
             </>
           ) : (
-            <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', padding: '48px', textAlign: 'center' }}>
-              <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', background: '#0D1117', border: '1px solid #30363D', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Package size={32} color="#6E7681" />
+            <div className="export-card" style={{ padding: '32px', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', margin: '0 auto 12px', background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Package size={28} color="var(--color-text-muted)" />
               </div>
-              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>No Job Selected</div>
-              <div style={{ fontSize: '13px', color: '#8B949E' }}>Select a job from the left panel to export its dataset</div>
+              <div style={{ fontSize: '15px', fontWeight: 500, marginBottom: '6px' }}>No Job Selected</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Select a job from the left panel to export its dataset</div>
             </div>
           )}
         </div>
@@ -1404,12 +1540,12 @@ export default function ExportTab() {
 
       {/* Data Preview with Modal Trigger */}
       {previewData?.preview && previewData.preview.length > 0 && (
-        <div style={{ marginTop: '24px', background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #30363D', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Eye size={16} color="#00ED64" />
-              <span style={{ fontWeight: '600' }}>Data Preview</span>
-              <span style={{ fontSize: '11px', color: '#6E7681' }}>First 10 records</span>
+        <div className="export-card" style={{ marginTop: '20px' }}>
+          <div className="export-card-header">
+            <div className="export-card-title">
+              <Eye size={14} color="var(--color-mdb-green)" />
+              Data Preview
+              <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 400 }}>First 10 records</span>
             </div>
             <button
               onClick={loadFullPreview}
@@ -1417,46 +1553,47 @@ export default function ExportTab() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
-                background: '#0D1117',
-                border: '1px solid #30363D',
-                borderRadius: '6px',
-                color: '#F0F6FC',
-                fontSize: '12px',
+                gap: '6px',
+                padding: '5px 12px',
+                background: 'var(--color-canvas)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--color-text-secondary)',
+                fontSize: '11px',
                 cursor: loadingFullPreview ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                fontWeight: 500
               }}
               onMouseEnter={(e) => {
                 if (!loadingFullPreview) {
-                  e.currentTarget.style.borderColor = '#00ED64';
-                  e.currentTarget.style.color = '#00ED64';
+                  e.currentTarget.style.borderColor = 'var(--color-mdb-green)';
+                  e.currentTarget.style.color = 'var(--color-text-primary)';
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#30363D';
-                e.currentTarget.style.color = '#F0F6FC';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
               }}
             >
               {loadingFullPreview ? (
                 <>
-                  <Loader2 size={14} className="spin" />
-                  <span>Loading...</span>
+                  <Loader2 size={13} className="spin" />
+                  Loading...
                 </>
               ) : (
                 <>
-                  <Maximize2 size={14} />
-                  <span>Full Preview</span>
+                  <Maximize2 size={13} />
+                  Full Preview
                 </>
               )}
             </button>
           </div>
-          <div style={{ overflowX: 'auto', maxHeight: '400px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <div style={{ overflowX: 'auto', maxHeight: '350px' }}>
+            <table className="preview-table">
               <thead>
-                <tr style={{ background: '#0D1117', borderBottom: '1px solid #30363D' }}>
-                  {previewData.fields?.slice(0, 8).map(field => (
-                    <th key={field} style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#8B949E' }}>
+                <tr>
+                  {previewData.fields?.slice(0, 6).map(field => (
+                    <th key={field}>
                       {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </th>
                   ))}
@@ -1464,12 +1601,12 @@ export default function ExportTab() {
               </thead>
               <tbody>
                 {previewData.preview.map((record, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #21262D' }}>
-                    {previewData.fields?.slice(0, 8).map(field => {
+                  <tr key={idx}>
+                    {previewData.fields?.slice(0, 6).map(field => {
                       let value = record[field];
                       if (typeof value === 'object') value = JSON.stringify(value);
-                      const display = typeof value === 'string' && value.length > 100 ? value.substring(0, 100) + '...' : (value || '-');
-                      return <td key={field} style={{ padding: '12px', color: '#F0F6FC', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={value}>{display}</td>;
+                      const display = typeof value === 'string' && value.length > 80 ? value.substring(0, 80) + '...' : (value || '-');
+                      return <td key={field} title={value}>{display}</td>;
                     })}
                   </tr>
                 ))}
