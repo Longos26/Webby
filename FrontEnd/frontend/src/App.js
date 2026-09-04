@@ -3,19 +3,15 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './redux/store';
 
-
 import Login    from './pages/Login';
 import SignIn   from './pages/SignIn';
-import HomePage from './pages/Home';
-import WebbyDocs from './pages/Docs';
+import HomePage from './pages/HomePage';
+import WebbyDocs from './pages/DocumentationPage';
 import Dashboard from './tabs/Dashboard';
 
 import CreateUser      from './components/CreateUser';
 import UserLists       from './components/UserLists';
 import ProtectedRoutes from './components/ProtectedRoutes';
-
-
-
 
 function App() {
   return (
@@ -26,7 +22,7 @@ function App() {
           <Route path="/"       element={<HomePage />} />
           <Route path="/login"  element={<Login />} />
           <Route path="/signin" element={<SignIn />} />
-          <Route path="/docs"    element={<WebbyDocs />} />
+          <Route path="/docs"   element={<WebbyDocs />} />
 
           {/* Protected — all handled inside Dashboard shell via sidebar tabs */}
           <Route path="/dashboard" element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
