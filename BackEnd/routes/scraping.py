@@ -1,4 +1,4 @@
-# backend/routes/scraping.py - COMPLETE UPDATED ROUTES
+# backend/routes/scraping.py - COMPLETE UPDATED ROUTES with clean text
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
@@ -40,23 +40,22 @@ class CreateJobRequest(BaseModel):
 
 @router.post("/scraping/scrape")
 async def scrape_endpoint(req: ScrapeRequest, current_user: dict = Depends(get_current_user)):
-    """Scrape a website and return cleaned content"""
+    """Scrape a website and return CLEANED text content (no HTML)"""
     try:
         user_id = current_user.get("id") or current_user.get("_id")
         logger.info(f"Scraping URL: {req.url} for user {user_id}")
         
-        html = scrape_website(req.url, use_selenium=req.use_selenium)
+        # scrape_website now returns clean text directly
+        cleaned = scrape_website(req.url, use_selenium=req.use_selenium)
         
-        if not html:
+        if not cleaned:
             raise HTTPException(status_code=500, detail="Failed to fetch website content")
         
-        body = extract_body_content(html)
-        cleaned = clean_body_content(body)
         chunks = split_dom_content(cleaned)
         
         return {
             "success": True,
-            "cleaned_content": cleaned,
+            "cleaned_content": cleaned,  # CLEAN TEXT - no HTML!
             "content_length": len(cleaned),
             "chunks": len(chunks),
             "url": req.url,
@@ -150,7 +149,7 @@ async def get_scraping_jobs(status: Optional[str] = None, current_user: dict = D
             "frequency": job.get("frequency", "one-time"),
             "created_at": job.get("created_at").isoformat() if job.get("created_at") else None,
             "updated_at": job.get("updated_at").isoformat() if job.get("updated_at") else None,
-            "scraped_content": job.get("scraped_content", ""),
+            "scraped_content": job.get("scraped_content", ""),  # CLEAN TEXT
             "error_message": job.get("error_message", "")
         }
         jobs.append(job_dict)
@@ -182,7 +181,7 @@ async def get_scraping_job(job_id: str, current_user: dict = Depends(get_current
         "status": job.get("status", "queued"),
         "progress": job.get("progress", 0),
         "records": job.get("records", 0),
-        "scraped_content": job.get("scraped_content", ""),
+        "scraped_content": job.get("scraped_content", ""),  # CLEAN TEXT
         "created_at": job.get("created_at").isoformat() if job.get("created_at") else None
     }
 
@@ -225,7 +224,7 @@ async def start_job(
         }}
     )
     
-    # Add to background tasks - THIS IS THE KEY FIX
+    # Add to background tasks
     background_tasks.add_task(
         job_executor.execute_job, 
         job_id, 

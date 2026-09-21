@@ -937,6 +937,8 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
 // JOB DETAILS MODAL
 // ============================================================
 
+// frontend/src/pages/JobsTab.jsx - JobDetailsModal with clean text display
+
 function JobDetailsModal({ job, onClose }) {
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
@@ -966,6 +968,12 @@ function JobDetailsModal({ job, onClose }) {
   const wordCount = scrapedContent ? scrapedContent.split(/\s+/).filter(w => w.length > 0).length : 0;
   const charCount = scrapedContent.length;
   const recordCount = d.records || 0;
+  
+  // Check if content still has HTML (fallback cleanup)
+  const hasHtmlTags = /<[^>]+>/.test(scrapedContent);
+  const displayContent = hasHtmlTags 
+    ? scrapedContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    : scrapedContent;
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -1058,17 +1066,190 @@ function JobDetailsModal({ job, onClose }) {
             </div>
           </div>
           
-          {scrapedContent && !loading && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-                <span>Full Content</span>
-                <span>{charCount.toLocaleString()} chars</span>
+          {displayContent && !loading && (
+  <div style={{ marginTop: 16 }}>
+    <div style={{ 
+      fontSize: '10px', 
+      textTransform: 'uppercase', 
+      letterSpacing: '0.06em', 
+      color: 'var(--color-text-muted)', 
+      marginBottom: '10px', 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      flexWrap: 'wrap', 
+      gap: '6px',
+      paddingBottom: '8px',
+      borderBottom: '1px solid var(--color-border)'
+    }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Database size={11} />
+        Scraped Content
+      </span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+        {charCount.toLocaleString()} chars · {wordCount.toLocaleString()} words
+      </span>
+    </div>
+    
+    {/* 
+      Display as structured text with proper alignment.
+      Each line is rendered separately for better control.
+    */}
+    <div style={{ 
+      background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.25) 100%)', 
+      border: '1px solid var(--color-border)', 
+      borderRadius: 'var(--radius-md)', 
+      maxHeight: '500px', 
+      overflowY: 'auto',
+      overflowX: 'hidden'
+    }}>
+      <div style={{ padding: '18px 20px' }}>
+        {displayContent.split('\n').map((line, idx) => {
+          const trimmed = line.trim();
+          
+          // Empty line - add spacing
+          if (!trimmed) {
+            return <div key={idx} style={{ height: '10px' }} />;
+          }
+          
+          // Page header separator (═)
+          if (trimmed.startsWith('═')) {
+            return (
+              <div key={idx} style={{ 
+                borderTop: '2px solid var(--color-mdb-green)', 
+                margin: '16px 0 12px 0',
+                opacity: 0.6
+              }} />
+            );
+          }
+          
+          // Page separator (─)
+          if (trimmed.startsWith('─') && trimmed.length > 10) {
+            return (
+              <div key={idx} style={{ 
+                borderTop: '1px dashed var(--color-border)', 
+                margin: '16px 0',
+                opacity: 0.5
+              }} />
+            );
+          }
+          
+          // Page header lines
+          if (trimmed.startsWith('📄 PAGE') || trimmed.startsWith('🔗') || 
+              trimmed.startsWith('📝') || trimmed.startsWith('📊')) {
+            return (
+              <div key={idx} style={{ 
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                color: 'var(--color-mdb-green)',
+                padding: '3px 0',
+                fontWeight: 500,
+                letterSpacing: '0.02em'
+              }}>
+                {trimmed}
               </div>
-              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '10px', lineHeight: '1.6', color: 'var(--color-text-secondary)', maxHeight: '300px', overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {scrapedContent}
+            );
+          }
+          
+          // Markdown headers
+          if (trimmed.startsWith('### ')) {
+            return (
+              <div key={idx} style={{ 
+                fontSize: '14px', 
+                fontWeight: 600, 
+                color: 'var(--color-text-primary)',
+                marginTop: '14px',
+                marginBottom: '6px'
+              }}>
+                {trimmed.replace('### ', '')}
               </div>
+            );
+          }
+          if (trimmed.startsWith('## ')) {
+            return (
+              <div key={idx} style={{ 
+                fontSize: '15px', 
+                fontWeight: 600, 
+                color: 'var(--color-info)',
+                marginTop: '16px',
+                marginBottom: '8px',
+                paddingBottom: '4px',
+                borderBottom: '1px solid var(--color-border-subtle)'
+              }}>
+                {trimmed.replace('## ', '')}
+              </div>
+            );
+          }
+          if (trimmed.startsWith('# ')) {
+            return (
+              <div key={idx} style={{ 
+                fontSize: '16px', 
+                fontWeight: 700, 
+                color: 'var(--color-mdb-green)',
+                marginTop: '18px',
+                marginBottom: '10px'
+              }}>
+                {trimmed.replace('# ', '')}
+              </div>
+            );
+          }
+          
+          // List items
+          if (trimmed.startsWith('• ') || trimmed.startsWith('- ') || trimmed.startsWith('  • ')) {
+            return (
+              <div key={idx} style={{ 
+                fontSize: '12px', 
+                lineHeight: '1.7', 
+                color: 'var(--color-text-secondary)',
+                paddingLeft: '16px',
+                position: 'relative',
+                marginBottom: '2px'
+              }}>
+                <span style={{ 
+                  position: 'absolute', 
+                  left: '4px', 
+                  color: 'var(--color-mdb-green)'
+                }}>•</span>
+                {trimmed.replace(/^[\s]*[•\-]\s*/, '')}
+              </div>
+            );
+          }
+          
+          // Blockquotes
+          if (trimmed.startsWith('❝') || trimmed.startsWith('❞')) {
+            return (
+              <div key={idx} style={{ 
+                fontSize: '12px', 
+                lineHeight: '1.7', 
+                color: 'var(--color-info)',
+                fontStyle: 'italic',
+                paddingLeft: '14px',
+                borderLeft: '3px solid var(--color-info)',
+                margin: '6px 0',
+                opacity: 0.9
+              }}>
+                {trimmed}
+              </div>
+            );
+          }
+          
+          // Regular text line
+          return (
+            <div key={idx} style={{ 
+              fontSize: '12px', 
+              lineHeight: '1.75', 
+              color: 'var(--color-text-primary)',
+              padding: '1px 0',
+              wordBreak: 'break-word'
+            }}>
+              {trimmed}
             </div>
-          )}
+          );
+        })}
+      </div>
+    </div>
+  </div>
+)}
         </div>
         
         <div className="modal-footer">

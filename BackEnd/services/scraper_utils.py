@@ -1,4 +1,4 @@
-# backend/services/scraper_utils.py - ENHANCED with full pagination & deep crawling
+# backend/services/scraper_utils.py - ENHANCED with clean text extraction
 
 import requests
 from bs4 import BeautifulSoup
@@ -112,15 +112,18 @@ class EnhancedScraper:
         page_params = ['page', 'p', 'pagina', 'pageNum', 'offset', 'start']
         for param in page_params:
             if param in query_params:
-                current_page = int(query_params[param])
-                # Generate next page URL
-                for next_page in [current_page + 1, current_page + 2, current_page + 3]:
-                    new_query = parsed.query.replace(f'{param}={current_page}', f'{param}={next_page}')
-                    next_url = urlunparse((
-                        parsed.scheme, parsed.netloc, parsed.path,
-                        parsed.params, new_query, parsed.fragment
-                    ))
-                    pagination_urls.add(self.normalize_url(next_url))
+                try:
+                    current_page = int(query_params[param])
+                    # Generate next page URL
+                    for next_page in [current_page + 1, current_page + 2, current_page + 3]:
+                        new_query = parsed.query.replace(f'{param}={current_page}', f'{param}={next_page}')
+                        next_url = urlunparse((
+                            parsed.scheme, parsed.netloc, parsed.path,
+                            parsed.params, new_query, parsed.fragment
+                        ))
+                        pagination_urls.add(self.normalize_url(next_url))
+                except:
+                    pass
         
         # Pattern 4: Infinite scroll detection (look for load-more triggers)
         load_more_selectors = [
@@ -158,7 +161,63 @@ class EnhancedScraper:
         
         return list(links)
     
-    def extract_structured_data(self, soup: BeautifulSoup, url: str) -> Dict[str, Any]:
+    def clean_html_to_text(self, html: str) -> str:
+        """
+        Convert HTML to clean, readable text.
+        This is the KEY function that removes all HTML tags and formatting.
+        """
+        if not html:
+            return ""
+        
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+            
+            # Remove all non-content elements
+            for tag in soup(["script", "style", "meta", "link", "noscript", "svg", 
+                             "header", "footer", "nav", "aside", "iframe", "form",
+                             "button", "input", "select", "textarea", "label",
+                             "figure", "picture", "source", "video", "audio"]):
+                tag.decompose()
+            
+            # Try to find main content area first (better than entire body)
+            main_content = (
+                soup.find('main') or 
+                soup.find('article') or 
+                soup.find('div', class_=re.compile(r'content|main|body|post|entry', re.I)) or
+                soup.find('div', id=re.compile(r'content|main|body|post|entry', re.I)) or
+                soup.body or 
+                soup
+            )
+            
+            # Add newlines after block-level elements for better readability
+            for tag in main_content.find_all(['br', 'p', 'div', 'h1', 'h2', 'h3', 
+                                               'h4', 'h5', 'h6', 'li', 'tr', 'hr']):
+                tag.append('\n')
+            
+            # Get text
+            text = main_content.get_text(separator="\n")
+            
+            # Clean up the text
+            lines = []
+            for line in text.splitlines():
+                cleaned = ' '.join(line.split())  # Normalize all whitespace
+                if len(cleaned) > 2:  # Skip very short/empty lines
+                    lines.append(cleaned)
+            
+            # Join and remove excessive blank lines
+            result = "\n".join(lines)
+            result = re.sub(r'\n{3,}', '\n\n', result)
+            
+            return result.strip()
+            
+        except Exception as e:
+            logger.error(f"Error cleaning HTML: {str(e)}")
+            # Fallback: simple regex removal
+            text = re.sub(r'<[^>]+>', ' ', html)
+            text = re.sub(r'\s+', ' ', text)
+            return text.strip()
+    
+    def extract_structured_data(self, soup: BeautifulSoup, url: str, raw_html: str = "") -> Dict[str, Any]:
         """Extract structured data using multiple methods"""
         data = {
             'url': url,
@@ -173,7 +232,9 @@ class EnhancedScraper:
             'reviews_count': '',
             'images': [],
             'meta_tags': {},
-            'schema_org': {}
+            'schema_org': {},
+            'clean_text': '',   # <-- CLEAN READABLE TEXT (use this for display)
+            'raw_html': ''      # <-- Keep raw HTML separately (for parsing/extraction)
         }
         
         # Extract title
@@ -212,15 +273,16 @@ class EnhancedScraper:
             r'productPrice["\']?\s*[:\=]\s*["\']?(\d+(?:\.\d{2})?)'
         ]
         
+        html_str = str(soup)
         for pattern in price_patterns:
-            match = re.search(pattern, str(soup), re.IGNORECASE)
+            match = re.search(pattern, html_str, re.IGNORECASE)
             if match:
                 data['price'] = match.group(0)
                 break
         
         # Extract email addresses
         email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-        emails = re.findall(email_pattern, str(soup))
+        emails = re.findall(email_pattern, html_str)
         if emails:
             data['email'] = emails[0]
         
@@ -231,7 +293,7 @@ class EnhancedScraper:
         ]
         
         for pattern in phone_patterns:
-            phones = re.findall(pattern, str(soup))
+            phones = re.findall(pattern, html_str)
             if phones:
                 data['phone'] = phones[0]
                 break
@@ -257,12 +319,20 @@ class EnhancedScraper:
         
         data['images'] = data['images'][:20]  # Limit to 20 images
         
+        # ============================================================
+        # KEY: Extract CLEAN TEXT for display (no HTML tags!)
+        # ============================================================
+        data['clean_text'] = self.clean_html_to_text(raw_html if raw_html else str(soup))
+        
+        # Keep a truncated version of raw HTML for advanced parsing
+        data['raw_html'] = (raw_html if raw_html else str(soup))[:100000]
+        
         return data
     
     def scrape_with_pagination(self, start_url: str, max_pages: int = None) -> List[Dict[str, Any]]:
         """
         Scrape website with full pagination support
-        Returns all scraped content from all pages
+        Returns all scraped content from all pages with CLEAN TEXT
         """
         results = []
         max_pages = max_pages or self.max_pages
@@ -291,11 +361,11 @@ class EnhancedScraper:
                 response = self.session.get(current_url, timeout=30)
                 response.raise_for_status()
                 
-                soup = BeautifulSoup(response.text, 'html.parser')
+                raw_html = response.text
+                soup = BeautifulSoup(raw_html, 'html.parser')
                 
-                # Extract structured data
-                page_data = self.extract_structured_data(soup, current_url)
-                page_data['raw_html'] = response.text[:500000]  # Limit HTML size
+                # Extract structured data WITH clean text
+                page_data = self.extract_structured_data(soup, current_url, raw_html)
                 page_data['page_number'] = page_count + 1
                 
                 results.append(page_data)
@@ -304,7 +374,9 @@ class EnhancedScraper:
                 
                 # Detect pagination links
                 if page_count == 1:  # Only on first page
-                    pagination_links = self.detect_pagination(soup, current_url)
+                    # Re-parse for pagination detection (since extract_structured_data modifies soup)
+                    soup_for_pagination = BeautifulSoup(raw_html, 'html.parser')
+                    pagination_links = self.detect_pagination(soup_for_pagination, current_url)
                     
                     # Handle infinite scroll detection
                     if '__INFINITE_SCROLL__' in pagination_links:
@@ -357,8 +429,9 @@ class EnhancedScraper:
                 scroll_count += 1
                 
                 # Extract current page content
-                soup = BeautifulSoup(driver.page_source, 'html.parser')
-                page_data = self.extract_structured_data(soup, url)
+                raw_html = driver.page_source
+                soup = BeautifulSoup(raw_html, 'html.parser')
+                page_data = self.extract_structured_data(soup, url, raw_html)
                 page_data['scroll_position'] = scroll_count
                 results.append(page_data)
             
@@ -372,9 +445,11 @@ class EnhancedScraper:
     def deep_crawl(self, start_url: str, max_depth: int = None) -> List[Dict[str, Any]]:
         """
         Deep crawl website following internal links
+        Returns all scraped content with CLEAN TEXT
         """
         max_depth = max_depth or self.max_depth
         results = []
+        start_url = self.normalize_url(start_url)
         queue = deque([(start_url, 0)])  # (url, depth)
         visited = set()
         
@@ -391,20 +466,23 @@ class EnhancedScraper:
                 response = self.session.get(url, timeout=30)
                 response.raise_for_status()
                 
-                soup = BeautifulSoup(response.text, 'html.parser')
+                raw_html = response.text
+                soup = BeautifulSoup(raw_html, 'html.parser')
                 
-                # Extract data
-                page_data = self.extract_structured_data(soup, url)
+                # Extract data WITH clean text
+                page_data = self.extract_structured_data(soup, url, raw_html)
                 page_data['crawl_depth'] = depth
-                page_data['raw_html'] = response.text[:250000]
                 results.append(page_data)
                 visited.add(url)
                 
                 # Extract domain for internal link filtering
                 domain = urlparse(url).netloc
                 
+                # Re-parse for link extraction
+                soup_for_links = BeautifulSoup(raw_html, 'html.parser')
+                
                 # Find internal links to continue crawling
-                internal_links = self.extract_internal_links(soup, url, domain)
+                internal_links = self.extract_internal_links(soup_for_links, url, domain)
                 
                 for link in internal_links:
                     if link not in visited:
@@ -533,46 +611,100 @@ def get_enhanced_scraper() -> EnhancedScraper:
     return _enhanced_scraper
 
 
-# Backward compatibility functions
+# ============================================================
+# BACKWARD COMPATIBILITY FUNCTIONS (all return CLEAN TEXT)
+# ============================================================
+
 def scrape_website(website: str, use_selenium: bool = False) -> str:
-    """Legacy function - now enhanced"""
+    """Legacy function - now enhanced and returns CLEAN TEXT"""
     scraper = get_enhanced_scraper()
     results = scraper.scrape_with_pagination(website, max_pages=1)
     if results:
-        return results[0].get('raw_html', '')
+        # Return clean text, not raw HTML
+        return results[0].get('clean_text', '')
     return ''
 
 
 def extract_body_content(html: str) -> str:
+    """Extract body from HTML"""
     soup = BeautifulSoup(html, "html.parser")
     return str(soup.body) if soup.body else html
 
 
 def clean_body_content(body: str) -> str:
-    soup = BeautifulSoup(body, "html.parser")
+    """
+    Clean HTML and return readable text with good formatting.
+    This removes ALL HTML tags.
+    """
+    if not body:
+        return ""
     
-    for tag in soup(["script", "style", "meta", "link", "noscript", "svg", "header", "footer", "nav", "aside"]):
-        tag.extract()
-    
-    text = soup.get_text(separator="\n")
-    lines = [l.strip() for l in text.splitlines() if len(l.strip()) > 2]
-    
-    return "\n".join(lines)[:1000000]
+    try:
+        soup = BeautifulSoup(body, "html.parser")
+        
+        # Remove all non-content tags
+        for tag in soup(["script", "style", "meta", "link", "noscript", "svg", 
+                         "header", "footer", "nav", "aside", "iframe", "form",
+                         "button", "input", "select", "textarea", "label",
+                         "figure", "picture", "source", "video", "audio"]):
+            tag.decompose()
+        
+        # Try to find main content area first
+        main_content = (
+            soup.find('main') or 
+            soup.find('article') or 
+            soup.find('div', class_=re.compile(r'content|main|body|post|entry', re.I)) or
+            soup.find('div', id=re.compile(r'content|main|body|post|entry', re.I)) or
+            soup.body or 
+            soup
+        )
+        
+        # Add newlines after block elements
+        for tag in main_content.find_all(['br', 'p', 'div', 'h1', 'h2', 'h3', 
+                                           'h4', 'h5', 'h6', 'li', 'tr', 'hr']):
+            tag.append('\n')
+        
+        # Get text
+        text = main_content.get_text(separator="\n")
+        
+        # Clean up whitespace
+        lines = []
+        for line in text.splitlines():
+            cleaned = ' '.join(line.split())  # Normalize spaces
+            if len(cleaned) > 2:  # Skip very short lines
+                lines.append(cleaned)
+        
+        # Remove excessive blank lines
+        result = "\n".join(lines)
+        result = re.sub(r'\n{3,}', '\n\n', result)
+        
+        return result.strip()[:1000000]  # 1MB limit
+        
+    except Exception as e:
+        logger.error(f"Error in clean_body_content: {str(e)}")
+        # Fallback: simple regex removal
+        text = re.sub(r'<[^>]+>', ' ', body)
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()[:1000000]
 
 
 def split_dom_content(content: str, max_length: int = 6000) -> List[str]:
+    """Split content into chunks for AI parsing"""
     return [content[i:i + max_length] for i in range(0, len(content), max_length)]
 
 
-# New enhanced functions for thesis requirements
+# ============================================================
+# ENHANCED FUNCTIONS FOR THESIS REQUIREMENTS
+# ============================================================
+
 def scrape_with_pagination(url: str, max_pages: int = 100) -> List[Dict[str, Any]]:
-    """Scrape website with full pagination support"""
+    """Scrape website with full pagination support - returns CLEAN TEXT"""
     scraper = get_enhanced_scraper()
     return scraper.scrape_with_pagination(url, max_pages)
 
 
 def deep_crawl_website(start_url: str, max_depth: int = 3) -> List[Dict[str, Any]]:
-    """Deep crawl website following internal links"""
+    """Deep crawl website following internal links - returns CLEAN TEXT"""
     scraper = get_enhanced_scraper()
     return scraper.deep_crawl(start_url, max_depth)
 

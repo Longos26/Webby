@@ -1,4 +1,4 @@
-# backend/routes/jobs.py - ENHANCED with full features
+# backend/routes/jobs.py - ENHANCED with clean text output
 
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from typing import Optional, List, Dict, Any
@@ -13,7 +13,8 @@ from services.scraper_utils import (
     get_enhanced_scraper, 
     scrape_with_pagination, 
     deep_crawl_website,
-    SmartContentDetector
+    SmartContentDetector,
+    clean_body_content
 )
 from services.notification_service import NotificationService
 from services.job_executor import job_executor
@@ -67,7 +68,7 @@ def job_to_response(job: dict) -> dict:
         "updated_at": format_datetime(job.get("updated_at")),
         "frequency": job.get("frequency", "One-time"),
         "error_message": job.get("error_message"),
-        "scraped_content": job.get("scraped_content", ""),
+        "scraped_content": job.get("scraped_content", ""),  # CLEAN TEXT now
         "scraped_at": format_datetime(job.get("scraped_at")) if job.get("scraped_at") else None,
         "pages_scraped": job.get("pages_scraped", 0),
         "total_pages": job.get("total_pages", 0),
@@ -245,7 +246,7 @@ async def execute_enhanced_scraping_job(job_id: str, user_id: str):
             if main_results:
                 # Detect content type
                 content_type = SmartContentDetector.detect_content_type(main_results[0].get('raw_html', ''))
-                detected_data = SmartContentDetector.extract_smart_data(main_results[0].get('raw_html', ''))
+                detected_data = SmartContentDetector.extract_smart_data(main_results[0].get('clean_text', ''))
                 
                 await db.jobs.update_one(
                     {"_id": ObjectId(job_id)},
@@ -270,12 +271,36 @@ async def execute_enhanced_scraping_job(job_id: str, user_id: str):
             {"$set": {"progress": 80}}
         )
         
-        # Combine all scraped content - REMOVE THE 1,000,000 CHARACTER LIMIT
-        combined_content = ""
+        # ============================================================
+        # KEY FIX: Build combined content from CLEAN TEXT, not raw HTML
+        # ============================================================
+        combined_content_parts = []
         all_structured_data = []
         
-        for page_result in results:
-            combined_content += page_result.get('raw_html', '') + "\n\n---PAGE BREAK---\n\n"
+        for idx, page_result in enumerate(results, 1):
+            # Get clean readable text
+            page_text = page_result.get('clean_text', '')
+            
+            # If clean_text is empty, try to clean raw_html on the fly
+            if not page_text and page_result.get('raw_html'):
+                page_text = clean_body_content(page_result.get('raw_html', ''))
+            
+            # Only add if we have content
+            if page_text:
+                page_url = page_result.get('url', 'Unknown')
+                page_title = page_result.get('title', 'Untitled')
+                depth = page_result.get('crawl_depth', 0)
+                
+                header = "\n" + "=" * 70 + "\n"
+                header += f"PAGE {idx} of {len(results)}\n"
+                header += f"URL: {page_url}\n"
+                header += f"Title: {page_title}\n"
+                if depth:
+                    header += f"Crawl Depth: {depth}\n"
+                header += "=" * 70 + "\n\n"
+                
+                combined_content_parts.append(header + page_text)
+            
             # Extract structured data
             structured = {
                 'url': page_result.get('url'),
@@ -284,21 +309,36 @@ async def execute_enhanced_scraping_job(job_id: str, user_id: str):
                 'price': page_result.get('price'),
                 'email': page_result.get('email'),
                 'phone': page_result.get('phone'),
-                'images': page_result.get('images', [])[:10]
+                'images': page_result.get('images', [])[:10],
+                'crawl_depth': page_result.get('crawl_depth', 0),
+                'page_number': page_result.get('page_number', idx)
             }
             all_structured_data.append(structured)
+        
+        # Join all pages with separator
+        combined_content = "\n\n".join(combined_content_parts)
+        
+        # Final cleanup - remove any remaining HTML tags just in case
+        if combined_content:
+            # Remove any lingering HTML tags
+            combined_content = re.sub(r'<[^>]+>', ' ', combined_content)
+            # Fix multiple spaces
+            combined_content = re.sub(r'[ \t]+', ' ', combined_content)
+            # Fix multiple newlines
+            combined_content = re.sub(r'\n{3,}', '\n\n', combined_content)
+            combined_content = combined_content.strip()
         
         # Calculate total records
         records = len(results) * 10  # Estimate
         
-        # Save results - REMOVE THE LIMIT HERE
+        # Save results with CLEAN TEXT
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
             {"$set": {
                 "status": "success",
                 "progress": 100,
                 "records": records,
-                "scraped_content": combined_content,  # NO MORE LIMIT
+                "scraped_content": combined_content,  # CLEAN TEXT - no HTML!
                 "scraped_at": get_current_utc_time(),
                 "updated_at": get_current_utc_time(),
                 "error_message": None,
@@ -309,14 +349,16 @@ async def execute_enhanced_scraping_job(job_id: str, user_id: str):
         )
         
         # Save individual page results to a separate collection for analytics
-        for page_result in results:
+        for idx, page_result in enumerate(results, 1):
             await db.scraped_pages.insert_one({
                 "job_id": ObjectId(job_id),
                 "user_id": user_id,
                 "url": page_result.get('url'),
                 "title": page_result.get('title'),
                 "description": page_result.get('description'),
-                "page_number": page_result.get('page_number', 0),
+                "clean_text": page_result.get('clean_text', '')[:50000],  # Store clean text
+                "page_number": page_result.get('page_number', idx),
+                "crawl_depth": page_result.get('crawl_depth', 0),
                 "scraped_at": get_current_utc_time()
             })
         
@@ -425,6 +467,64 @@ async def start_job(
     return {"message": "Job started successfully", "job_id": job_id}
 
 
+@router.post("/{job_id}/pause")
+async def pause_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Pause a running job"""
+    db = await get_database()
+    user_id_str = extract_user_id_str(current_user)
+    
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+    
+    job = await db.jobs.find_one({
+        "_id": ObjectId(job_id),
+        "user_id": user_id_str
+    })
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.get("status") != "running":
+        raise HTTPException(status_code=400, detail="Job is not running")
+    
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {"status": "paused", "updated_at": get_current_utc_time()}}
+    )
+    
+    return {"message": "Job paused", "job_id": job_id}
+
+
+@router.delete("/{job_id}")
+async def delete_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a job"""
+    db = await get_database()
+    user_id_str = extract_user_id_str(current_user)
+    
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+    
+    result = await db.jobs.delete_one({
+        "_id": ObjectId(job_id),
+        "user_id": user_id_str
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Also delete related data
+    await db.parsed_results.delete_many({"job_id": ObjectId(job_id)})
+    await db.scraped_pages.delete_many({"job_id": ObjectId(job_id)})
+    
+    return {"message": "Job deleted successfully"}
+
+
 @router.post("/smart-scrape")
 async def smart_scrape(
     request: SmartScrapeRequest,
@@ -443,8 +543,8 @@ async def smart_scrape(
     if not initial_results:
         raise HTTPException(status_code=500, detail="Failed to fetch initial page")
     
-    content_type = SmartContentDetector.detect_content_type(initial_results[0].get('raw_html', ''))
-    detected_data = SmartContentDetector.extract_smart_data(initial_results[0].get('raw_html', ''))
+    content_type = SmartContentDetector.detect_content_type(initial_results[0].get('clean_text', ''))
+    detected_data = SmartContentDetector.extract_smart_data(initial_results[0].get('clean_text', ''))
     
     # Determine best scraping strategy based on content type
     if content_type.get('ecommerce', 0) > 30 or content_type.get('product', 0) > 30:
@@ -461,20 +561,10 @@ async def smart_scrape(
         max_pages = 100
     
     # Create job with smart settings
-    job_data = {
-        "name": f"Smart Scrape - {request.url[:50]}",
-        "url": request.url,
-        "scrape_mode": scrape_mode,
-        "max_pages": max_pages,
-        "max_depth": max_depth,
-        "frequency": "one-time"
-    }
-    
-    # Create and start job
     current_time = get_current_utc_time()
     
     new_job = {
-        "name": job_data["name"],
+        "name": f"Smart Scrape - {request.url[:50]}",
         "url": request.url,
         "target": request.url,
         "status": "queued",
@@ -537,17 +627,6 @@ async def get_scraping_analytics(
     # Success rate
     success_rate = (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0
     
-    # Recent activity timeline
-    last_7_days = []
-    for i in range(7, 0, -1):
-        date = get_current_utc_time().replace(hour=0, minute=0, second=0, microsecond=0)
-        # This is simplified - in production you'd have proper date aggregation
-        last_7_days.append({
-            "date": date.isoformat(),
-            "jobs": 0,
-            "pages": 0
-        })
-    
     return {
         "total_jobs": total_jobs,
         "completed_jobs": completed_jobs,
@@ -556,5 +635,5 @@ async def get_scraping_analytics(
         "success_rate": round(success_rate, 1),
         "total_pages_scraped": total_pages,
         "unique_urls": len(unique_urls),
-        "timeline": last_7_days
+        "timeline": []
     }
