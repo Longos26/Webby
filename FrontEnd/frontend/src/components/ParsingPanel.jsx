@@ -728,54 +728,66 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
   }, [job, hasGeneratedRecommendations, loadingRecommendations, generateRecommendations]);
 
   // ---------------- ACTIONS ----------------
-  const handleParse = async () => {
-    if (!parseDescription.trim()) {
-      setToast({ message: 'Please enter a parsing description', type: 'error' });
-      return;
-    }
-    if (!job) {
-      setToast({ message: 'Job not loaded', type: 'error' });
-      return;
-    }
-    const content = job.scraped_content || '';
-    if (!content) {
-      setToast({
-        message: 'This job has no scraped content. Please scrape the website first.',
-        type: 'error',
-      });
-      return;
-    }
+  // Replace handleParse in ParsingPanel.jsx with this:
+const handleParse = async () => {
+  if (!parseDescription.trim()) {
+    setToast({ message: 'Please enter a parsing description', type: 'error' });
+    return;
+  }
+  if (!job) {
+    setToast({ message: 'Job not loaded', type: 'error' });
+    return;
+  }
+  const content = job.scraped_content || '';
+  if (!content) {
+    setToast({
+      message: 'This job has no scraped content. Please scrape the website first.',
+      type: 'error',
+    });
+    return;
+  }
 
-    setIsParsing(true);
-    try {
-      const response = await api.post(`/api/scraping/jobs/${resolvedJobId}/parse`, {
-        parse_description: parseDescription,
-        dom_content: content,
-      });
+  setIsParsing(true);
+  try {
+    const response = await api.post(`/api/scraping/jobs/${resolvedJobId}/parse`, {
+      parse_description: parseDescription,
+      dom_content: content,
+    });
 
-      if (response?.data?.success) {
-        setToast({
-          message: `Parsed successfully! ${response.data.tokens_used || 0} tokens, ${(response.data.processing_time_ms || 0).toFixed(0)}ms`,
-          type: 'success',
-        });
-        setParseDescription('');
-        await loadParsedResults();
-        await loadJob();
-      } else {
-        setToast({ message: response?.data?.error || 'Failed to parse content', type: 'error' });
-      }
-    } catch (err) {
-      const errorMsg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        err.message ||
-        'Failed to parse content';
-      setToast({ message: errorMsg, type: 'error' });
-      console.error('[ParsingPanel] parse error:', err);
-    } finally {
-      if (mountedRef.current) setIsParsing(false);
+    if (response?.data?.success) {
+  setToast({
+    message: `Parsed successfully! ${response.data.tokens_used || 0} tokens, ${(
+      response.data.processing_time_ms || 0
+    ).toFixed(0)}ms`,
+    type: 'success',
+  });
+  setParseDescription('');
+  await loadParsedResults();
+  await loadJob();
+} else {
+  setToast({
+    message: response?.data?.error || response?.data?.detail || 'Failed to parse content',
+    type: 'error',
+  });
+}
+  } catch (err) {
+    // FastAPI can return detail as string OR array (validation errors)
+    const detail = err?.response?.data?.detail;
+    let errorMsg;
+    if (Array.isArray(detail)) {
+      errorMsg = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+    } else if (typeof detail === 'string') {
+      errorMsg = detail;
+    } else {
+      errorMsg = err?.response?.data?.error || err.message || 'Failed to parse content';
     }
-  };
+    setToast({ message: errorMsg, type: 'error' });
+    console.error('[ParsingPanel] parse error:', err);
+    console.error('[ParsingPanel] response data:', err?.response?.data);
+  } finally {
+    if (mountedRef.current) setIsParsing(false);
+  }
+};
 
   const handleQuickAction = (description) => setParseDescription(description);
 

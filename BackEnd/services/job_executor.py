@@ -133,29 +133,37 @@ class JobExecutor:
             self.active_jobs.discard(job_id)
 
     async def parse_job_content(self, job_id: str, parse_description: str):
-        """Parse job content using Ollama after scraping"""
+        """Parse job content using OpenRouter after scraping"""
         db = await get_database()
-        
+
         try:
             job = await db.jobs.find_one({"_id": ObjectId(job_id)})
             if not job or not job.get("scraped_content"):
                 return None
-            
-            parsed_result = parse_with_openrouter(job["scraped_content"], parse_description)
-            
-            # Save to database
+
+            from parsing.Ollama import DEFAULT_MODEL
+            parsed_result = parse_with_openrouter(
+                job["scraped_content"],
+                parse_description,
+                model=DEFAULT_MODEL,
+            )
+
+            # Don't save failed parses as results
+            if parsed_result.startswith("ERROR:"):
+                logger.warning(f"Auto-parse returned error for job {job_id}: {parsed_result}")
+                return None
+
             parse_doc = {
                 "job_id": ObjectId(job_id),
                 "parse_description": parse_description,
                 "parsed_content": parsed_result,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
             }
             await db.parsed_results.insert_one(parse_doc)
-            
+
             return parsed_result
         except Exception as e:
             logger.error(f"Auto-parse failed for job {job_id}: {str(e)}")
             return None
-
 # Create singleton instance
 job_executor = JobExecutor()

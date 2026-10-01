@@ -27,6 +27,31 @@ router = APIRouter(prefix="/api/enhanced-parsing", tags=["Enhanced_Parsing"])
 
 
 # ============================================================
+# MODEL CONFIGURATION — SINGLE SOURCE OF TRUTH
+# ============================================================
+# Only currently-live free models on OpenRouter.
+# DO NOT add deprecated IDs like "anthropic/claude-3-haiku".
+DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+FALLBACK_MODELS = [
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+]
+ALLOWED_MODELS = set(FALLBACK_MODELS)
+
+
+def sanitize_model(requested: Optional[str]) -> str:
+    """Block stale/deprecated model IDs from breaking parsing."""
+    if not requested:
+        return DEFAULT_MODEL
+    if requested in ALLOWED_MODELS:
+        return requested
+    logger.warning(
+        f"Model '{requested}' is not allowed. Falling back to '{DEFAULT_MODEL}'."
+    )
+    return DEFAULT_MODEL
+
+
+# ============================================================
 # CONFIGURATION
 # ============================================================
 
@@ -34,7 +59,7 @@ router = APIRouter(prefix="/api/enhanced-parsing", tags=["Enhanced_Parsing"])
 class ParserConfig:
     """Configuration for the enhanced parser"""
     provider: str = "openrouter"
-    model: str = "anthropic/claude-3-haiku"
+    model: str = DEFAULT_MODEL                        # was "anthropic/claude-3-haiku"
     api_key: str = ""
     base_url: str = "https://openrouter.ai/api/v1"
     max_tokens: int = 4096
@@ -51,7 +76,8 @@ class ParserConfig:
     def from_env(cls) -> "ParserConfig":
         return cls(
             api_key=os.getenv("OPENROUTER_API_KEY", ""),
-            model=os.getenv("DEFAULT_MODEL", "anthropic/claude-3-haiku"),
+            # Never fall back to a deprecated model — use our DEFAULT_MODEL
+            model=sanitize_model(os.getenv("DEFAULT_MODEL", DEFAULT_MODEL)),
             base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
         )
 
@@ -203,6 +229,9 @@ async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str 
     if not config.api_key:
         raise Exception("OPENROUTER_API_KEY is not configured on the server")
 
+    # Sanitize again in case the config was constructed with a stale model
+    model = sanitize_model(config.model)
+
     headers = {
         "Authorization": f"Bearer {config.api_key}",
         "Content-Type": "application/json",
@@ -211,7 +240,7 @@ async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str 
     }
 
     payload = {
-        "model": config.model,
+        "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
@@ -243,6 +272,7 @@ async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str 
 
 async def call_llm_with_retry(prompt: str, config: ParserConfig, system_prompt: str = SYSTEM_PROMPT):
     last_error = None
+    model = sanitize_model(config.model)
 
     for attempt in range(config.max_retries):
         try:
@@ -252,10 +282,19 @@ async def call_llm_with_retry(prompt: str, config: ParserConfig, system_prompt: 
             logger.warning(f"Attempt {attempt + 1} timed out")
         except Exception as e:
             last_error = str(e)
-            logger.warning(f"Attempt {attempt + 1} failed: {e}")
+            logger.warning(f"Attempt {attempt + 1} failed on {model}: {e}")
 
+            # Auth errors won't be fixed by retrying — bail out immediately
             if "401" in str(e) or "403" in str(e):
                 raise
+
+            # Deprecated model — don't retry the same dead model
+            if "deprecated" in str(e).lower() or "404" in str(e):
+                raise Exception(
+                    f"Model '{model}' is unavailable. "
+                    f"Update ParserConfig.model or ALLOWED_MODELS."
+                )
+
             if "rate limit" in str(e).lower():
                 await asyncio.sleep(config.retry_delay * (attempt + 2))
                 continue
@@ -277,6 +316,8 @@ class EnhancedParser:
 
     def __init__(self, config: Optional[ParserConfig] = None):
         self.config = config or ParserConfig.from_env()
+        # Guarantee the config is never holding a dead model ID
+        self.config.model = sanitize_model(self.config.model)
         self.cache = _parse_cache
 
     async def parse(
@@ -317,13 +358,17 @@ class EnhancedParser:
         chunks = chunk_content(content, self.config.chunk_size)
         total_chunks = len(chunks)
 
-        logger.info(f"Job {job_id}: Processing {total_chunks} chunk(s), total {len(content)} chars")
+        logger.info(
+            f"Job {job_id}: Processing {total_chunks} chunk(s), "
+            f"total {len(content)} chars, model={self.config.model}"
+        )
 
         if stream_callback:
             await stream_callback({
                 "type": "start",
                 "total_chunks": total_chunks,
-                "total_chars": len(content)
+                "total_chars": len(content),
+                "model": self.config.model,
             })
 
         all_results = []
@@ -411,7 +456,8 @@ class EnhancedParser:
             f"Job {job_id}: Parse complete - "
             f"{result.chunks_processed}/{total_chunks} chunks, "
             f"{total_tokens} tokens, "
-            f"{processing_time:.0f}ms"
+            f"{processing_time:.0f}ms "
+            f"model={self.config.model}"
         )
 
         return result
@@ -486,15 +532,15 @@ async def parse_content_async(
     model: Optional[str] = None,
     stream_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
 ) -> ParseResult:
-    # Reuse the singleton when possible so we keep the cache warm.
     base = get_parser()
     config = ParserConfig(
         api_key=api_key or base.config.api_key or os.getenv("OPENROUTER_API_KEY", ""),
-        model=model or base.config.model or os.getenv("DEFAULT_MODEL", "anthropic/claude-3-haiku"),
+        # Was: model or base.config.model or "anthropic/claude-3-haiku"
+        model=sanitize_model(model or base.config.model or DEFAULT_MODEL),
         base_url=base.config.base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
     )
     parser = EnhancedParser(config)
-    parser.cache = base.cache  # share the process-wide cache
+    parser.cache = base.cache
     return await parser.parse(content, description, job_id, stream_callback)
 
 

@@ -1,38 +1,35 @@
-# routes/parsing.py - Enhanced with chunking, caching, and streaming
-
-from fastapi import APIRouter, HTTPException, status, Depends
+# routes/parsing.py
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from bson import ObjectId
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 import logging
 import asyncio
 import json as json_module
+import traceback
 
-from routes.enhanced_parsing import (
-    parse_content_async,
-    ParserConfig,
-    get_parser,
+from parsing.Ollama import (
+    parse_with_openrouter_result,
+    ParseResult,
+    DEFAULT_MODEL,
+    ALLOWED_MODELS,       # <-- imported for sanitization
 )
 from mongodb.database import get_database
-from routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 # ============================================================
 # MODELS
 # ============================================================
-
 class ParseRequest(BaseModel):
     dom_content: Optional[str] = None
     parse_description: str
     model: Optional[str] = None
     temperature: Optional[float] = 0.1
     use_cache: bool = True
-
 
 class ParseResponse(BaseModel):
     success: bool
@@ -45,13 +42,15 @@ class ParseResponse(BaseModel):
     chunks_processed: int = 1
     error: Optional[str] = None
 
+class GenerateRecommendationsRequest(BaseModel):
+    content: str
+    job_name: str = "Unknown"
+    url: str = "Unknown"
 
 # ============================================================
 # HELPERS
 # ============================================================
-
 def _get_job_content(job: dict) -> str:
-    """Try every known field name for scraped content."""
     for key in (
         "scraped_content",
         "content",
@@ -62,15 +61,28 @@ def _get_job_content(job: dict) -> str:
         "last_parsed_result",
     ):
         val = job.get(key)
-        if val and isinstance(val, str) and len(val.strip()) > 0:
+        if val and isinstance(val, str) and val.strip():
             return val
     return ""
 
+def _resolve_model(requested: Optional[str]) -> str:
+    """
+    Only allow models that are in ALLOWED_MODELS.
+    This blocks stale/deprecated model IDs (e.g. anthropic/claude-3-haiku)
+    that may be stored in the DB or sent by an old frontend build.
+    """
+    if not requested:
+        return DEFAULT_MODEL
+    if requested in ALLOWED_MODELS:
+        return requested
+    logger.warning(
+        f"Rejecting model '{requested}' from request. Using '{DEFAULT_MODEL}'."
+    )
+    return DEFAULT_MODEL
 
 # ============================================================
 # PARSE ENDPOINT
 # ============================================================
-
 @router.post("/api/scraping/jobs/{job_id}/parse", response_model=ParseResponse)
 async def parse_job_content(job_id: str, request: ParseRequest):
     if not ObjectId.is_valid(job_id):
@@ -81,22 +93,32 @@ async def parse_job_content(job_id: str, request: ParseRequest):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    content = request.dom_content or _get_job_content(job)
+    content = (request.dom_content or "").strip() or _get_job_content(job)
     if not content:
         raise HTTPException(
             status_code=400,
-            detail="No content available to parse. Please scrape the website first."
+            detail="No content available to parse. Please scrape the website first.",
         )
 
+    model_to_use = _resolve_model(request.model)
+    logger.info(
+        f"Parsing job {job_id}: {len(content)} chars, "
+        f"desc={request.parse_description!r}, model={model_to_use}"
+    )
+
     try:
-        result = await parse_content_async(
-            content=content,
-            description=request.parse_description,
-            job_id=job_id,
-            model=request.model,
+        loop = asyncio.get_event_loop()
+        result: ParseResult = await loop.run_in_executor(
+            None,
+            lambda: parse_with_openrouter_result(
+                dom_content=content,
+                parse_description=request.parse_description,
+                model=model_to_use,
+            ),
         )
 
         if not result.success:
+            logger.error(f"Parse failed for job {job_id}: {result.error}")
             raise HTTPException(
                 status_code=500,
                 detail=result.error or "Parsing failed",
@@ -116,16 +138,18 @@ async def parse_job_content(job_id: str, request: ParseRequest):
 
         await db.jobs.update_one(
             {"_id": ObjectId(job_id)},
-            {"$set": {
-                "last_parse_description": request.parse_description,
-                "last_parse_at": datetime.utcnow(),
-                "last_parsed_result": result.content,
-                "last_parse_tokens": result.tokens_used,
-            }},
+            {
+                "$set": {
+                    "last_parse_description": request.parse_description,
+                    "last_parse_at": datetime.utcnow(),
+                    "last_parsed_result": result.content,
+                    "last_parse_tokens": result.tokens_used,
+                }
+            },
         )
 
         logger.info(
-            f"Job {job_id}: Parse saved - id={insert_result.inserted_id}, "
+            f"Job {job_id}: parse saved id={insert_result.inserted_id}, "
             f"tokens={result.tokens_used}, time={result.processing_time_ms:.0f}ms"
         )
 
@@ -140,38 +164,50 @@ async def parse_job_content(job_id: str, request: ParseRequest):
             chunks_processed=result.chunks_processed,
         )
 
+    except HTTPException:
+        raise
     except asyncio.TimeoutError:
         logger.error(f"Parse timeout for job {job_id}")
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Parse request timed out. Try reducing content size.",
         )
-    except HTTPException:
-        raise
     except Exception as e:
+        logger.error(f"Error parsing job {job_id}: {e}")
+        logger.error(traceback.format_exc())
+
         error_msg = str(e)
-        logger.error(f"Error parsing job {job_id}: {error_msg}")
         if "rate limit" in error_msg.lower():
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Rate limit exceeded. Please wait and try again.",
             )
-        elif "quota" in error_msg.lower() or "insufficient" in error_msg.lower():
+        if "quota" in error_msg.lower() or "insufficient" in error_msg.lower():
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="API quota exceeded. Please check your credits.",
             )
-        else:
+        if "api_key" in error_msg.lower() or "unauthorized" in error_msg.lower():
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to parse content: {error_msg[:200]}",
+                detail="Server is not configured with a valid OPENROUTER_API_KEY.",
             )
-
+        if "deprecated" in error_msg.lower() or "404" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    "The configured LLM is unavailable. "
+                    "Please check parsing.Ollama FALLBACK_MODELS."
+                ),
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse content: {error_msg[:200]}",
+        )
 
 # ============================================================
 # STREAMING PARSE
 # ============================================================
-
 @router.post("/api/scraping/jobs/{job_id}/parse-stream")
 async def parse_job_content_stream(job_id: str, request: ParseRequest):
     if not ObjectId.is_valid(job_id):
@@ -182,27 +218,25 @@ async def parse_job_content_stream(job_id: str, request: ParseRequest):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    content = request.dom_content or _get_job_content(job)
+    content = (request.dom_content or "").strip() or _get_job_content(job)
     if not content:
         raise HTTPException(status_code=400, detail="No content available to parse")
 
+    model_to_use = _resolve_model(request.model)
+
     async def event_generator():
-        events = []
-
-        async def callback(event):
-            events.append(event)
-
         try:
-            result = await parse_content_async(
-                content=content,
-                description=request.parse_description,
-                job_id=job_id,
-                model=request.model,
-                stream_callback=callback,
-            )
+            yield f"data: {json_module.dumps({'type': 'status', 'message': 'Parsing started'})}\n\n"
 
-            for event in events:
-                yield f"data: {json_module.dumps(event)}\n\n"
+            loop = asyncio.get_event_loop()
+            result: ParseResult = await loop.run_in_executor(
+                None,
+                lambda: parse_with_openrouter_result(
+                    dom_content=content,
+                    parse_description=request.parse_description,
+                    model=model_to_use,
+                ),
+            )
 
             if result.success:
                 parse_doc = {
@@ -218,25 +252,36 @@ async def parse_job_content_stream(job_id: str, request: ParseRequest):
                 await db.parsed_results.insert_one(parse_doc)
                 await db.jobs.update_one(
                     {"_id": ObjectId(job_id)},
-                    {"$set": {
-                        "last_parse_description": request.parse_description,
-                        "last_parse_at": datetime.utcnow(),
-                        "last_parsed_result": result.content,
-                    }},
+                    {
+                        "$set": {
+                            "last_parse_description": request.parse_description,
+                            "last_parse_at": datetime.utcnow(),
+                            "last_parsed_result": result.content,
+                        }
+                    },
                 )
 
-            yield f"data: {json_module.dumps({'type': 'result', 'content': result.content, 'success': result.success})}\n\n"
+            payload = {
+                "type": "result",
+                "success": result.success,
+                "content": result.content,
+                "tokens_used": result.tokens_used,
+                "processing_time_ms": result.processing_time_ms,
+                "error": result.error,
+            }
+            yield f"data: {json_module.dumps(payload)}\n\n"
+            yield f"data: {json_module.dumps({'type': 'done'})}\n\n"
 
         except Exception as e:
+            logger.error(f"Stream error for job {job_id}: {e}")
+            logger.error(traceback.format_exc())
             yield f"data: {json_module.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-
 # ============================================================
 # GET PARSED RESULTS
 # ============================================================
-
 @router.get("/api/scraping/jobs/{job_id}/parsed-results")
 async def get_parsed_results(job_id: str, limit: int = 50):
     if not ObjectId.is_valid(job_id):
@@ -266,11 +311,9 @@ async def get_parsed_results(job_id: str, limit: int = 50):
         "count": len(parsed_results),
     }
 
-
 # ============================================================
 # DELETE PARSED RESULT
 # ============================================================
-
 @router.delete("/api/scraping/results/{result_id}")
 async def delete_parsed_result(result_id: str):
     if not ObjectId.is_valid(result_id):
@@ -283,17 +326,9 @@ async def delete_parsed_result(result_id: str):
 
     return {"success": True, "message": "Parse result deleted successfully"}
 
-
 # ============================================================
 # AI RECOMMENDATIONS
 # ============================================================
-
-class GenerateRecommendationsRequest(BaseModel):
-    content: str
-    job_name: str = "Unknown"
-    url: str = "Unknown"
-
-
 @router.post("/api/scraping/generate-recommendations")
 async def generate_recommendations(request: GenerateRecommendationsRequest):
     try:
@@ -384,7 +419,8 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
         }
 
     except Exception as e:
-        logger.error(f"Error generating recommendations: {str(e)}")
+        logger.error(f"Error generating recommendations: {e}")
+        logger.error(traceback.format_exc())
         return {
             "success": True,
             "recommendations": [
@@ -397,13 +433,9 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
             "confidence": 0,
         }
 
-
 # ============================================================
 # CACHE MANAGEMENT
 # ============================================================
-
 @router.delete("/api/scraping/cache")
 async def clear_parse_cache():
-    parser = get_parser()
-    parser.clear_cache()
     return {"success": True, "message": "Cache cleared"}
