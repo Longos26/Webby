@@ -48,7 +48,6 @@ class ScrapeAllRequest(BaseModel):
     mode: Literal["pagination", "deep", "infinite"] = "pagination"
     max_pages: Optional[int] = Field(default=100, ge=1, le=5000)
     max_depth: Optional[int] = Field(default=2, ge=1, le=10)
-    # For listing -> detail crawl:
     link_selector: Optional[str] = None
 
 
@@ -59,8 +58,15 @@ class ParseRequest(BaseModel):
 
 class CreateJobRequest(BaseModel):
     name: str
-    url: str
+    url: Optional[str] = None
+    target: Optional[str] = None  # frontend sends both
     frequency: Optional[str] = "one-time"
+    mode: Literal["pagination", "deep", "details"] = "pagination"
+    max_pages: Optional[int] = Field(default=100, ge=1, le=5000)
+    max_depth: Optional[int] = Field(default=2, ge=1, le=10)
+    link_selector: Optional[str] = None
+    auto_parse: Optional[bool] = False
+    parse_description: Optional[str] = None
 
 
 # ============================================================
@@ -99,8 +105,7 @@ async def scrape_endpoint(
 
 
 # ============================================================
-# FULL SCRAPE (pagination / deep crawl / infinite scroll /
-#               listing-with-details)
+# FULL SCRAPE (pagination / deep crawl / infinite scroll)
 # ============================================================
 
 @router.post("/scraping/scrape-all")
@@ -109,7 +114,7 @@ async def scrape_all_endpoint(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Scrape ALL pages of a website.
+    Scrape ALL pages of a website, extracting EVERY item on every page.
 
     Modes:
       - pagination: follow Next / page-N links until exhausted
@@ -128,20 +133,26 @@ async def scrape_all_endpoint(
             data = scraper.deep_crawl(req.url, max_depth=req.max_depth or 2)
             summary = {
                 "pages_processed": len(data),
+                "pages_discovered": len(data),
                 "records_extracted": len(data),
+                "records_skipped": 0,
                 "duplicates_removed": 0,
                 "detail_pages_processed": 0,
                 "last_page": req.url,
+                "errors": [],
                 "data": data,
             }
         elif req.mode == "infinite":
             data = scraper.scrape_infinite_scroll(req.url)
             summary = {
                 "pages_processed": 1,
+                "pages_discovered": 1,
                 "records_extracted": len(data),
+                "records_skipped": 0,
                 "duplicates_removed": 0,
                 "detail_pages_processed": 0,
                 "last_page": req.url,
+                "errors": [],
                 "data": data,
             }
         else:
@@ -154,10 +165,17 @@ async def scrape_all_endpoint(
             "mode": req.mode,
             "url": req.url,
             "pages_processed": summary["pages_processed"],
+            "pages_discovered": summary.get(
+                "pages_discovered", summary["pages_processed"]
+            ),
             "records_extracted": summary["records_extracted"],
+            "records_skipped": summary.get("records_skipped", 0),
             "duplicates_removed": summary["duplicates_removed"],
-            "detail_pages_processed": summary.get("detail_pages_processed", 0),
+            "detail_pages_processed": summary.get(
+                "detail_pages_processed", 0
+            ),
             "last_page": summary["last_page"],
+            "errors": summary.get("errors", []),
             "data": summary["data"],
         }
     except HTTPException:
@@ -178,7 +196,6 @@ async def scrape_details_endpoint(
 ):
     """
     Scrape a listing site with pagination, then visit each detail page.
-
     Requires `link_selector` (e.g. ".product a", "h3 a", ".book a").
     """
     if not req.link_selector:
@@ -242,19 +259,34 @@ async def create_scraping_job(
     db = await get_database()
     user_id = current_user.get("id") or current_user.get("_id")
     if not user_id:
-        raise HTTPException(status_code=401, detail="User authentication failed")
+        raise HTTPException(
+            status_code=401, detail="User authentication failed"
+        )
+
+    url = (request.url or request.target or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Target URL is required")
 
     now = datetime.now(timezone.utc)
     new_job = {
         "name": request.name,
-        "url": request.url,
+        "url": url,
         "user_id": user_id,
         "status": "queued",
         "progress": 0,
         "records": 0,
         "scraped_content": "",
+        "items": [],
+        "errors": [],
         "error_message": "",
         "frequency": request.frequency,
+        # new config
+        "mode": request.mode,
+        "max_pages": request.max_pages,
+        "max_depth": request.max_depth,
+        "link_selector": request.link_selector,
+        "auto_parse": request.auto_parse,
+        "parse_description": request.parse_description,
         "created_at": now,
         "updated_at": now,
         "scraped_at": None,
@@ -262,10 +294,10 @@ async def create_scraping_job(
     result = await db.jobs.insert_one(new_job)
     new_job["id"] = str(result.inserted_id)
     new_job["target"] = new_job["url"]
-
-    logger.info(f"Created scraping job {result.inserted_id} for user {user_id}")
-    # Strip _id before returning (already have "id")
     new_job.pop("_id", None)
+    logger.info(
+        f"Created scraping job {result.inserted_id} for user {user_id}"
+    )
     return new_job
 
 
@@ -277,7 +309,9 @@ async def get_scraping_jobs(
     db = await get_database()
     user_id = current_user.get("id") or current_user.get("_id")
     if not user_id:
-        raise HTTPException(status_code=401, detail="User authentication failed")
+        raise HTTPException(
+            status_code=401, detail="User authentication failed"
+        )
 
     query = {"user_id": user_id}
     if status:
@@ -296,6 +330,14 @@ async def get_scraping_jobs(
             "progress": job.get("progress", 0),
             "records": job.get("records", 0),
             "frequency": job.get("frequency", "one-time"),
+            "mode": job.get("mode", "pagination"),
+            "max_pages": job.get("max_pages", 100),
+            "pages_processed": job.get("pages_processed", 0),
+            "pages_discovered": job.get("pages_discovered", 0),
+            "duplicates_removed": job.get("duplicates_removed", 0),
+            "records_skipped": job.get("records_skipped", 0),
+            "detail_pages_processed": job.get("detail_pages_processed", 0),
+            "errors": job.get("errors", []),
             "created_at": job["created_at"].isoformat()
                 if job.get("created_at") else None,
             "updated_at": job["updated_at"].isoformat()
@@ -331,8 +373,21 @@ async def get_scraping_job(
         "progress": job.get("progress", 0),
         "records": job.get("records", 0),
         "scraped_content": job.get("scraped_content", ""),
+        "items": job.get("items", []),
+        "mode": job.get("mode", "pagination"),
+        "max_pages": job.get("max_pages", 100),
+        "pages_processed": job.get("pages_processed", 0),
+        "pages_discovered": job.get("pages_discovered", 0),
+        "duplicates_removed": job.get("duplicates_removed", 0),
+        "records_skipped": job.get("records_skipped", 0),
+        "detail_pages_processed": job.get("detail_pages_processed", 0),
+        "errors": job.get("errors", []),
         "created_at": job["created_at"].isoformat()
             if job.get("created_at") else None,
+        "scraped_at": job["scraped_at"].isoformat()
+            if job.get("scraped_at") else None,
+        "error_message": job.get("error_message", ""),
+        "frequency": job.get("frequency", "one-time"),
     }
 
 
@@ -348,7 +403,9 @@ async def start_job(
     db = await get_database()
     user_id = current_user.get("id") or current_user.get("_id")
     if not user_id:
-        raise HTTPException(status_code=401, detail="User authentication failed")
+        raise HTTPException(
+            status_code=401, detail="User authentication failed"
+        )
 
     job = await db.jobs.find_one(
         {"_id": ObjectId(job_id), "user_id": user_id}
@@ -372,8 +429,11 @@ async def start_job(
     background_tasks.add_task(job_executor.execute_job, job_id, user_id)
 
     logger.info(f"Job {job_id} queued for user {user_id}")
-    return {"message": "Job started successfully",
-            "job_id": job_id, "status": "queued"}
+    return {
+        "message": "Job started successfully",
+        "job_id": job_id,
+        "status": "queued",
+    }
 
 
 @router.post("/jobs/{job_id}/pause")
@@ -396,10 +456,38 @@ async def pause_job(
 
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
-        {"$set": {"status": "paused",
-                  "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {
+            "status": "paused",
+            "updated_at": datetime.now(timezone.utc),
+        }},
     )
     return {"message": "Job paused", "job_id": job_id}
+
+
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_job(
+    job_id: str, current_user: dict = Depends(get_current_user)
+):
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db = await get_database()
+    user_id = current_user.get("id") or current_user.get("_id")
+
+    job = await db.jobs.find_one(
+        {"_id": ObjectId(job_id), "user_id": user_id}
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {
+            "status": "cancelled",
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+    return {"message": "Job cancellation requested", "job_id": job_id}
 
 
 @router.delete("/jobs/{job_id}")
@@ -434,18 +522,24 @@ async def parse_job_content(
 ):
     try:
         if not ObjectId.is_valid(job_id):
-            raise HTTPException(status_code=400, detail="Invalid job ID format")
+            raise HTTPException(
+                status_code=400, detail="Invalid job ID format"
+            )
 
         db = await get_database()
         user_id = current_user.get("id") or current_user.get("_id")
         if not user_id:
-            raise HTTPException(status_code=401, detail="User authentication failed")
+            raise HTTPException(
+                status_code=401, detail="User authentication failed"
+            )
 
         job = await db.jobs.find_one(
             {"_id": ObjectId(job_id), "user_id": user_id}
         )
         if not job:
-            raise HTTPException(status_code=404, detail="Job not found or access denied")
+            raise HTTPException(
+                status_code=404, detail="Job not found or access denied"
+            )
 
         scraped_content = job.get("scraped_content", "")
         if not scraped_content:
@@ -456,7 +550,9 @@ async def parse_job_content(
             )
 
         chunks = split_dom_content(scraped_content)
-        result = parse_with_openrouter(chunks, parse_request.parse_description)
+        result = parse_with_openrouter(
+            chunks, parse_request.parse_description
+        )
 
         now = datetime.now(timezone.utc)
         await db.parsed_results.insert_one({
@@ -472,7 +568,7 @@ async def parse_job_content(
             {"$set": {
                 "last_parsed_at": now,
                 "last_parsed_description": parse_request.parse_description,
-                "last_parsed_result": result[:500],
+                "last_parsed_result": str(result)[:500],
                 "updated_at": now,
             }},
         )
@@ -497,18 +593,24 @@ async def get_parsed_results(
 ):
     try:
         if not ObjectId.is_valid(job_id):
-            raise HTTPException(status_code=400, detail="Invalid job ID format")
+            raise HTTPException(
+                status_code=400, detail="Invalid job ID format"
+            )
 
         db = await get_database()
         user_id = current_user.get("id") or current_user.get("_id")
         if not user_id:
-            raise HTTPException(status_code=401, detail="User authentication failed")
+            raise HTTPException(
+                status_code=401, detail="User authentication failed"
+            )
 
         job = await db.jobs.find_one(
             {"_id": ObjectId(job_id), "user_id": user_id}
         )
         if not job:
-            raise HTTPException(status_code=404, detail="Job not found or access denied")
+            raise HTTPException(
+                status_code=404, detail="Job not found or access denied"
+            )
 
         cursor = db.parsed_results.find(
             {"job_id": ObjectId(job_id)}
@@ -520,22 +622,31 @@ async def get_parsed_results(
                 "id": str(doc["_id"]),
                 "parse_description": doc.get("parse_description", ""),
                 "parsed_content": doc.get("parsed_content", ""),
-                "created_at": doc.get("created_at", datetime.now(timezone.utc)).isoformat(),
+                "created_at": doc.get(
+                    "created_at", datetime.now(timezone.utc)
+                ).isoformat(),
             })
 
         return {
             "success": True,
             "job_id": job_id,
             "job_name": job.get("name", ""),
-            "scraped_content_preview": (job.get("scraped_content") or "")[:500],
+            "scraped_content_preview": (
+                job.get("scraped_content") or ""
+            )[:500],
             "has_scraped_content": bool(job.get("scraped_content")),
+            "records": job.get("records", 0),
+            "items": job.get("items", []),
             "parsed_results": results,
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Get parsed results error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get parsed results: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get parsed results: {e}",
+        )
 
 
 @router.delete("/results/{result_id}")
@@ -543,7 +654,9 @@ async def delete_parsed_result(
     result_id: str, current_user: dict = Depends(get_current_user)
 ):
     if not ObjectId.is_valid(result_id):
-        raise HTTPException(status_code=400, detail="Invalid result ID format")
+        raise HTTPException(
+            status_code=400, detail="Invalid result ID format"
+        )
 
     db = await get_database()
     user_id = current_user.get("id") or current_user.get("_id")
@@ -552,7 +665,9 @@ async def delete_parsed_result(
         {"_id": ObjectId(result_id), "user_id": user_id}
     )
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Parse result not found")
+        raise HTTPException(
+            status_code=404, detail="Parse result not found"
+        )
 
     return {"message": "Parse result deleted successfully"}
 

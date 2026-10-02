@@ -45,6 +45,14 @@ const STYLES = `
     --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
     --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --status-info-bg: rgba(88, 166, 255, 0.10);
+    --status-info-border: rgba(88, 166, 255, 0.25);
+    --status-success-bg: rgba(0, 237, 100, 0.10);
+    --status-success-border: rgba(0, 237, 100, 0.25);
+    --status-error-bg: rgba(248, 81, 73, 0.10);
+    --status-error-border: rgba(248, 81, 73, 0.25);
+    --status-warning-bg: rgba(210, 153, 34, 0.10);
+    --status-warning-border: rgba(210, 153, 34, 0.25);
   }
 
   .jobs-root * {
@@ -415,6 +423,9 @@ const STYLES = `
     padding: 4px 10px;
     border-radius: var(--radius-full);
     border: 1px solid var(--color-border);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   
   .pagination-controls {
@@ -597,6 +608,8 @@ const STYLES = `
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
   }
 
   .tab-btn:hover {
@@ -774,6 +787,7 @@ function StatusPill({ status }) {
     failed: { label: 'Failed', class: 'failed' },
     paused: { label: 'Paused', class: 'paused' },
     queued: { label: 'Queued', class: 'queued' },
+    cancelled: { label: 'Cancelled', class: 'failed' },
   };
   
   const s = statusMap[status?.toLowerCase()] || statusMap.queued;
@@ -790,7 +804,7 @@ function StatusPill({ status }) {
 // PAGINATION COMPONENT
 // ============================================================
 
-function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onItemsPerPageChange }) {
+function Pagination({ currentPage, totalPages, itemsPerPage, totalItems, onPageChange, onItemsPerPageChange }) {
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
@@ -818,16 +832,19 @@ function Pagination({ currentPage, totalPages, itemsPerPage, onPageChange, onIte
   
   if (totalPages <= 1 && itemsPerPage >= 50) return null;
   
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  
   return (
     <div className="pagination-container">
       <div className="pagination-wrapper">
         <div className="pagination-info">
           <ChevronsLeft size={11} />
-          <strong>{(currentPage - 1) * itemsPerPage + 1}</strong>
+          <strong>{startItem}</strong>
           <span>–</span>
-          <strong>{Math.min(currentPage * itemsPerPage, totalPages * itemsPerPage)}</strong>
+          <strong>{endItem}</strong>
           <span>of</span>
-          <strong>{totalPages * itemsPerPage}</strong>
+          <strong>{totalItems}</strong>
         </div>
         
         <div className="pagination-controls">
@@ -937,11 +954,10 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
 // JOB DETAILS MODAL
 // ============================================================
 
-// frontend/src/pages/JobsTab.jsx - JobDetailsModal with clean text display
-
 function JobDetailsModal({ job, onClose }) {
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
+  const [activeTab, setActiveTab] = useState('summary');
   
   useEffect(() => {
     if (job?.id) {
@@ -968,8 +984,9 @@ function JobDetailsModal({ job, onClose }) {
   const wordCount = scrapedContent ? scrapedContent.split(/\s+/).filter(w => w.length > 0).length : 0;
   const charCount = scrapedContent.length;
   const recordCount = d.records || 0;
+  const items = d.items || [];
+  const errors = d.errors || [];
   
-  // Check if content still has HTML (fallback cleanup)
   const hasHtmlTags = /<[^>]+>/.test(scrapedContent);
   const displayContent = hasHtmlTags 
     ? scrapedContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -982,7 +999,7 @@ function JobDetailsModal({ job, onClose }) {
   
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 860 }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 920 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header" style={{ borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
             <div style={{ width: 36, height: 36, background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -998,258 +1015,278 @@ function JobDetailsModal({ job, onClose }) {
           </button>
         </div>
         
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--color-border)', padding: '0 14px', flexShrink: 0, overflowX: 'auto' }}>
+          <button
+            className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
+            onClick={() => setActiveTab('summary')}
+          >
+            Summary
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'records' ? 'active' : ''}`}
+            onClick={() => setActiveTab('records')}
+          >
+            <Hash size={11} style={{ marginRight: 5 }} />
+            Records ({items.length})
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'content' ? 'active' : ''}`}
+            onClick={() => setActiveTab('content')}
+          >
+            <Database size={11} style={{ marginRight: 5 }} />
+            Content
+          </button>
+          {errors.length > 0 && (
+            <button
+              className={`tab-btn ${activeTab === 'errors' ? 'active' : ''}`}
+              onClick={() => setActiveTab('errors')}
+            >
+              <AlertCircle size={11} style={{ marginRight: 5 }} />
+              Errors ({errors.length})
+            </button>
+          )}
+        </div>
+        
         <div className="modal-body">
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Progress</span>
-              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{d.progress || 0}%</span>
-            </div>
-            <div className="progress-bar" style={{ height: 4 }}>
-              <div className="progress-fill" style={{ width: `${d.progress || 0}%`, background: d.status === 'failed' ? 'var(--color-error)' : 'var(--color-mdb-green)' }} />
-            </div>
-          </div>
-          
-          <div style={{ marginBottom: 16 }}>
-            <StatusPill status={status} />
-          </div>
-          
-          {d.error_message && (
-            <div style={{ background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-error)', marginBottom: 16 }}>
-              <AlertCircle size={13} />
-              <span style={{ wordBreak: 'break-word' }}>{d.error_message}</span>
-            </div>
+          {/* SUMMARY TAB */}
+          {activeTab === 'summary' && (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Progress</span>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{d.progress || 0}%</span>
+                </div>
+                <div className="progress-bar" style={{ height: 4 }}>
+                  <div className="progress-fill" style={{ width: `${d.progress || 0}%`, background: d.status === 'failed' ? 'var(--color-error)' : 'var(--color-mdb-green)' }} />
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: 16 }}>
+                <StatusPill status={status} />
+              </div>
+              
+              {d.error_message && (
+                <div style={{ background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-error)', marginBottom: 16 }}>
+                  <AlertCircle size={13} />
+                  <span style={{ wordBreak: 'break-word' }}>{d.error_message}</span>
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '10px', marginBottom: 16 }}>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{recordCount.toLocaleString()}</div>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Records</div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{d.pages_processed || 0}</div>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Pages</div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-warning)' }}>{d.duplicates_removed || 0}</div>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Dupes</div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-warning)' }}>{d.records_skipped || 0}</div>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Skipped</div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-error)' }}>{errors.length}</div>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Errors</div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: 16 }}>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <LinkIcon size={9} /> Target URL
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
+                    <a href={d.target || d.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-info)', textDecoration: 'none' }}>
+                      {(d.target || d.url || 'N/A').substring(0, 60)}
+                    </a>
+                  </div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={9} /> Mode
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{d.mode || 'pagination'} · max {d.max_pages || 100}</div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={9} /> Created
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{formatDate(d.created_at)}</div>
+                </div>
+                <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Clock size={9} /> Last Scraped
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{formatDate(d.scraped_at) || 'Never'}</div>
+                </div>
+              </div>
+            </>
           )}
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px', marginBottom: 16 }}>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{recordCount.toLocaleString() || '0'}</div>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Records</div>
+          {/* RECORDS TAB */}
+          {activeTab === 'records' && (
+            <>
+              {items.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
+                  <Hash size={32} style={{ opacity: 0.4, marginBottom: 8 }} />
+                  <div style={{ fontSize: 13 }}>No records yet</div>
+                  <div style={{ fontSize: 11 }}>Run the job to collect records</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 11, color: 'var(--color-text-muted)' }}>
+                    <span>Showing all {items.length} records</span>
+                  </div>
+                  <div style={{
+                    background: 'var(--color-canvas)', border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)', maxHeight: '500px', overflowY: 'auto'
+                  }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                      <thead>
+                        <tr style={{ position: 'sticky', top: 0, background: 'var(--color-surface)', zIndex: 1 }}>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase' }}>#</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase' }}>Title</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase' }}>Price</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase' }}>Availability</th>
+                          <th style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', fontFamily: 'var(--font-mono)', fontSize: 10, textTransform: 'uppercase' }}>Page</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                            <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>{idx + 1}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--color-text-primary)', maxWidth: 280, wordBreak: 'break-word' }}>
+                              {item.url ? (
+                                <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-info)', textDecoration: 'none' }}>
+                                  {item.title || item.product_name || 'Untitled'}
+                                </a>
+                              ) : (item.title || item.product_name || 'Untitled')}
+                            </td>
+                            <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--color-mdb-green)' }}>{item.price || '—'}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--color-text-secondary)' }}>{item.availability || '—'}</td>
+                            <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>{item.page_number || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+          
+          {/* CONTENT TAB */}
+          {activeTab === 'content' && (
+            <>
+              {displayContent && !loading ? (
+                <div>
+                  <div style={{ 
+                    fontSize: '10px', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.06em', 
+                    color: 'var(--color-text-muted)', 
+                    marginBottom: '10px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    flexWrap: 'wrap', 
+                    gap: '6px',
+                    paddingBottom: '8px',
+                    borderBottom: '1px solid var(--color-border)'
+                  }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Database size={11} />
+                      Scraped Content
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+                      {charCount.toLocaleString()} chars · {wordCount.toLocaleString()} words
+                    </span>
+                  </div>
+                  
+                  <div style={{ 
+                    background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.25) 100%)', 
+                    border: '1px solid var(--color-border)', 
+                    borderRadius: 'var(--radius-md)', 
+                    maxHeight: '500px', 
+                    overflowY: 'auto',
+                    overflowX: 'hidden'
+                  }}>
+                    <div style={{ padding: '18px 20px' }}>
+                      {displayContent.split('\n').map((line, idx) => {
+                        const trimmed = line.trim();
+                        if (!trimmed) {
+                          return <div key={idx} style={{ height: '10px' }} />;
+                        }
+                        if (trimmed.startsWith('═')) {
+                          return <div key={idx} style={{ borderTop: '2px solid var(--color-mdb-green)', margin: '16px 0 12px 0', opacity: 0.6 }} />;
+                        }
+                        if (trimmed.startsWith('─') && trimmed.length > 10) {
+                          return <div key={idx} style={{ borderTop: '1px dashed var(--color-border)', margin: '16px 0', opacity: 0.5 }} />;
+                        }
+                        if (trimmed.startsWith('📄 PAGE') || trimmed.startsWith('🔗') || trimmed.startsWith('📝') || trimmed.startsWith('📊')) {
+                          return (
+                            <div key={idx} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--color-mdb-green)', padding: '3px 0', fontWeight: 500, letterSpacing: '0.02em' }}>
+                              {trimmed}
+                            </div>
+                          );
+                        }
+                        if (trimmed.startsWith('### ')) {
+                          return <div key={idx} style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '14px', marginBottom: '6px' }}>{trimmed.replace('### ', '')}</div>;
+                        }
+                        if (trimmed.startsWith('## ')) {
+                          return <div key={idx} style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-info)', marginTop: '16px', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid var(--color-border-subtle)' }}>{trimmed.replace('## ', '')}</div>;
+                        }
+                        if (trimmed.startsWith('# ')) {
+                          return <div key={idx} style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-mdb-green)', marginTop: '18px', marginBottom: '10px' }}>{trimmed.replace('# ', '')}</div>;
+                        }
+                        if (trimmed.startsWith('• ') || trimmed.startsWith('- ') || trimmed.startsWith('  • ')) {
+                          return (
+                            <div key={idx} style={{ fontSize: '12px', lineHeight: '1.7', color: 'var(--color-text-secondary)', paddingLeft: '16px', position: 'relative', marginBottom: '2px' }}>
+                              <span style={{ position: 'absolute', left: '4px', color: 'var(--color-mdb-green)' }}>•</span>
+                              {trimmed.replace(/^[\s]*[•\-]\s*/, '')}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={idx} style={{ fontSize: '12px', lineHeight: '1.75', color: 'var(--color-text-primary)', padding: '1px 0', wordBreak: 'break-word' }}>
+                            {trimmed}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)' }}>
+                  <Database size={32} style={{ opacity: 0.4, marginBottom: 8 }} />
+                  <div style={{ fontSize: 13 }}>No content yet</div>
+                  <div style={{ fontSize: 11 }}>Run the job to scrape content</div>
+                </div>
+              )}
+            </>
+          )}
+          
+          {/* ERRORS TAB */}
+          {activeTab === 'errors' && errors.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {errors.map((err, idx) => (
+                <div key={idx} style={{ background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--color-error)', wordBreak: 'break-all', marginBottom: 4 }}>
+                    {err.url}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', wordBreak: 'break-word' }}>
+                    {err.error}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{wordCount.toLocaleString()}</div>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Words</div>
-            </div>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '20px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--color-info)' }}>{charCount > 999 ? `${(charCount / 1000).toFixed(1)}k` : charCount}</div>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginTop: '2px' }}>Characters</div>
-            </div>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: 16 }}>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <LinkIcon size={9} /> Target URL
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', wordBreak: 'break-all' }}>
-                <a href={d.target || d.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-info)', textDecoration: 'none' }}>
-                  {(d.target || d.url || 'N/A').substring(0, 60)}
-                </a>
-              </div>
-            </div>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Zap size={9} /> Frequency
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{d.frequency || 'One-time'}</div>
-            </div>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Calendar size={9} /> Created
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{formatDate(d.created_at)}</div>
-            </div>
-            <div style={{ background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Clock size={9} /> Last Scraped
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>{formatDate(d.scraped_at) || 'Never'}</div>
-            </div>
-          </div>
-          
-          {displayContent && !loading && (
-  <div style={{ marginTop: 16 }}>
-    <div style={{ 
-      fontSize: '10px', 
-      textTransform: 'uppercase', 
-      letterSpacing: '0.06em', 
-      color: 'var(--color-text-muted)', 
-      marginBottom: '10px', 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center',
-      flexWrap: 'wrap', 
-      gap: '6px',
-      paddingBottom: '8px',
-      borderBottom: '1px solid var(--color-border)'
-    }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Database size={11} />
-        Scraped Content
-      </span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
-        {charCount.toLocaleString()} chars · {wordCount.toLocaleString()} words
-      </span>
-    </div>
-    
-    {/* 
-      Display as structured text with proper alignment.
-      Each line is rendered separately for better control.
-    */}
-    <div style={{ 
-      background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.25) 100%)', 
-      border: '1px solid var(--color-border)', 
-      borderRadius: 'var(--radius-md)', 
-      maxHeight: '500px', 
-      overflowY: 'auto',
-      overflowX: 'hidden'
-    }}>
-      <div style={{ padding: '18px 20px' }}>
-        {displayContent.split('\n').map((line, idx) => {
-          const trimmed = line.trim();
-          
-          // Empty line - add spacing
-          if (!trimmed) {
-            return <div key={idx} style={{ height: '10px' }} />;
-          }
-          
-          // Page header separator (═)
-          if (trimmed.startsWith('═')) {
-            return (
-              <div key={idx} style={{ 
-                borderTop: '2px solid var(--color-mdb-green)', 
-                margin: '16px 0 12px 0',
-                opacity: 0.6
-              }} />
-            );
-          }
-          
-          // Page separator (─)
-          if (trimmed.startsWith('─') && trimmed.length > 10) {
-            return (
-              <div key={idx} style={{ 
-                borderTop: '1px dashed var(--color-border)', 
-                margin: '16px 0',
-                opacity: 0.5
-              }} />
-            );
-          }
-          
-          // Page header lines
-          if (trimmed.startsWith('📄 PAGE') || trimmed.startsWith('🔗') || 
-              trimmed.startsWith('📝') || trimmed.startsWith('📊')) {
-            return (
-              <div key={idx} style={{ 
-                fontFamily: 'var(--font-mono)',
-                fontSize: '11px',
-                color: 'var(--color-mdb-green)',
-                padding: '3px 0',
-                fontWeight: 500,
-                letterSpacing: '0.02em'
-              }}>
-                {trimmed}
-              </div>
-            );
-          }
-          
-          // Markdown headers
-          if (trimmed.startsWith('### ')) {
-            return (
-              <div key={idx} style={{ 
-                fontSize: '14px', 
-                fontWeight: 600, 
-                color: 'var(--color-text-primary)',
-                marginTop: '14px',
-                marginBottom: '6px'
-              }}>
-                {trimmed.replace('### ', '')}
-              </div>
-            );
-          }
-          if (trimmed.startsWith('## ')) {
-            return (
-              <div key={idx} style={{ 
-                fontSize: '15px', 
-                fontWeight: 600, 
-                color: 'var(--color-info)',
-                marginTop: '16px',
-                marginBottom: '8px',
-                paddingBottom: '4px',
-                borderBottom: '1px solid var(--color-border-subtle)'
-              }}>
-                {trimmed.replace('## ', '')}
-              </div>
-            );
-          }
-          if (trimmed.startsWith('# ')) {
-            return (
-              <div key={idx} style={{ 
-                fontSize: '16px', 
-                fontWeight: 700, 
-                color: 'var(--color-mdb-green)',
-                marginTop: '18px',
-                marginBottom: '10px'
-              }}>
-                {trimmed.replace('# ', '')}
-              </div>
-            );
-          }
-          
-          // List items
-          if (trimmed.startsWith('• ') || trimmed.startsWith('- ') || trimmed.startsWith('  • ')) {
-            return (
-              <div key={idx} style={{ 
-                fontSize: '12px', 
-                lineHeight: '1.7', 
-                color: 'var(--color-text-secondary)',
-                paddingLeft: '16px',
-                position: 'relative',
-                marginBottom: '2px'
-              }}>
-                <span style={{ 
-                  position: 'absolute', 
-                  left: '4px', 
-                  color: 'var(--color-mdb-green)'
-                }}>•</span>
-                {trimmed.replace(/^[\s]*[•\-]\s*/, '')}
-              </div>
-            );
-          }
-          
-          // Blockquotes
-          if (trimmed.startsWith('❝') || trimmed.startsWith('❞')) {
-            return (
-              <div key={idx} style={{ 
-                fontSize: '12px', 
-                lineHeight: '1.7', 
-                color: 'var(--color-info)',
-                fontStyle: 'italic',
-                paddingLeft: '14px',
-                borderLeft: '3px solid var(--color-info)',
-                margin: '6px 0',
-                opacity: 0.9
-              }}>
-                {trimmed}
-              </div>
-            );
-          }
-          
-          // Regular text line
-          return (
-            <div key={idx} style={{ 
-              fontSize: '12px', 
-              lineHeight: '1.75', 
-              color: 'var(--color-text-primary)',
-              padding: '1px 0',
-              wordBreak: 'break-word'
-            }}>
-              {trimmed}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  </div>
-)}
+          )}
         </div>
         
         <div className="modal-footer">
@@ -1280,7 +1317,16 @@ export default function Jobs() {
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
-  const [formData, setFormData] = useState({ name: '', url: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    url: '',
+    mode: 'pagination',
+    max_pages: 100,
+    max_depth: 2,
+    link_selector: '',
+    auto_parse: false,
+    parse_description: '',
+  });
   const [isPolling, setIsPolling] = useState(false);
   const pollingInterval = useRef(null);
   
@@ -1341,14 +1387,9 @@ export default function Jobs() {
     setIsPolling(true);
     
     pollingInterval.current = setInterval(() => {
-      const hasRunning = jobs.some(j => j.status === 'running');
-      if (!hasRunning) {
-        stopPolling();
-        return;
-      }
       loadJobs();
     }, 3000);
-  }, [jobs, loadJobs]);
+  }, [loadJobs]);
 
   const stopPolling = useCallback(() => {
     if (pollingInterval.current) {
@@ -1441,12 +1482,28 @@ export default function Jobs() {
     setSubmitting(true);
     setError(null);
     try {
-      await api.post('/api/jobs', {
+      const payload = {
         name: formData.name.trim(),
+        url: formData.url.trim(),
         target: formData.url.trim(),
-        url: formData.url.trim()
+        mode: formData.mode,
+        max_pages: formData.max_pages,
+        max_depth: formData.max_depth,
+        link_selector: formData.link_selector || undefined,
+        auto_parse: formData.auto_parse,
+        parse_description: formData.parse_description || undefined,
+      };
+      await api.post('/api/jobs', payload);
+      setFormData({
+        name: '',
+        url: '',
+        mode: 'pagination',
+        max_pages: 100,
+        max_depth: 2,
+        link_selector: '',
+        auto_parse: false,
+        parse_description: '',
       });
-      setFormData({ name: '', url: '' });
       setSuccess('Job created successfully');
       setActiveTab('list');
       await loadJobs();
@@ -1466,7 +1523,8 @@ export default function Jobs() {
 
   useEffect(() => {
     loadJobs();
-  }, [loadJobs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1524,7 +1582,7 @@ export default function Jobs() {
           <Briefcase size={13} style={{ marginRight: '5px' }} />
           All Jobs
         </button>
-      
+       
       </div>
       
       {/* Jobs List Tab */}
@@ -1692,6 +1750,7 @@ export default function Jobs() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 itemsPerPage={itemsPerPage}
+                totalItems={filteredJobs.length}
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={setItemsPerPage}
               />
@@ -1732,6 +1791,78 @@ export default function Jobs() {
                   required
                 />
               </div>
+              <div className="form-group">
+                <label className="form-label">Mode</label>
+                <select
+                  className="form-input"
+                  value={formData.mode}
+                  onChange={e => setFormData(prev => ({ ...prev, mode: e.target.value }))}
+                >
+                  <option value="pagination">Pagination (follow Next / page-N)</option>
+                  <option value="deep">Deep Crawl (follow internal links)</option>
+                  <option value="details">Listing + Detail Pages</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Max Pages</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="1"
+                  max="5000"
+                  value={formData.max_pages}
+                  onChange={e => setFormData(prev => ({ ...prev, max_pages: parseInt(e.target.value) || 100 }))}
+                />
+              </div>
+              {formData.mode === 'deep' && (
+                <div className="form-group">
+                  <label className="form-label">Max Depth</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    min="1"
+                    max="10"
+                    value={formData.max_depth}
+                    onChange={e => setFormData(prev => ({ ...prev, max_depth: parseInt(e.target.value) || 2 }))}
+                  />
+                </div>
+              )}
+              {formData.mode === 'details' && (
+                <div className="form-group full-width">
+                  <label className="form-label">Link Selector (CSS)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder='e.g., "h3 a" or ".product a"'
+                    value={formData.link_selector}
+                    onChange={e => setFormData(prev => ({ ...prev, link_selector: e.target.value }))}
+                  />
+                </div>
+              )}
+              <div className="form-group full-width">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.auto_parse}
+                    onChange={e => setFormData(prev => ({ ...prev, auto_parse: e.target.checked }))}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Auto-parse results with AI after scraping
+                </label>
+              </div>
+              {formData.auto_parse && (
+                <div className="form-group full-width">
+                  <label className="form-label">Parse Description</label>
+                  <textarea
+                    className="form-input"
+                    rows="3"
+                    placeholder="e.g., Extract product name, price, and rating as JSON"
+                    value={formData.parse_description}
+                    onChange={e => setFormData(prev => ({ ...prev, parse_description: e.target.value }))}
+                    style={{ resize: 'vertical', fontFamily: 'var(--font-sans)' }}
+                  />
+                </div>
+              )}
             </div>
             
             <div className="form-actions">
@@ -1739,7 +1870,16 @@ export default function Jobs() {
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
-                  setFormData({ name: '', url: '' });
+                  setFormData({
+                    name: '',
+                    url: '',
+                    mode: 'pagination',
+                    max_pages: 100,
+                    max_depth: 2,
+                    link_selector: '',
+                    auto_parse: false,
+                    parse_description: '',
+                  });
                   setActiveTab('list');
                 }}
               >

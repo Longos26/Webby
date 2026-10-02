@@ -1,6 +1,14 @@
 # backend/parsing/enhanced_parser.py
 """
 Enhanced LLM Parser with chunking, retry logic, caching, and streaming support.
+
+FIXES APPLIED:
+  - chunk_size raised 12k -> 40k so a 51-item listing fits in 1-2 chunks
+  - max_tokens raised 4096 -> 8192 so all extracted items fit in response
+  - max_chunks is now ENFORCED in parse() (was ignored before)
+  - SYSTEM_PROMPT now forces JSON-array output for list-extraction tasks
+  - _merge_chunk_results now merges arrays across chunks (no more loss)
+  - Per-chunk item numbering so LLM never silently drops items
 """
 
 import asyncio
@@ -29,8 +37,7 @@ router = APIRouter(prefix="/api/enhanced-parsing", tags=["Enhanced_Parsing"])
 # ============================================================
 # MODEL CONFIGURATION — SINGLE SOURCE OF TRUTH
 # ============================================================
-# Only currently-live free models on OpenRouter.
-# DO NOT add deprecated IDs like "anthropic/claude-3-haiku".
+
 DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 FALLBACK_MODELS = [
     "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -59,16 +66,16 @@ def sanitize_model(requested: Optional[str]) -> str:
 class ParserConfig:
     """Configuration for the enhanced parser"""
     provider: str = "openrouter"
-    model: str = DEFAULT_MODEL                        # was "anthropic/claude-3-haiku"
+    model: str = DEFAULT_MODEL
     api_key: str = ""
     base_url: str = "https://openrouter.ai/api/v1"
-    max_tokens: int = 4096
+    max_tokens: int = 8192          # was 4096
     temperature: float = 0.1
-    timeout_seconds: int = 120
+    timeout_seconds: int = 180      # was 120
     max_retries: int = 3
     retry_delay: float = 2.0
-    chunk_size: int = 12000
-    max_chunks: int = 10
+    chunk_size: int = 40000         # was 12000  -> fits ~51 items in 1 chunk
+    max_chunks: int = 20            # was 10
     enable_cache: bool = True
     cache_ttl_seconds: int = 3600
 
@@ -76,7 +83,6 @@ class ParserConfig:
     def from_env(cls) -> "ParserConfig":
         return cls(
             api_key=os.getenv("OPENROUTER_API_KEY", ""),
-            # Never fall back to a deprecated model — use our DEFAULT_MODEL
             model=sanitize_model(os.getenv("DEFAULT_MODEL", DEFAULT_MODEL)),
             base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
         )
@@ -141,7 +147,7 @@ _parse_cache = ParseCache()
 # CONTENT CHUNKING
 # ============================================================
 
-def chunk_content(content: str, chunk_size: int = 12000, overlap: int = 500) -> List[str]:
+def chunk_content(content: str, chunk_size: int = 40000, overlap: int = 200) -> List[str]:
     """Split content into overlapping chunks at natural boundaries."""
     if len(content) <= chunk_size:
         return [content]
@@ -158,6 +164,7 @@ def chunk_content(content: str, chunk_size: int = 12000, overlap: int = 500) -> 
 
         break_point = end
 
+        # Prefer paragraph break, then line, then sentence, then space
         para_break = content.rfind('\n\n', start + chunk_size // 2, end)
         if para_break > start:
             break_point = para_break + 2
@@ -185,19 +192,24 @@ def chunk_content(content: str, chunk_size: int = 12000, overlap: int = 500) -> 
 
 
 # ============================================================
-# PROMPTS
+# PROMPTS  — JSON-list mode is now the default contract
 # ============================================================
 
-SYSTEM_PROMPT = """You are an expert data extraction assistant. Your job is to extract structured information from web content based on user instructions.
+SYSTEM_PROMPT = """You are an expert data extraction assistant.
+Extract structured information from web content.
 
-IMPORTANT RULES:
-1. Extract ONLY what is requested - do not add extra information
-2. Format output as clean, readable text or JSON as appropriate
-3. If data is not found, say "Not found" for that field
-4. Be precise and accurate - do not hallucinate data
-5. Preserve the original data values exactly as they appear
-6. For lists, use bullet points or numbered lists
-7. For structured data, use JSON format with proper indentation"""
+CRITICAL RULES FOR LIST EXTRACTION:
+1. When asked to extract "all" of something (all prices, all titles, all URLs, etc.),
+   you MUST return a JSON object with a single array field named after the item type,
+   e.g. {"prices": ["$10.99", "$22.50", ...]} or {"titles": ["Book A", "Book B", ...]}.
+2. Include EVERY item present in the content. Do NOT summarize, sample, or truncate.
+3. Do NOT invent values. If a field is missing for an item, use null.
+4. Return ONLY the JSON object. No prose, no markdown fences, no explanation.
+5. If the user requests multiple fields, return a JSON object with multiple array fields,
+   e.g. {"titles": [...], "prices": [...], "urls": [...]}.
+6. Preserve original values exactly as they appear (including currency symbols).
+7. Count your items before responding. If the content shows "#1" through "#51",
+   your array MUST have 51 entries."""
 
 
 def build_parse_prompt(content: str, description: str, chunk_info: Optional[str] = None) -> str:
@@ -212,10 +224,11 @@ def build_parse_prompt(content: str, description: str, chunk_info: Optional[str]
 {chunk_context}
 
 **OUTPUT REQUIREMENTS:**
-- Extract exactly what was requested
-- Use clean formatting (JSON for structured data, text for summaries)
-- If a requested field is not found, write "Not found"
-- Be accurate and do not make up information"""
+- Return ONLY valid JSON. No markdown fences, no prose.
+- For "get all X" requests, return {{"X": [ ... every value ... ]}}.
+- Include EVERY item. Do NOT summarize or truncate.
+- If a requested field is not found for an item, use null.
+- Be accurate and do not make up information."""
 
 
 # ============================================================
@@ -229,7 +242,6 @@ async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str 
     if not config.api_key:
         raise Exception("OPENROUTER_API_KEY is not configured on the server")
 
-    # Sanitize again in case the config was constructed with a stale model
     model = sanitize_model(config.model)
 
     headers = {
@@ -246,7 +258,8 @@ async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str 
             {"role": "user", "content": prompt}
         ],
         "temperature": config.temperature,
-        "max_tokens": config.max_tokens
+        "max_tokens": config.max_tokens,
+        "response_format": {"type": "json_object"},   # hint OpenRouter to force JSON
     }
 
     async with aiohttp.ClientSession() as session:
@@ -284,11 +297,9 @@ async def call_llm_with_retry(prompt: str, config: ParserConfig, system_prompt: 
             last_error = str(e)
             logger.warning(f"Attempt {attempt + 1} failed on {model}: {e}")
 
-            # Auth errors won't be fixed by retrying — bail out immediately
             if "401" in str(e) or "403" in str(e):
                 raise
 
-            # Deprecated model — don't retry the same dead model
             if "deprecated" in str(e).lower() or "404" in str(e):
                 raise Exception(
                     f"Model '{model}' is unavailable. "
@@ -316,7 +327,6 @@ class EnhancedParser:
 
     def __init__(self, config: Optional[ParserConfig] = None):
         self.config = config or ParserConfig.from_env()
-        # Guarantee the config is never holding a dead model ID
         self.config.model = sanitize_model(self.config.model)
         self.cache = _parse_cache
 
@@ -356,6 +366,17 @@ class EnhancedParser:
                 )
 
         chunks = chunk_content(content, self.config.chunk_size)
+
+        # --- ENFORCE max_chunks ---------------------------------------
+        if len(chunks) > self.config.max_chunks:
+            logger.warning(
+                f"Job {job_id}: content splits into {len(chunks)} chunks but "
+                f"max_chunks={self.config.max_chunks}. Truncating to first "
+                f"{self.config.max_chunks}. Increase ParserConfig.chunk_size "
+                f"or max_chunks to cover all items."
+            )
+            chunks = chunks[: self.config.max_chunks]
+
         total_chunks = len(chunks)
 
         logger.info(
@@ -378,7 +399,11 @@ class EnhancedParser:
         for i, chunk in enumerate(chunks):
             chunk_info = None
             if total_chunks > 1:
-                chunk_info = f"This is chunk {i + 1} of {total_chunks}. Extract relevant data from this portion."
+                chunk_info = (
+                    f"This is chunk {i + 1} of {total_chunks}. "
+                    f"Extract relevant data from this portion. "
+                    f"Include every matching item you can see."
+                )
 
             prompt = build_parse_prompt(chunk, description, chunk_info)
 
@@ -422,6 +447,18 @@ class EnhancedParser:
         else:
             combined_content = self._merge_chunk_results(all_results, description)
 
+        # --- Sanity count log -----------------------------------------
+        if combined_content and job_id:
+            try:
+                data = json.loads(combined_content)
+                for key, val in data.items():
+                    if isinstance(val, list):
+                        logger.info(
+                            f"Job {job_id}: extracted {len(val)} '{key}' entries"
+                        )
+            except Exception:
+                pass
+
         if combined_content and not errors and self.config.enable_cache:
             self.cache.set(content, description, self.config.model, combined_content)
 
@@ -462,44 +499,48 @@ class EnhancedParser:
 
         return result
 
+    # ------------------------------------------------------------
+    # MERGE — now merges arrays across chunks
+    # ------------------------------------------------------------
     def _merge_chunk_results(self, results: List[str], description: str) -> str:
         if not results:
             return ""
         if len(results) == 1:
             return results[0]
 
-        json_results = []
-        all_json = True
+        # Try to parse every chunk as JSON (with or without fences)
+        parsed: List[Any] = []
+        all_parsed = True
         for r in results:
             try:
-                json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', r)
-                if json_match:
-                    json_results.append(json.loads(json_match.group(1)))
-                else:
-                    json_results.append(json.loads(r))
-            except (json.JSONDecodeError, TypeError):
-                all_json = False
+                m = re.search(r'```(?:json)?\s*([\s\S]*?)```', r)
+                parsed.append(json.loads(m.group(1) if m else r))
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                all_parsed = False
                 break
 
-        if all_json and json_results and all(isinstance(j, dict) for j in json_results):
-            merged = {}
-            for j in json_results:
-                for key, value in j.items():
-                    if key in merged:
-                        if isinstance(merged[key], list) and isinstance(value, list):
-                            merged[key].extend(value)
-                        elif isinstance(merged[key], str) and isinstance(value, str):
-                            if value != "Not found" and value not in merged[key]:
-                                merged[key] += f"\n{value}"
-                    else:
-                        merged[key] = value
+        if all_parsed and parsed and all(isinstance(p, dict) for p in parsed):
+            merged: Dict[str, Any] = {}
+            for p in parsed:
+                for k, v in p.items():
+                    if k not in merged:
+                        merged[k] = v
+                    elif isinstance(merged[k], list) and isinstance(v, list):
+                        # Append but skip exact duplicates
+                        for item in v:
+                            if item not in merged[k]:
+                                merged[k].append(item)
+                    elif isinstance(merged[k], dict) and isinstance(v, dict):
+                        merged[k].update(v)
+                    elif merged[k] in (None, "", "Not found") and v not in (None, "", "Not found"):
+                        merged[k] = v
             return json.dumps(merged, indent=2, ensure_ascii=False)
 
+        # Fallback: concatenate with part headers
         sections = []
         for i, result in enumerate(results):
             if result.strip():
                 sections.append(f"--- Part {i + 1} ---\n{result}")
-
         return "\n\n".join(sections)
 
     def clear_cache(self):
@@ -535,9 +576,11 @@ async def parse_content_async(
     base = get_parser()
     config = ParserConfig(
         api_key=api_key or base.config.api_key or os.getenv("OPENROUTER_API_KEY", ""),
-        # Was: model or base.config.model or "anthropic/claude-3-haiku"
         model=sanitize_model(model or base.config.model or DEFAULT_MODEL),
         base_url=base.config.base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        chunk_size=40000,
+        max_tokens=8192,
+        max_chunks=20,
     )
     parser = EnhancedParser(config)
     parser.cache = base.cache

@@ -14,7 +14,7 @@ from parsing.Ollama import (
     parse_with_openrouter_result,
     ParseResult,
     DEFAULT_MODEL,
-    ALLOWED_MODELS,       # <-- imported for sanitization
+    ALLOWED_MODELS,
 )
 from mongodb.database import get_database
 
@@ -51,6 +51,26 @@ class GenerateRecommendationsRequest(BaseModel):
 # HELPERS
 # ============================================================
 def _get_job_content(job: dict) -> str:
+    """
+    Prefer structured `items` (per-record) over the text blob.
+    This gives the LLM clean, per-item lines it can count.
+    """
+    items = job.get("items") or []
+    if items:
+        lines = []
+        for i, it in enumerate(items, 1):
+            parts = [f"#{i}"]
+            for k, v in it.items():
+                if v in (None, "", []):
+                    continue
+                if k in ("raw_html", "clean_text", "source_page"):
+                    continue
+                if isinstance(v, (dict, list)):
+                    continue
+                parts.append(f"{k}={str(v)[:200]}")
+            lines.append(" | ".join(parts))
+        return "\n".join(lines)
+
     for key in (
         "scraped_content",
         "content",
@@ -66,11 +86,6 @@ def _get_job_content(job: dict) -> str:
     return ""
 
 def _resolve_model(requested: Optional[str]) -> str:
-    """
-    Only allow models that are in ALLOWED_MODELS.
-    This blocks stale/deprecated model IDs (e.g. anthropic/claude-3-haiku)
-    that may be stored in the DB or sent by an old frontend build.
-    """
     if not requested:
         return DEFAULT_MODEL
     if requested in ALLOWED_MODELS:
@@ -351,7 +366,7 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
                 "keywords": ["product", "price", "buy", "shop", "cart", "checkout", "add to cart"],
                 "recommendations": [
                     {"label": "📦 Products", "desc": "Extract all product names and IDs"},
-                    {"label": "💲 Prices", "desc": "Extract prices with currency"},
+                    {"label": "💲 Prices", "desc": "Extract all prices with currency"},
                     {"label": "📝 Descriptions", "desc": "Extract product descriptions"},
                     {"label": "⭐ Ratings", "desc": "Extract ratings and review counts"},
                     {"label": "🛒 Availability", "desc": "Extract stock status"},

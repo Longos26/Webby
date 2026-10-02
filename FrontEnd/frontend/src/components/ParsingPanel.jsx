@@ -738,7 +738,28 @@ const handleParse = async () => {
     setToast({ message: 'Job not loaded', type: 'error' });
     return;
   }
-  const content = job.scraped_content || '';
+
+  // ---- Prefer structured `items` (one line per record) ----
+  const items = job.items || [];
+  let content = '';
+
+  if (items.length > 0) {
+    content = items.map((it, i) => {
+      const parts = [`#${i + 1}`];
+      for (const [k, v] of Object.entries(it)) {
+        if (v === null || v === undefined || v === '') continue;
+        if (k === 'raw_html' || k === 'clean_text' || k === 'source_page') continue;
+        if (typeof v === 'object') continue;
+        parts.push(`${k}=${String(v).slice(0, 200)}`);
+      }
+      return parts.join(' | ');
+    }).join('\n');
+    console.log(`[ParsingPanel] sending ${items.length} structured items (${content.length} chars)`);
+  } else {
+    content = job.scraped_content || '';
+    console.log(`[ParsingPanel] sending text blob (${content.length} chars, no items array)`);
+  }
+
   if (!content) {
     setToast({
       message: 'This job has no scraped content. Please scrape the website first.',
@@ -755,23 +776,22 @@ const handleParse = async () => {
     });
 
     if (response?.data?.success) {
-  setToast({
-    message: `Parsed successfully! ${response.data.tokens_used || 0} tokens, ${(
-      response.data.processing_time_ms || 0
-    ).toFixed(0)}ms`,
-    type: 'success',
-  });
-  setParseDescription('');
-  await loadParsedResults();
-  await loadJob();
-} else {
-  setToast({
-    message: response?.data?.error || response?.data?.detail || 'Failed to parse content',
-    type: 'error',
-  });
-}
+      setToast({
+        message: `Parsed successfully! ${response.data.tokens_used || 0} tokens, ${(
+          response.data.processing_time_ms || 0
+        ).toFixed(0)}ms`,
+        type: 'success',
+      });
+      setParseDescription('');
+      await loadParsedResults();
+      await loadJob();
+    } else {
+      setToast({
+        message: response?.data?.error || response?.data?.detail || 'Failed to parse content',
+        type: 'error',
+      });
+    }
   } catch (err) {
-    // FastAPI can return detail as string OR array (validation errors)
     const detail = err?.response?.data?.detail;
     let errorMsg;
     if (Array.isArray(detail)) {
@@ -788,7 +808,6 @@ const handleParse = async () => {
     if (mountedRef.current) setIsParsing(false);
   }
 };
-
   const handleQuickAction = (description) => setParseDescription(description);
 
   const handleDeleteResult = async (resultId) => {
