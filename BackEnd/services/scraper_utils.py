@@ -6,6 +6,10 @@ Full pagination + deep crawl + detail pages + infinite scroll +
 ITEM-LEVEL extraction + robust retries + record validation +
 concurrent fetching + proxy support + robots.txt + rate limiting +
 smart extraction fallbacks + content fingerprinting.
+
+FIX v5.1: Force uncompressed responses (Accept-Encoding: identity)
+so all saved/returned content is plain readable text, never
+garbled gzip/brotli bytes.
 """
 
 from __future__ import annotations
@@ -14,6 +18,8 @@ import os
 import re
 import time
 import json
+import gzip
+import zlib
 import hashlib
 import logging
 import threading
@@ -137,6 +143,61 @@ class ScrapeStats:
 
 
 # ============================================================
+# RESPONSE DECODER  (★ NEW — guarantees readable text)
+# ============================================================
+
+def decode_response_text(resp: requests.Response) -> str:
+    """
+    Safely decode any requests.Response into plain readable text,
+    handling gzip / deflate / brotli Content-Encoding ourselves so
+    we never write compressed bytes to disk or to the DB.
+
+    requests normally handles this for `resp.text`, but if any code
+    path uses `resp.raw.read()` or `resp.content` directly, we
+    decode here to be 100% safe.
+    """
+    encoding = (resp.headers.get("Content-Encoding") or "").lower().strip()
+    raw = resp.content
+
+    # Manual decompression (belt-and-suspenders)
+    try:
+        if "br" in encoding:
+            try:
+                import brotli  # type: ignore
+                raw = brotli.decompress(raw)
+            except Exception as e:
+                logger.warning(f"brotli decompress failed: {e}")
+        elif "gzip" in encoding:
+            try:
+                raw = gzip.decompress(raw)
+            except Exception:
+                # Fallback: requests already decompressed
+                pass
+        elif "deflate" in encoding:
+            try:
+                raw = zlib.decompress(raw)
+            except Exception:
+                try:
+                    raw = zlib.decompress(raw, -zlib.MAX_WBITS)
+                except Exception as e:
+                    logger.warning(f"deflate decompress failed: {e}")
+    except Exception as e:
+        logger.warning(f"Content decoding failed ({encoding}): {e}")
+
+    # Decode bytes -> str
+    candidates = [resp.encoding, resp.apparent_encoding, "utf-8", "latin-1"]
+    for enc in candidates:
+        if not enc:
+            continue
+        try:
+            text = raw.decode(enc, errors="strict")
+            return text
+        except Exception:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+# ============================================================
 # RATE LIMITER (thread-safe token bucket)
 # ============================================================
 
@@ -144,11 +205,6 @@ class RateLimiter:
     """Thread-safe token-bucket rate limiter."""
 
     def __init__(self, rate: float = 5.0, burst: int = 10):
-        """
-        Args:
-            rate: requests per second
-            burst: max burst size
-        """
         self.rate = rate
         self.burst = burst
         self.tokens = float(burst)
@@ -197,10 +253,13 @@ class RobotsCache:
             resp = requests.get(
                 robots_url,
                 timeout=5,
-                headers={"User-Agent": self.user_agent},
+                headers={
+                    "User-Agent": self.user_agent,
+                    "Accept-Encoding": "identity",
+                },
             )
             if resp.status_code == 200:
-                parser.parse(resp.text.splitlines())
+                parser.parse(decode_response_text(resp).splitlines())
             else:
                 parser = None
         except Exception:
@@ -250,7 +309,9 @@ class EnhancedScraper:
         self.proxies = proxies or []
         self.use_js_fallback = use_js_fallback
 
-        self.rate_limiter = RateLimiter(rate=rate_limit, burst=max(10, int(rate_limit * 2)))
+        self.rate_limiter = RateLimiter(
+            rate=rate_limit, burst=max(10, int(rate_limit * 2))
+        )
         self.robots = RobotsCache() if respect_robots else None
         self._proxy_lock = threading.Lock()
         self._proxy_idx = 0
@@ -265,7 +326,6 @@ class EnhancedScraper:
     def _build_session(self) -> requests.Session:
         session = requests.Session()
 
-        # Retry strategy at the HTTP adapter level
         retry = Retry(
             total=2,
             backoff_factor=0.5,
@@ -288,7 +348,8 @@ class EnhancedScraper:
                 "image/avif,image/webp,*/*;q=0.8"
             ),
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            # ★ FIX: disable compression so output is ALWAYS plain text
+            "Accept-Encoding": "identity",
             "DNT": "1",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
@@ -359,12 +420,10 @@ class EnhancedScraper:
         GET a URL with exponential backoff on transient errors,
         rate limiting, robots.txt check, and optional JS fallback.
         """
-        # Robots check
         if self.robots and not self.robots.can_fetch(url):
             logger.warning(f"[ROBOTS] Disallowed by robots.txt: {url}")
             return None
 
-        # Rate limit
         if not self.rate_limiter.acquire(timeout=self.timeout):
             logger.warning(f"[RATE] Timed out waiting for token: {url}")
             return None
@@ -400,7 +459,16 @@ class EnhancedScraper:
 
                 resp.raise_for_status()
 
-                # Detect JS-required pages (very small body, or known markers)
+                # ★ Decode into readable text and store back on the response
+                #   so downstream .text is always plain readable HTML.
+                try:
+                    decoded = decode_response_text(resp)
+                    resp._content = decoded.encode("utf-8", errors="replace")
+                    resp.encoding = "utf-8"
+                except Exception as e:
+                    logger.warning(f"Decode failed for {url}: {e}")
+
+                # Detect JS-required pages
                 if (
                     allow_js_fallback
                     and self.use_js_fallback
@@ -440,7 +508,6 @@ class EnhancedScraper:
         if not html:
             return False
         lower = html.lower()
-        # Very small body with script markers
         if len(html) < 3000:
             markers = (
                 "enable javascript",
@@ -454,9 +521,8 @@ class EnhancedScraper:
                 "id=\"__next\"",
             )
             return any(m in lower for m in markers)
-        # Big SPAs
         if "__next_data__" in lower or "window.__nuxt" in lower:
-            return False  # these are usually prerendered
+            return False
         return False
 
     # --------------------------------------------------------
@@ -545,16 +611,12 @@ class EnhancedScraper:
                     pass
 
     # --------------------------------------------------------
-    # Pagination detection (enhanced)
+    # Pagination detection
     # --------------------------------------------------------
 
     def detect_pagination(
         self, soup: BeautifulSoup, base_url: str
     ) -> List[str]:
-        """
-        Return absolute URLs for next page(s), plus sentinel
-        '__INFINITE_SCROLL__' if a Load-More control is present.
-        """
         pagination_urls: Set[str] = set()
 
         # 1. rel="next"
@@ -577,7 +639,7 @@ class EnhancedScraper:
             if text in next_words:
                 pagination_urls.add(self.normalize_url(a["href"], base_url))
 
-        # 3. Common CSS classes (extended)
+        # 3. Common CSS classes
         next_selectors = [
             "a.next", "a.next-page", "a.nextpage",
             ".next a", ".pagination-next a", ".pagination .next a",
@@ -789,7 +851,6 @@ class EnhancedScraper:
             if name and content:
                 data["meta_tags"][name] = content
 
-        # Parse JSON-LD (may be multiple)
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 parsed = json.loads(script.string or "{}")
@@ -803,7 +864,6 @@ class EnhancedScraper:
 
         html_str = raw_html or str(soup)
 
-        # Price
         price_patterns = [
             r"\$\d+(?:,\d{3})*(?:\.\d{2})?",
             r"\d+(?:,\d{3})*(?:\.\d{2})?\s?(?:USD|EUR|GBP|PHP|JPY|AUD|CAD)",
@@ -817,14 +877,12 @@ class EnhancedScraper:
                 data["price"] = match.group(0)
                 break
 
-        # Emails
         emails = re.findall(
             r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", html_str
         )
         if emails:
             data["email"] = emails[0]
 
-        # Phones
         for pattern in [
             r"\+?\d[\d\s\-\(\)]{8,}\d",
             r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}",
@@ -834,7 +892,6 @@ class EnhancedScraper:
                 data["phone"] = phones[0]
                 break
 
-        # Product name
         for selector in [
             ".product-title", ".product-name", ".product_title",
             "[itemprop='name']", "h1.product", ".product-details h1",
@@ -848,7 +905,6 @@ class EnhancedScraper:
             except Exception:
                 continue
 
-        # Rating
         rating_elem = soup.select_one(
             "[itemprop='ratingValue'], .rating, .stars, .product-rating"
         )
@@ -879,11 +935,9 @@ class EnhancedScraper:
 
     @staticmethod
     def _merge_schema(data: Dict[str, Any], schema: Any) -> None:
-        """Merge a JSON-LD object into data.schema_org and lift fields."""
         if not isinstance(schema, dict):
             return
         data["schema_org"] = schema
-        # Lift common fields
         if not data.get("price"):
             offers = schema.get("offers") or {}
             if isinstance(offers, list) and offers:
@@ -1137,14 +1191,6 @@ class EnhancedScraper:
     def scrape_with_pagination_full(
         self, start_url: str, max_pages: Optional[int] = None
     ) -> Dict[str, Any]:
-        """
-        Pagination scraper with a hybrid sequential-discovery /
-        concurrent-fetch strategy.
-
-        Discovery of next-page links happens sequentially (needed to
-        know the frontier), but fetches within a "batch" run
-        concurrently.
-        """
         t_start = time.monotonic()
         max_pages = max_pages or self.max_pages
         start_url = self.normalize_url(start_url)
@@ -1156,7 +1202,6 @@ class EnhancedScraper:
         results: List[Dict[str, Any]] = []
         last_page = start_url
 
-        # Phase 1: Sequential discovery — walk pagination chain
         frontier: List[str] = [start_url]
         page_num = 0
         infinite_done = False
@@ -1172,7 +1217,6 @@ class EnhancedScraper:
             if not batch:
                 break
 
-            # Phase 2: Concurrent fetch of this batch
             with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
                 futures = {
                     pool.submit(self._fetch_with_retries, u): u
@@ -1201,8 +1245,8 @@ class EnhancedScraper:
                         scraped_urls.add(current_url)
                         continue
 
-                    # Parse
                     try:
+                        # ★ resp.text is guaranteed readable plain HTML now
                         raw_html = resp.text
                         stats.bytes_downloaded += len(raw_html)
                         soup = BeautifulSoup(raw_html, "html.parser")
@@ -1236,7 +1280,6 @@ class EnhancedScraper:
                         last_page = current_url
                         page_num += 1
 
-                        # Pagination discovery
                         pag_links = self.detect_pagination(soup, current_url)
 
                         if "__INFINITE_SCROLL__" in pag_links and not infinite_done:
@@ -1403,14 +1446,11 @@ class EnhancedScraper:
         visited: Set[str] = set()
         seen_records: Set[str] = set()
 
-        # Group fetches by depth for concurrent fetching within a depth level
         current_level: List[Tuple[str, int]] = []
         next_level: List[Tuple[str, int]] = []
 
         while queue or current_level:
-            # Move everything at the same depth from queue to current_level
             if not current_level:
-                # take all items at the minimum depth in queue
                 if queue:
                     min_depth = min(d for _, d in queue)
                     while queue and queue[0][1] == min_depth:
@@ -1419,7 +1459,6 @@ class EnhancedScraper:
             if not current_level:
                 continue
 
-            # Fetch this batch concurrently
             with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
                 futures = {}
                 for url, depth in current_level:
@@ -1497,7 +1536,6 @@ class EnhancedScraper:
         )
         listing_records = listing_summary["data"]
 
-        # Collect detail URLs from item fragments
         detail_urls: List[str] = []
         seen_urls: Set[str] = set()
 
@@ -1517,7 +1555,6 @@ class EnhancedScraper:
                             detail_urls.append(full)
                 except Exception:
                     pass
-            # Fallback: item's own URL
             if rec.get("url") and rec["url"] not in seen_urls:
                 seen_urls.add(rec["url"])
                 detail_urls.append(rec["url"])
@@ -1632,7 +1669,6 @@ def get_enhanced_scraper() -> EnhancedScraper:
     if _enhanced_scraper is None:
         with _singleton_lock:
             if _enhanced_scraper is None:
-                # Pull config from env
                 proxies_env = os.getenv("SCRAPER_PROXIES", "")
                 proxies = [p.strip() for p in proxies_env.split(",") if p.strip()]
                 _enhanced_scraper = EnhancedScraper(
@@ -1659,6 +1695,7 @@ def scrape_website(website: str, use_selenium: bool = False) -> str:
         resp = scraper._fetch_with_retries(website)
         if resp is None:
             return ""
+        # ★ resp.text is guaranteed readable (we decoded it in _fetch_with_retries)
         return scraper.clean_html_to_text(resp.text)
     except Exception as e:
         logger.error(f"scrape_website error: {e}")
