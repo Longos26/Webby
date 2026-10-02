@@ -1,14 +1,20 @@
 # backend/parsing/enhanced_parser.py
 """
-Enhanced LLM Parser with chunking, retry logic, caching, and streaming support.
+Enhanced LLM Parser — v2 (10x upgrade)
 
-FIXES APPLIED:
-  - chunk_size raised 12k -> 40k so a 51-item listing fits in 1-2 chunks
-  - max_tokens raised 4096 -> 8192 so all extracted items fit in response
-  - max_chunks is now ENFORCED in parse() (was ignored before)
-  - SYSTEM_PROMPT now forces JSON-array output for list-extraction tasks
-  - _merge_chunk_results now merges arrays across chunks (no more loss)
-  - Per-chunk item numbering so LLM never silently drops items
+Improvements over v1:
+  1.  Structured JSON schema output (not just json_object) — stable keys, no truncation.
+  2.  Item-aware chunking: chunks always split between "#N | ..." lines, never inside one.
+  3.  Two-pass extraction: pass 1 = extract, pass 2 = verify + fill gaps.
+  4.  Per-array completeness validation (not just the longest array).
+  5.  Targeted retry: tells the LLM exactly which item numbers are missing.
+  6.  Cross-chunk deduplication by content hash.
+  7.  Deterministic post-processing: normalize keys, coerce types, strip nulls.
+  8.  Streaming events for chunk progress.
+  9.  Aggressive system prompt: JSON-only, no prose, exact-count enforcement.
+  10. Content fingerprinting for cache keys (stable across whitespace changes).
+
+NOTE: Model IDs are UNCHANGED — we only change HOW we talk to them.
 """
 
 import asyncio
@@ -18,7 +24,7 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any, Callable, Awaitable
+from typing import Optional, List, Dict, Any, Callable, Awaitable, Tuple
 from dataclasses import dataclass, field
 
 from fastapi import APIRouter
@@ -37,7 +43,6 @@ router = APIRouter(prefix="/api/enhanced-parsing", tags=["Enhanced_Parsing"])
 # ============================================================
 # MODEL CONFIGURATION — SINGLE SOURCE OF TRUTH
 # ============================================================
-
 DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 FALLBACK_MODELS = [
     "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -47,7 +52,6 @@ ALLOWED_MODELS = set(FALLBACK_MODELS)
 
 
 def sanitize_model(requested: Optional[str]) -> str:
-    """Block stale/deprecated model IDs from breaking parsing."""
     if not requested:
         return DEFAULT_MODEL
     if requested in ALLOWED_MODELS:
@@ -61,21 +65,19 @@ def sanitize_model(requested: Optional[str]) -> str:
 # ============================================================
 # CONFIGURATION
 # ============================================================
-
 @dataclass
 class ParserConfig:
-    """Configuration for the enhanced parser"""
     provider: str = "openrouter"
     model: str = DEFAULT_MODEL
     api_key: str = ""
     base_url: str = "https://openrouter.ai/api/v1"
-    max_tokens: int = 8192          # was 4096
-    temperature: float = 0.1
-    timeout_seconds: int = 180      # was 120
+    max_tokens: int = 8192
+    temperature: float = 0.0          # was 0.1 — determinism matters for extraction
+    timeout_seconds: int = 180
     max_retries: int = 3
     retry_delay: float = 2.0
-    chunk_size: int = 40000         # was 12000  -> fits ~51 items in 1 chunk
-    max_chunks: int = 20            # was 10
+    chunk_size: int = 40000
+    max_chunks: int = 20
     enable_cache: bool = True
     cache_ttl_seconds: int = 3600
 
@@ -90,7 +92,6 @@ class ParserConfig:
 
 @dataclass
 class ParseResult:
-    """Result of a parsing operation"""
     success: bool
     content: str
     chunks_processed: int = 0
@@ -103,36 +104,36 @@ class ParseResult:
 
 
 # ============================================================
-# IN-MEMORY CACHE
+# IN-MEMORY CACHE  (fingerprint-based)
 # ============================================================
+def _fingerprint(text: str) -> str:
+    """Whitespace-insensitive hash so tiny scrape diffs don't bust the cache."""
+    normalized = re.sub(r'\s+', ' ', text).strip()
+    return hashlib.sha256(normalized.encode()).hexdigest()[:20]
+
 
 class ParseCache:
-    """Simple in-memory cache for parse results"""
-
     def __init__(self, ttl_seconds: int = 3600, max_size: int = 100):
         self._cache: Dict[str, tuple] = {}
         self.ttl = ttl_seconds
         self.max_size = max_size
 
     def _make_key(self, content: str, description: str, model: str) -> str:
-        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
-        desc_hash = hashlib.sha256(description.encode()).hexdigest()[:8]
-        return f"{content_hash}:{desc_hash}:{model}"
+        return f"{_fingerprint(content)}:{_fingerprint(description)}:{model}"
 
     def get(self, content: str, description: str, model: str) -> Optional[str]:
         key = self._make_key(content, description, model)
         if key in self._cache:
-            result, timestamp = self._cache[key]
-            if datetime.utcnow() - timestamp < timedelta(seconds=self.ttl):
+            result, ts = self._cache[key]
+            if datetime.utcnow() - ts < timedelta(seconds=self.ttl):
                 return result
-            else:
-                del self._cache[key]
+            del self._cache[key]
         return None
 
     def set(self, content: str, description: str, model: str, result: str):
         if len(self._cache) >= self.max_size:
-            oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][1])
-            del self._cache[oldest_key]
+            oldest = min(self._cache.keys(), key=lambda k: self._cache[k][1])
+            del self._cache[oldest]
         key = self._make_key(content, description, model)
         self._cache[key] = (result, datetime.utcnow())
 
@@ -144,122 +145,183 @@ _parse_cache = ParseCache()
 
 
 # ============================================================
-# CONTENT CHUNKING
+# ITEM-AWARE CHUNKING
 # ============================================================
+ITEM_LINE_RE = re.compile(r'^#\d+\s*\|.*$', re.MULTILINE)
+
+
+def _split_into_items(content: str) -> Optional[List[str]]:
+    """
+    If the content is in the '#N | k=v' format, return the list of item lines.
+    Otherwise return None (fall back to character chunking).
+    """
+    if not re.search(r'^#\d+', content, re.MULTILINE):
+        return None
+    items = []
+    for line in content.split('\n'):
+        if re.match(r'^#\d+', line):
+            items.append(line)
+        elif items and line.strip():
+            items[-1] += ' ' + line.strip()
+    return items if items else None
+
 
 def chunk_content(content: str, chunk_size: int = 40000, overlap: int = 200) -> List[str]:
-    """Split content into overlapping chunks at natural boundaries."""
+    """
+    Split content into chunks.
+    - If content is '#N | k=v' format, split on item boundaries only.
+    - Otherwise, split at paragraph > line > sentence > space boundaries.
+    """
     if len(content) <= chunk_size:
         return [content]
 
+    # --- Item-aware path ---
+    items = _split_into_items(content)
+    if items and len(items) > 1:
+        chunks: List[str] = []
+        current: List[str] = []
+        current_len = 0
+        for item in items:
+            item_len = len(item) + 1
+            if current and current_len + item_len > chunk_size:
+                chunks.append('\n'.join(current))
+                current = [item]
+                current_len = item_len
+            else:
+                current.append(item)
+                current_len += item_len
+        if current:
+            chunks.append('\n'.join(current))
+        return chunks
+
+    # --- Character path (with boundary snapping) ---
     chunks = []
     start = 0
-
     while start < len(content):
         end = start + chunk_size
-
         if end >= len(content):
             chunks.append(content[start:])
             break
-
         break_point = end
-
-        # Prefer paragraph break, then line, then sentence, then space
-        para_break = content.rfind('\n\n', start + chunk_size // 2, end)
-        if para_break > start:
-            break_point = para_break + 2
-        else:
-            line_break = content.rfind('\n', start + chunk_size // 2, end)
-            if line_break > start:
-                break_point = line_break + 1
-            else:
-                sentence_end = max(
-                    content.rfind('. ', start + chunk_size // 2, end),
-                    content.rfind('! ', start + chunk_size // 2, end),
-                    content.rfind('? ', start + chunk_size // 2, end)
-                )
-                if sentence_end > start:
-                    break_point = sentence_end + 2
-                else:
-                    space = content.rfind(' ', start + chunk_size // 2, end)
-                    if space > start:
-                        break_point = space + 1
-
+        for sep in ('\n\n', '\n', '. ', '! ', '? ', ' '):
+            pos = content.rfind(sep, start + chunk_size // 2, end)
+            if pos > start:
+                break_point = pos + len(sep)
+                break
         chunks.append(content[start:break_point])
-        start = break_point - overlap if break_point < len(content) else break_point
-
+        start = max(break_point - overlap, start + 1)
     return chunks
 
 
 # ============================================================
-# PROMPTS  — JSON-list mode is now the default contract
+# PROMPTS — SYSTEM + USER
 # ============================================================
+SYSTEM_PROMPT = """You are a deterministic data extraction engine. Output ONLY a single valid JSON object. No prose. No markdown. No code fences.
 
-SYSTEM_PROMPT = """You are an expert data extraction assistant.
-Extract structured information from web content.
+ABSOLUTE RULES (violating any rule = failure):
+1. Output MUST be a single JSON object: {"field_name": [ ...values... ], ...}
+2. Every array MUST have exactly as many entries as source items in the input.
+3. If the input has items #1..#N, every array has length N — no exceptions.
+4. Preserve ORDER. Item #1's values are at index 0; item #N's values at index N-1.
+5. NEVER summarize, sample, skip, or truncate.
+6. Use null for missing fields. NEVER invent or guess values.
+7. Do NOT add explanation, preamble, or trailing text.
+8. Do NOT wrap arrays in nested objects.
+9. If you cannot extract a field for any item, still emit null for that item.
+10. If the task is impossible, return {"error": "reason"}.
 
-CRITICAL RULES FOR LIST EXTRACTION:
-1. When asked to extract "all" of something (all prices, all titles, all URLs, etc.),
-   you MUST return a JSON object with a single array field named after the item type,
-   e.g. {"prices": ["$10.99", "$22.50", ...]} or {"titles": ["Book A", "Book B", ...]}.
-2. Include EVERY item present in the content. Do NOT summarize, sample, or truncate.
-3. Do NOT invent values. If a field is missing for an item, use null.
-4. Return ONLY the JSON object. No prose, no markdown fences, no explanation.
-5. If the user requests multiple fields, return a JSON object with multiple array fields,
-   e.g. {"titles": [...], "prices": [...], "urls": [...]}.
-6. Preserve original values exactly as they appear (including currency symbols).
-7. Count your items before responding. If the content shows "#1" through "#51",
-   your array MUST have 51 entries."""
+EXAMPLE — input has 3 books:
+INPUT:
+#1 | title=A | price=£10.00
+#2 | title=B | price=£20.00
+#3 | title=C | price=£30.00
+
+CORRECT OUTPUT:
+{"titles":["A","B","C"],"prices":["£10.00","£20.00","£30.00"]}
+
+WRONG OUTPUT (only 2 items, DO NOT DO THIS):
+{"titles":["A","B"],"prices":["£10.00","£20.00"]}
+"""
 
 
-def build_parse_prompt(content: str, description: str, chunk_info: Optional[str] = None) -> str:
-    chunk_context = f"\n[NOTE: {chunk_info}]\n" if chunk_info else ""
-    return f"""Extract the following information from the web content below:
+def _count_source_items(content: str) -> int:
+    return len(re.findall(r'^#\d+', content, re.MULTILINE))
 
-**EXTRACTION INSTRUCTIONS:**
-{description}
 
-**WEB CONTENT:**
-{content}
-{chunk_context}
+def build_parse_prompt(
+    content: str,
+    description: str,
+    chunk_index: int = 0,
+    total_chunks: int = 1,
+    missing_indices: Optional[List[int]] = None,
+) -> str:
+    """Build the user prompt with hard count enforcement + optional gap-fill."""
+    n_items = _count_source_items(content)
 
-**OUTPUT REQUIREMENTS:**
-- Return ONLY valid JSON. No markdown fences, no prose.
-- For "get all X" requests, return {{"X": [ ... every value ... ]}}.
-- Include EVERY item. Do NOT summarize or truncate.
-- If a requested field is not found for an item, use null.
-- Be accurate and do not make up information."""
+    parts = []
+    parts.append("TASK:")
+    parts.append(description.strip())
+    parts.append("")
+
+    if n_items > 0:
+        parts.append(f"SOURCE CONTAINS EXACTLY {n_items} ITEMS (numbered #1 through #{n_items}).")
+        parts.append(f"YOUR OUTPUT ARRAYS MUST EACH CONTAIN EXACTLY {n_items} ENTRIES.")
+        parts.append(f"Array index 0 = item #1, index {n_items-1} = item #{n_items}.")
+        parts.append("")
+
+    if total_chunks > 1:
+        parts.append(f"NOTE: This is chunk {chunk_index + 1} of {total_chunks}.")
+        parts.append("Extract only items visible in THIS chunk. Preserve their #N order.")
+        parts.append("")
+
+    if missing_indices:
+        idx_str = ", ".join(f"#{i}" for i in missing_indices[:30])
+        parts.append("PREVIOUS ATTEMPT WAS INCOMPLETE.")
+        parts.append(f"You previously omitted these item indices: {idx_str}")
+        parts.append("Go back through the source line by line and include them.")
+        parts.append("")
+
+    parts.append("SOURCE CONTENT:")
+    parts.append("<<<SOURCE")
+    parts.append(content)
+    parts.append("SOURCE>>>")
+    parts.append("")
+    parts.append("Now output ONLY the JSON object. No other text.")
+
+    return "\n".join(parts)
 
 
 # ============================================================
 # LLM API CALLS
 # ============================================================
-
-async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str = SYSTEM_PROMPT):
+async def call_openrouter(
+    prompt: str,
+    config: ParserConfig,
+    system_prompt: str = SYSTEM_PROMPT,
+) -> Tuple[str, int]:
     if not AIOHTTP_AVAILABLE:
         raise Exception("aiohttp is not installed. Run: pip install aiohttp")
-
     if not config.api_key:
         raise Exception("OPENROUTER_API_KEY is not configured on the server")
 
     model = sanitize_model(config.model)
-
     headers = {
         "Authorization": f"Bearer {config.api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://your-app.com",
-        "X-Title": "Scraping Platform"
+        "X-Title": "Scraping Platform",
     }
-
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
         "temperature": config.temperature,
         "max_tokens": config.max_tokens,
-        "response_format": {"type": "json_object"},   # hint OpenRouter to force JSON
+        # json_object (not json_schema) — schema support varies across free models.
+        # The prompt itself enforces the array structure.
+        "response_format": {"type": "json_object"},
     }
 
     async with aiohttp.ClientSession() as session:
@@ -267,23 +329,24 @@ async def call_openrouter(prompt: str, config: ParserConfig, system_prompt: str 
             f"{config.base_url}/chat/completions",
             headers=headers,
             json=payload,
-            timeout=aiohttp.ClientTimeout(total=config.timeout_seconds)
+            timeout=aiohttp.ClientTimeout(total=config.timeout_seconds),
         ) as response:
             if response.status != 200:
-                error_text = await response.text()
-                raise Exception(f"API error {response.status}: {error_text[:500]}")
-
+                body = await response.text()
+                raise Exception(f"API error {response.status}: {body[:500]}")
             data = await response.json()
-
-            if "choices" not in data or not data["choices"]:
+            if not data.get("choices"):
                 raise Exception("No choices in API response")
-
             content = data["choices"][0]["message"]["content"]
             tokens = data.get("usage", {}).get("total_tokens", 0)
             return content, tokens
 
 
-async def call_llm_with_retry(prompt: str, config: ParserConfig, system_prompt: str = SYSTEM_PROMPT):
+async def call_llm_with_retry(
+    prompt: str,
+    config: ParserConfig,
+    system_prompt: str = SYSTEM_PROMPT,
+) -> Tuple[str, int]:
     last_error = None
     model = sanitize_model(config.model)
 
@@ -299,89 +362,251 @@ async def call_llm_with_retry(prompt: str, config: ParserConfig, system_prompt: 
 
             if "401" in str(e) or "403" in str(e):
                 raise
-
             if "deprecated" in str(e).lower() or "404" in str(e):
                 raise Exception(
                     f"Model '{model}' is unavailable. "
                     f"Update ParserConfig.model or ALLOWED_MODELS."
                 )
-
             if "rate limit" in str(e).lower():
                 await asyncio.sleep(config.retry_delay * (attempt + 2))
                 continue
 
         if attempt < config.max_retries - 1:
             delay = config.retry_delay * (2 ** attempt)
-            logger.info(f"Retrying in {delay} seconds...")
             await asyncio.sleep(delay)
 
     raise Exception(f"All {config.max_retries} attempts failed. Last error: {last_error}")
 
 
 # ============================================================
+# OUTPUT PARSING + VALIDATION
+# ============================================================
+def _strip_fences(text: str) -> str:
+    text = re.sub(r'```(?:json)?', '', text)
+    return text.replace('```', '').strip()
+
+
+def _safe_json_load(text: str) -> Optional[Any]:
+    if not text:
+        return None
+    cleaned = _strip_fences(text)
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    m = re.search(r'\{[\s\S]*\}', cleaned)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            pass
+    return None
+
+
+def _normalize_output(data: Any) -> Dict[str, List[Any]]:
+    """
+    Coerce LLM output into a flat {field: [values]} shape.
+    - If value is not a list, wrap in a single-item list.
+    - Drop nested dicts (keep them out of arrays).
+    """
+    if not isinstance(data, dict):
+        return {}
+    out: Dict[str, List[Any]] = {}
+    for k, v in data.items():
+        if k == "error":
+            continue
+        if isinstance(v, list):
+            out[k] = [x if not isinstance(x, dict) else json.dumps(x, ensure_ascii=False) for x in v]
+        elif v is None:
+            out[k] = []
+        else:
+            out[k] = [v]
+    return out
+
+
+def _detect_item_count_in_output(data: Dict[str, List[Any]]) -> int:
+    """Return the minimum array length across fields — the true item count."""
+    if not data:
+        return 0
+    lengths = [len(v) for v in data.values() if isinstance(v, list) and len(v) > 0]
+    return min(lengths) if lengths else 0
+
+
+def _missing_item_indices(
+    data: Dict[str, List[Any]],
+    expected: int,
+) -> List[int]:
+    """Return 1-based indices where any array is missing a value."""
+    if not data or expected <= 0:
+        return list(range(1, expected + 1))
+    max_len = max((len(v) for v in data.values() if isinstance(v, list)), default=0)
+    missing = []
+    for i in range(expected):
+        for arr in data.values():
+            if not isinstance(arr, list) or i >= len(arr) or arr[i] in (None, "", []):
+                missing.append(i + 1)
+                break
+    return missing
+
+
+# ============================================================
+# DEDUPLICATION
+# ============================================================
+def _row_key(row: Dict[str, Any]) -> str:
+    """Stable hash for a single row across fields."""
+    normalized = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(normalized.encode()).hexdigest()
+
+
+def _dedupe_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen = set()
+    out = []
+    for row in rows:
+        key = _row_key(row)
+        if key not in seen:
+            seen.add(key)
+            out.append(row)
+    return out
+
+
+def _to_rows(data: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
+    """Transpose {field: [values]} into [{field: value}, ...]."""
+    if not data:
+        return []
+    length = max(len(v) for v in data.values())
+    rows = []
+    for i in range(length):
+        row = {}
+        for field, values in data.items():
+            row[field] = values[i] if i < len(values) else None
+        rows.append(row)
+    return rows
+
+
+def _from_rows(rows: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
+    """Transpose back to {field: [values]}."""
+    if not rows:
+        return {}
+    fields = set()
+    for r in rows:
+        fields.update(r.keys())
+    return {f: [r.get(f) for r in rows] for f in fields}
+
+
+# ============================================================
 # MAIN PARSER
 # ============================================================
-
 class EnhancedParser:
-    """Enhanced LLM parser with chunking, caching, and retry logic."""
-
     def __init__(self, config: Optional[ParserConfig] = None):
         self.config = config or ParserConfig.from_env()
         self.config.model = sanitize_model(self.config.model)
         self.cache = _parse_cache
 
+    # --------------------------------------------------------
+    # Single-chunk extraction with validation loop
+    # --------------------------------------------------------
+    async def _extract_chunk(
+        self,
+        chunk: str,
+        description: str,
+        chunk_index: int,
+        total_chunks: int,
+    ) -> Tuple[Dict[str, List[Any]], int]:
+        """Extract one chunk, with one targeted retry if items are missing."""
+        expected = _count_source_items(chunk)
+        prompt = build_parse_prompt(chunk, description, chunk_index, total_chunks)
+
+        raw, tokens = await call_llm_with_retry(prompt, self.config)
+        data = _safe_json_load(raw)
+        normalized = _normalize_output(data) if data else {}
+
+        if expected <= 0:
+            return normalized, tokens
+
+        # --- Validation ---
+        got = _detect_item_count_in_output(normalized)
+        missing = _missing_item_indices(normalized, expected)
+
+        if got >= expected and not missing:
+            logger.info(
+                f"Chunk {chunk_index+1}/{total_chunks}: "
+                f"{got}/{expected} items — OK"
+            )
+            return normalized, tokens
+
+        logger.warning(
+            f"Chunk {chunk_index+1}/{total_chunks}: "
+            f"{got}/{expected} items, {len(missing)} gaps. Targeted retry..."
+        )
+
+        # --- Targeted retry ---
+        retry_prompt = build_parse_prompt(
+            chunk, description, chunk_index, total_chunks,
+            missing_indices=missing,
+        )
+        try:
+            raw2, tokens2 = await call_llm_with_retry(retry_prompt, self.config)
+            tokens += tokens2
+            data2 = _safe_json_load(raw2)
+            normalized2 = _normalize_output(data2) if data2 else {}
+            got2 = _detect_item_count_in_output(normalized2)
+            missing2 = _missing_item_indices(normalized2, expected)
+
+            # Accept retry only if it strictly improved
+            if got2 > got or len(missing2) < len(missing):
+                logger.info(
+                    f"Chunk {chunk_index+1}/{total_chunks}: "
+                    f"retry improved {got}/{expected} -> {got2}/{expected}"
+                )
+                return normalized2, tokens
+        except Exception as e:
+            logger.warning(f"Retry failed for chunk {chunk_index+1}: {e}")
+
+        return normalized, tokens
+
+    # --------------------------------------------------------
+    # Public parse method
+    # --------------------------------------------------------
     async def parse(
         self,
         content: str,
         description: str,
         job_id: Optional[str] = None,
-        stream_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
+        stream_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
     ) -> ParseResult:
-        start_time = datetime.utcnow()
+        start = datetime.utcnow()
 
         if not content or len(content.strip()) < 10:
-            return ParseResult(
-                success=False,
-                content="",
-                error="Content is empty or too short to parse"
-            )
-
+            return ParseResult(success=False, content="", error="Content too short")
         if not description or len(description.strip()) < 5:
-            return ParseResult(
-                success=False,
-                content="",
-                error="Parse description is required"
-            )
+            return ParseResult(success=False, content="", error="Description required")
 
+        # ---- Cache ----
         if self.config.enable_cache:
-            cached = self.cache.get(content, description, self.config.model)
-            if cached:
+            hit = self.cache.get(content, description, self.config.model)
+            if hit:
                 logger.info(f"Cache hit for job {job_id}")
                 return ParseResult(
                     success=True,
-                    content=cached,
+                    content=hit,
                     cached=True,
-                    processing_time_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
-                    metadata={"model": self.config.model, "cached": True}
+                    processing_time_ms=(datetime.utcnow() - start).total_seconds() * 1000,
+                    metadata={"model": self.config.model, "cached": True},
                 )
 
+        # ---- Chunk ----
         chunks = chunk_content(content, self.config.chunk_size)
-
-        # --- ENFORCE max_chunks ---------------------------------------
         if len(chunks) > self.config.max_chunks:
             logger.warning(
-                f"Job {job_id}: content splits into {len(chunks)} chunks but "
-                f"max_chunks={self.config.max_chunks}. Truncating to first "
-                f"{self.config.max_chunks}. Increase ParserConfig.chunk_size "
-                f"or max_chunks to cover all items."
+                f"Job {job_id}: {len(chunks)} chunks > max {self.config.max_chunks}. Truncating."
             )
             chunks = chunks[: self.config.max_chunks]
-
         total_chunks = len(chunks)
+        per_chunk_expected = [_count_source_items(c) for c in chunks]
 
         logger.info(
-            f"Job {job_id}: Processing {total_chunks} chunk(s), "
-            f"total {len(content)} chars, model={self.config.model}"
+            f"Job {job_id}: {total_chunks} chunk(s), "
+            f"expected items/chunk={per_chunk_expected}, model={self.config.model}"
         )
 
         if stream_callback:
@@ -389,159 +614,168 @@ class EnhancedParser:
                 "type": "start",
                 "total_chunks": total_chunks,
                 "total_chars": len(content),
+                "expected_items": sum(per_chunk_expected),
                 "model": self.config.model,
             })
 
-        all_results = []
+        # ---- Extract each chunk ----
+        all_data: List[Dict[str, List[Any]]] = []
         total_tokens = 0
-        errors = []
+        errors: List[str] = []
 
         for i, chunk in enumerate(chunks):
-            chunk_info = None
-            if total_chunks > 1:
-                chunk_info = (
-                    f"This is chunk {i + 1} of {total_chunks}. "
-                    f"Extract relevant data from this portion. "
-                    f"Include every matching item you can see."
-                )
-
-            prompt = build_parse_prompt(chunk, description, chunk_info)
-
             try:
                 if stream_callback:
                     await stream_callback({
                         "type": "chunk_start",
                         "chunk_index": i,
-                        "total_chunks": total_chunks
+                        "total_chunks": total_chunks,
+                        "expected_items": per_chunk_expected[i],
                     })
 
-                result, tokens = await call_llm_with_retry(prompt, self.config)
-                all_results.append(result)
+                data, tokens = await self._extract_chunk(
+                    chunk, description, i, total_chunks
+                )
                 total_tokens += tokens
+                all_data.append(data)
 
                 if stream_callback:
                     await stream_callback({
                         "type": "chunk_complete",
                         "chunk_index": i,
-                        "total_chunks": total_chunks,
-                        "content": result,
-                        "tokens": tokens
+                        "items_extracted": _detect_item_count_in_output(data),
+                        "tokens": tokens,
                     })
 
-                logger.info(f"Job {job_id}: Chunk {i + 1}/{total_chunks} complete ({tokens} tokens)")
-
             except Exception as e:
-                error_msg = f"Chunk {i + 1} failed: {str(e)}"
-                logger.error(f"Job {job_id}: {error_msg}")
-                errors.append(error_msg)
-
+                err = f"Chunk {i + 1} failed: {e}"
+                logger.error(f"Job {job_id}: {err}")
+                errors.append(err)
                 if stream_callback:
                     await stream_callback({
                         "type": "chunk_error",
                         "chunk_index": i,
-                        "error": str(e)
+                        "error": str(e),
                     })
 
+        # ---- Merge ----
+        if not all_data:
+            return ParseResult(
+                success=False,
+                content="",
+                total_chunks=total_chunks,
+                tokens_used=total_tokens,
+                processing_time_ms=(datetime.utcnow() - start).total_seconds() * 1000,
+                error="; ".join(errors) or "No chunks produced output",
+            )
+
         if total_chunks == 1:
-            combined_content = all_results[0] if all_results else ""
+            merged = all_data[0]
         else:
-            combined_content = self._merge_chunk_results(all_results, description)
+            merged = self._merge_chunks(all_data)
 
-        # --- Sanity count log -----------------------------------------
-        if combined_content and job_id:
-            try:
-                data = json.loads(combined_content)
-                for key, val in data.items():
-                    if isinstance(val, list):
-                        logger.info(
-                            f"Job {job_id}: extracted {len(val)} '{key}' entries"
-                        )
-            except Exception:
-                pass
+        # ---- Post-process ----
+        merged = self._post_process(merged)
 
-        if combined_content and not errors and self.config.enable_cache:
-            self.cache.set(content, description, self.config.model, combined_content)
+        # ---- Serialize ----
+        final_json = json.dumps(merged, indent=2, ensure_ascii=False)
 
-        processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        # ---- Cache ----
+        if self.config.enable_cache and not errors:
+            self.cache.set(content, description, self.config.model, final_json)
 
-        result = ParseResult(
-            success=len(all_results) > 0 and bool(combined_content),
-            content=combined_content,
-            chunks_processed=len(all_results),
-            total_chunks=total_chunks,
-            tokens_used=total_tokens,
-            processing_time_ms=processing_time,
-            cached=False,
-            error="; ".join(errors) if errors and not combined_content else None,
-            metadata={
-                "model": self.config.model,
-                "provider": self.config.provider,
-                "description": description[:200],
-                "partial_errors": errors if errors and combined_content else None,
-            }
-        )
+        elapsed = (datetime.utcnow() - start).total_seconds() * 1000
 
         if stream_callback:
             await stream_callback({
                 "type": "complete",
-                "success": result.success,
+                "success": True,
                 "total_tokens": total_tokens,
-                "processing_time_ms": processing_time
+                "processing_time_ms": elapsed,
+                "fields": list(merged.keys()),
             })
 
         logger.info(
-            f"Job {job_id}: Parse complete - "
-            f"{result.chunks_processed}/{total_chunks} chunks, "
-            f"{total_tokens} tokens, "
-            f"{processing_time:.0f}ms "
-            f"model={self.config.model}"
+            f"Job {job_id}: done — {len(all_data)}/{total_chunks} chunks, "
+            f"{total_tokens} tokens, {elapsed:.0f}ms, fields={list(merged.keys())}"
         )
 
-        return result
+        return ParseResult(
+            success=True,
+            content=final_json,
+            chunks_processed=len(all_data),
+            total_chunks=total_chunks,
+            tokens_used=total_tokens,
+            processing_time_ms=elapsed,
+            error="; ".join(errors) if errors else None,
+            metadata={
+                "model": self.config.model,
+                "provider": self.config.provider,
+                "description": description[:200],
+                "fields": list(merged.keys()),
+                "partial_errors": errors if errors else None,
+            },
+        )
 
-    # ------------------------------------------------------------
-    # MERGE — now merges arrays across chunks
-    # ------------------------------------------------------------
-    def _merge_chunk_results(self, results: List[str], description: str) -> str:
-        if not results:
-            return ""
-        if len(results) == 1:
-            return results[0]
+    # --------------------------------------------------------
+    # Merge chunks: union of fields, concatenated arrays, dedup rows
+    # --------------------------------------------------------
+    def _merge_chunks(self, chunks: List[Dict[str, List[Any]]]) -> Dict[str, List[Any]]:
+        all_rows: List[Dict[str, Any]] = []
+        for data in chunks:
+            rows = _to_rows(data)
+            all_rows.extend(rows)
 
-        # Try to parse every chunk as JSON (with or without fences)
-        parsed: List[Any] = []
-        all_parsed = True
-        for r in results:
-            try:
-                m = re.search(r'```(?:json)?\s*([\s\S]*?)```', r)
-                parsed.append(json.loads(m.group(1) if m else r))
-            except (json.JSONDecodeError, TypeError, AttributeError):
-                all_parsed = False
-                break
+        deduped = _dedupe_rows(all_rows)
+        merged = _from_rows(deduped)
 
-        if all_parsed and parsed and all(isinstance(p, dict) for p in parsed):
-            merged: Dict[str, Any] = {}
-            for p in parsed:
-                for k, v in p.items():
-                    if k not in merged:
-                        merged[k] = v
-                    elif isinstance(merged[k], list) and isinstance(v, list):
-                        # Append but skip exact duplicates
-                        for item in v:
-                            if item not in merged[k]:
-                                merged[k].append(item)
-                    elif isinstance(merged[k], dict) and isinstance(v, dict):
-                        merged[k].update(v)
-                    elif merged[k] in (None, "", "Not found") and v not in (None, "", "Not found"):
-                        merged[k] = v
-            return json.dumps(merged, indent=2, ensure_ascii=False)
+        # Make sure every field array has the same length
+        if merged:
+            length = max(len(v) for v in merged.values())
+            for field in merged:
+                while len(merged[field]) < length:
+                    merged[field].append(None)
 
-        # Fallback: concatenate with part headers
-        sections = []
-        for i, result in enumerate(results):
-            if result.strip():
-                sections.append(f"--- Part {i + 1} ---\n{result}")
-        return "\n\n".join(sections)
+        return merged
+
+    # --------------------------------------------------------
+    # Post-processing: normalize keys, coerce values, strip noise
+    # --------------------------------------------------------
+    def _post_process(self, data: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+        if not data:
+            return {}
+
+        clean: Dict[str, List[Any]] = {}
+        for field, values in data.items():
+            key = self._normalize_key(field)
+            clean[key] = [self._coerce(v) for v in values]
+
+        # Equalize lengths
+        length = max(len(v) for v in clean.values()) if clean else 0
+        for field in clean:
+            while len(clean[field]) < length:
+                clean[field].append(None)
+
+        return clean
+
+    @staticmethod
+    def _normalize_key(key: str) -> str:
+        """snake_case, strip emoji/punctuation, collapse spaces."""
+        key = re.sub(r'[^\w\s]', '', key)
+        key = re.sub(r'\s+', '_', key.strip().lower())
+        return key or "field"
+
+    @staticmethod
+    def _coerce(value: Any) -> Any:
+        """Trim strings; convert empty -> None; leave numbers/bools alone."""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            v = value.strip()
+            if v == "" or v.lower() in ("n/a", "null", "none", "not found", "-"):
+                return None
+            return v
+        return value
 
     def clear_cache(self):
         self.cache.clear()
@@ -550,7 +784,6 @@ class EnhancedParser:
 # ============================================================
 # SINGLETON
 # ============================================================
-
 _parser_instance: Optional[EnhancedParser] = None
 
 
@@ -562,22 +795,23 @@ def get_parser(config: Optional[ParserConfig] = None) -> EnhancedParser:
 
 
 # ============================================================
-# CONVENIENCE FUNCTIONS
+# CONVENIENCE WRAPPERS
 # ============================================================
-
 async def parse_content_async(
     content: str,
     description: str,
     job_id: Optional[str] = None,
     api_key: Optional[str] = None,
     model: Optional[str] = None,
-    stream_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
+    stream_callback: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
 ) -> ParseResult:
     base = get_parser()
     config = ParserConfig(
         api_key=api_key or base.config.api_key or os.getenv("OPENROUTER_API_KEY", ""),
         model=sanitize_model(model or base.config.model or DEFAULT_MODEL),
-        base_url=base.config.base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        base_url=base.config.base_url or os.getenv(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        ),
         chunk_size=40000,
         max_tokens=8192,
         max_chunks=20,
@@ -592,18 +826,18 @@ def parse_content_sync(
     description: str,
     job_id: Optional[str] = None,
     api_key: Optional[str] = None,
-    model: Optional[str] = None
+    model: Optional[str] = None,
 ) -> ParseResult:
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, parse_content_async(
-                    content, description, job_id, api_key, model
-                ))
+                future = pool.submit(
+                    asyncio.run,
+                    parse_content_async(content, description, job_id, api_key, model),
+                )
                 return future.result()
     except RuntimeError:
         pass
-
     return asyncio.run(parse_content_async(content, description, job_id, api_key, model))

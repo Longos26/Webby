@@ -35,6 +35,7 @@ function normalizeJob(raw, fallbackId) {
     name: raw.name || raw.title || 'Untitled Job',
     url: raw.url || raw.target || raw.target_url || '',
     status: raw.status || 'unknown',
+    items: Array.isArray(raw.items) ? raw.items : [],
     scraped_content: content,
     scraped_content_preview: content.slice(0, 500),
     content_length: content.length,
@@ -425,11 +426,40 @@ function injectStyles(id, css) {
 }
 
 // ============================================================
+// UTILITY — parse the LLM's JSON output safely
+// ============================================================
+function tryParseLLMJson(text) {
+  if (!text) return null;
+  try {
+    const cleaned = text.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Count complete rows in the LLM's JSON — minimum array length across fields.
+ * This matches the backend's `_count_items` logic so the UI displays the
+ * same "items extracted" number that gets saved to Mongo.
+ */
+function countItemsInResult(resultText) {
+  const data = tryParseLLMJson(resultText);
+  if (!data) return 0;
+  if (Array.isArray(data)) return data.length;
+  if (typeof data === 'object') {
+    const arrays = Object.values(data).filter(a => Array.isArray(a) && a.length > 0);
+    return arrays.length ? Math.min(...arrays.map(a => a.length)) : 0;
+  }
+  return 0;
+}
+
+// ============================================================
 // TOAST
 // ============================================================
 function Toast({ message, type, onClose }) {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
+    const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
   }, [onClose]);
   const icons = {
@@ -540,7 +570,6 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
   const mountedRef = useRef(true);
   injectStyles('parsing-styles', STYLES);
 
-  // Accept jobId as string, or object with _id/id
   const resolvedJobId =
     typeof jobId === 'string'
       ? jobId
@@ -561,23 +590,16 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
     setLoading(true);
     setJobError(null);
     try {
-      // ✅ Uses existing /api/jobs/{id} endpoint from api.js
       const raw = await jobService.getJob(resolvedJobId);
       console.log('[ParsingPanel] raw job keys:', Object.keys(raw || {}));
-      console.log('[ParsingPanel] content candidates:', {
-        scraped_content: raw?.scraped_content?.length,
-        content: raw?.content?.length,
-        html_content: raw?.html_content?.length,
-        raw_content: raw?.raw_content?.length,
-        text: raw?.text?.length,
-        scraped_content_preview: raw?.scraped_content_preview?.length,
-      });
+      console.log('[ParsingPanel] items count:', raw?.items?.length);
       const data = normalizeJob(raw, resolvedJobId);
       console.log('[ParsingPanel] normalized job:', {
         id: data.id,
         name: data.name,
         has_content: data.has_content,
         content_length: data.content_length,
+        items_count: data.items?.length,
       });
       if (!mountedRef.current) return;
       setJob(data);
@@ -619,56 +641,57 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
 
     if (content.includes('pokémon') || content.includes('pokemon') || content.includes('pokedex')) {
       recs.push(
-        { label: '🔍 Names', desc: 'Extract all Pokémon names' },
-        { label: '⚡ Types', desc: 'Extract Pokémon types (Fire, Water, Grass, etc.)' },
-        { label: '📊 Stats', desc: 'Extract Pokémon stats (HP, Attack, Defense, Speed)' },
-        { label: '🔄 Evolutions', desc: 'Extract evolution chains and requirements' },
-        { label: '🏆 Abilities', desc: 'Extract Pokémon abilities and descriptions' },
-        { label: '🎯 Moves', desc: 'Extract moves and their effects' },
+        { label: '🔍 Extract All Names', desc: 'Extract all Pokémon names from the content' },
+        { label: '⚡ Extract All Types', desc: 'Extract all Pokémon types (Fire, Water, Grass, etc.)' },
+        { label: '📊 Extract All Stats', desc: 'Extract all Pokémon stats (HP, Attack, Defense, Speed)' },
+        { label: '🔄 Extract All Evolutions', desc: 'Extract all evolution chains and requirements' },
+        { label: '🏆 Extract All Abilities', desc: 'Extract all Pokémon abilities and descriptions' },
+        { label: '🎯 Extract All Moves', desc: 'Extract all moves and their effects' },
       );
-    } else if (content.includes('product') || content.includes('price') || content.includes('buy')) {
+    } else if (content.includes('product') || content.includes('price') || content.includes('buy') || content.includes('£') || content.includes('$')) {
       recs.push(
-        { label: '📦 Products', desc: 'Extract all product names' },
-        { label: '💲 Prices', desc: 'Extract product prices' },
-        { label: '📝 Descriptions', desc: 'Extract product descriptions' },
-        { label: '⭐ Ratings', desc: 'Extract product ratings and reviews' },
-        { label: '🛒 In Stock', desc: 'Extract availability status' },
+        { label: '📦 Extract All Products', desc: 'Extract all product names and IDs' },
+        { label: '💲 Extract All Prices', desc: 'Extract all prices for every product' },
+        { label: '📝 Extract All Descriptions', desc: 'Extract all product descriptions' },
+        { label: '⭐ Extract All Ratings', desc: 'Extract all product ratings and review counts' },
+        { label: '🛒 Extract All Stock Status', desc: 'Extract the stock/availability status for every product' },
+        { label: '🏷️ Extract All Categories', desc: 'Extract all product categories' },
       );
     } else if (content.includes('article') || content.includes('blog') || content.includes('post')) {
       recs.push(
-        { label: '📰 Headlines', desc: 'Extract article headlines' },
-        { label: '✍️ Authors', desc: 'Extract author names' },
-        { label: '📅 Dates', desc: 'Extract publication dates' },
-        { label: '🏷️ Categories', desc: 'Extract categories or tags' },
-        { label: '📊 Summary', desc: 'Extract key points and summaries' },
+        { label: '📰 Extract All Headlines', desc: 'Extract all article headlines and titles' },
+        { label: '✍️ Extract All Authors', desc: 'Extract all author names' },
+        { label: '📅 Extract All Dates', desc: 'Extract all publication dates' },
+        { label: '🏷️ Extract All Tags', desc: 'Extract all categories or tags' },
+        { label: '📊 Extract All Summaries', desc: 'Extract key points and summaries for every article' },
       );
     } else if (content.includes('job') || content.includes('hiring') || content.includes('career')) {
       recs.push(
-        { label: '💼 Job Titles', desc: 'Extract job titles' },
-        { label: '🏢 Companies', desc: 'Extract company names' },
-        { label: '📍 Locations', desc: 'Extract job locations' },
-        { label: '💰 Salaries', desc: 'Extract salary ranges' },
-        { label: '📋 Requirements', desc: 'Extract job requirements' },
+        { label: '💼 Extract All Job Titles', desc: 'Extract all job titles' },
+        { label: '🏢 Extract All Companies', desc: 'Extract all company names' },
+        { label: '📍 Extract All Locations', desc: 'Extract all job locations' },
+        { label: '💰 Extract All Salaries', desc: 'Extract all salary ranges' },
+        { label: '📋 Extract All Requirements', desc: 'Extract all job requirements' },
       );
     } else if (content.includes('email') || content.includes('contact')) {
       recs.push(
-        { label: '📧 Emails', desc: 'Extract all email addresses' },
-        { label: '📞 Phones', desc: 'Extract phone numbers' },
-        { label: '🔗 URLs', desc: 'Extract all URLs and links' },
+        { label: '📧 Extract All Emails', desc: 'Extract all email addresses' },
+        { label: '📞 Extract All Phones', desc: 'Extract all phone numbers' },
+        { label: '🔗 Extract All URLs', desc: 'Extract all URLs and links' },
       );
     }
 
     recs.push(
-      { label: '📋 Summary', desc: 'Summarize the entire content' },
-      { label: '🔗 Links', desc: 'Extract all URLs from the content' },
-      { label: '📧 Emails', desc: 'Extract contact information' },
+      { label: '📋 Extract Full Summary', desc: 'Extract a comprehensive summary of the entire content' },
+      { label: '🔗 Extract All Links', desc: 'Extract all URLs from the content' },
+      { label: '📧 Extract All Emails', desc: 'Extract all email addresses' },
     );
 
     const unique = recs.filter((v, i, a) => a.findIndex(t => t.desc === v.desc) === i).slice(0, 8);
     return unique.length > 0 ? unique : [
-      { label: '📋 Summary', desc: 'Summarize the content' },
-      { label: '🔗 Links', desc: 'Extract all URLs' },
-      { label: '📧 Emails', desc: 'Extract all email addresses' },
+      { label: '📋 Extract Full Summary', desc: 'Extract a comprehensive summary of the content' },
+      { label: '🔗 Extract All Links', desc: 'Extract all URLs' },
+      { label: '📧 Extract All Emails', desc: 'Extract all email addresses' },
     ];
   };
 
@@ -727,87 +750,122 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
     }
   }, [job, hasGeneratedRecommendations, loadingRecommendations, generateRecommendations]);
 
-  // ---------------- ACTIONS ----------------
-  // Replace handleParse in ParsingPanel.jsx with this:
-const handleParse = async () => {
-  if (!parseDescription.trim()) {
-    setToast({ message: 'Please enter a parsing description', type: 'error' });
-    return;
-  }
-  if (!job) {
-    setToast({ message: 'Job not loaded', type: 'error' });
-    return;
-  }
+  // ---------------- BUILD CONTENT FOR LLM ----------------
+  const buildContentForLLM = useCallback(() => {
+    if (!job) return '';
 
-  // ---- Prefer structured `items` (one line per record) ----
-  const items = job.items || [];
-  let content = '';
+    const items = job.items || [];
 
-  if (items.length > 0) {
-    content = items.map((it, i) => {
-      const parts = [`#${i + 1}`];
-      for (const [k, v] of Object.entries(it)) {
-        if (v === null || v === undefined || v === '') continue;
-        if (k === 'raw_html' || k === 'clean_text' || k === 'source_page') continue;
-        if (typeof v === 'object') continue;
-        parts.push(`${k}=${String(v).slice(0, 200)}`);
-      }
-      return parts.join(' | ');
-    }).join('\n');
-    console.log(`[ParsingPanel] sending ${items.length} structured items (${content.length} chars)`);
-  } else {
-    content = job.scraped_content || '';
-    console.log(`[ParsingPanel] sending text blob (${content.length} chars, no items array)`);
-  }
-
-  if (!content) {
-    setToast({
-      message: 'This job has no scraped content. Please scrape the website first.',
-      type: 'error',
-    });
-    return;
-  }
-
-  setIsParsing(true);
-  try {
-    const response = await api.post(`/api/scraping/jobs/${resolvedJobId}/parse`, {
-      parse_description: parseDescription,
-      dom_content: content,
-    });
-
-    if (response?.data?.success) {
-      setToast({
-        message: `Parsed successfully! ${response.data.tokens_used || 0} tokens, ${(
-          response.data.processing_time_ms || 0
-        ).toFixed(0)}ms`,
-        type: 'success',
+    if (items.length > 0) {
+      const skip = new Set(['raw_html', 'clean_text', 'source_page', '_id', '__v']);
+      const lines = items.map((it, i) => {
+        const parts = [`#${i + 1}`];
+        for (const [k, v] of Object.entries(it)) {
+          if (skip.has(k)) continue;
+          if (v === null || v === undefined || v === '') continue;
+          if (typeof v === 'object') continue;
+          parts.push(`${k}=${String(v).slice(0, 300)}`);
+        }
+        return parts.join(' | ');
       });
-      setParseDescription('');
-      await loadParsedResults();
-      await loadJob();
-    } else {
+      const content = lines.join('\n');
+      console.log(`[ParsingPanel] built ${items.length} items (${content.length} chars)`);
+      return content;
+    }
+
+    const fallback = job.scraped_content || '';
+    const fallbackCount = (fallback.match(/^#\d+/gm) || []).length;
+    console.log(
+      `[ParsingPanel] fallback to scraped_content (${fallback.length} chars, ${fallbackCount} #N lines)`
+    );
+    return fallback;
+  }, [job]);
+
+  // ---------------- EXPECTED ITEM COUNT ----------------
+  const expectedItemCount = useCallback(() => {
+    if (!job) return 0;
+    if (job.items?.length) return job.items.length;
+    const text = job.scraped_content || '';
+    return (text.match(/^#\d+/gm) || []).length;
+  }, [job]);
+
+  // ---------------- PARSE ACTION ----------------
+  const handleParse = async () => {
+    if (!parseDescription.trim()) {
+      setToast({ message: 'Please enter a parsing description', type: 'error' });
+      return;
+    }
+    if (!job) {
+      setToast({ message: 'Job not loaded', type: 'error' });
+      return;
+    }
+
+    const content = buildContentForLLM();
+    if (!content) {
       setToast({
-        message: response?.data?.error || response?.data?.detail || 'Failed to parse content',
+        message: 'This job has no scraped content. Please scrape the website first.',
         type: 'error',
       });
+      return;
     }
-  } catch (err) {
-    const detail = err?.response?.data?.detail;
-    let errorMsg;
-    if (Array.isArray(detail)) {
-      errorMsg = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
-    } else if (typeof detail === 'string') {
-      errorMsg = detail;
-    } else {
-      errorMsg = err?.response?.data?.error || err.message || 'Failed to parse content';
+
+    const expected = expectedItemCount();
+    console.log(`[ParsingPanel] expected item count: ${expected}`);
+
+    setIsParsing(true);
+    try {
+      const response = await api.post(`/api/scraping/jobs/${resolvedJobId}/parse`, {
+        parse_description: parseDescription,
+        dom_content: content,
+      });
+
+      if (response?.data?.success) {
+        const resultText = response.data.parse_result || response.data.parsed_content || '';
+        const actual = countItemsInResult(resultText);
+        const fields = response.data.fields || [];
+
+        const isShort = expected > 0 && actual > 0 && actual < expected * 0.9;
+        const warning = isShort
+          ? ` ⚠ expected ${expected}, got ${actual}`
+          : expected > 0 && actual > 0
+            ? ` (${actual}/${expected} items)`
+            : '';
+
+        const fieldsMsg = fields.length ? ` • fields: ${fields.join(', ')}` : '';
+
+        setToast({
+          message: `Parsed successfully${warning}${fieldsMsg} — ${response.data.tokens_used || 0} tokens, ${(
+            response.data.processing_time_ms || 0
+          ).toFixed(0)}ms`,
+          type: isShort ? 'error' : 'success',
+        });
+        setParseDescription('');
+        await loadParsedResults();
+        await loadJob();
+      } else {
+        setToast({
+          message: response?.data?.error || response?.data?.detail || 'Failed to parse content',
+          type: 'error',
+        });
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      let errorMsg;
+      if (Array.isArray(detail)) {
+        errorMsg = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+      } else if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else {
+        errorMsg = err?.response?.data?.error || err.message || 'Failed to parse content';
+      }
+      setToast({ message: errorMsg, type: 'error' });
+      console.error('[ParsingPanel] parse error:', err);
+      console.error('[ParsingPanel] response data:', err?.response?.data);
+    } finally {
+      if (mountedRef.current) setIsParsing(false);
     }
-    setToast({ message: errorMsg, type: 'error' });
-    console.error('[ParsingPanel] parse error:', err);
-    console.error('[ParsingPanel] response data:', err?.response?.data);
-  } finally {
-    if (mountedRef.current) setIsParsing(false);
-  }
-};
+  };
+
   const handleQuickAction = (description) => setParseDescription(description);
 
   const handleDeleteResult = async (resultId) => {
@@ -843,15 +901,16 @@ const handleParse = async () => {
 
   // ---------------- DERIVED ----------------
   const contentString = job?.scraped_content || '';
-  const hasContent = contentString.length > 0;
+  const hasContent = contentString.length > 0 || (job?.items?.length || 0) > 0;
+  const expectedCount = expectedItemCount();
 
   const displayRecommendations = recommendations.length > 0
     ? recommendations
     : [
-        { label: '📋 Summary', desc: 'Summarize the content' },
-        { label: '🔗 Links', desc: 'Extract all URLs' },
-        { label: '📧 Emails', desc: 'Extract all email addresses' },
-        { label: '📞 Phone', desc: 'Extract phone numbers' },
+        { label: '📋 Extract Full Summary', desc: 'Extract a comprehensive summary of the content' },
+        { label: '🔗 Extract All Links', desc: 'Extract all URLs' },
+        { label: '📧 Extract All Emails', desc: 'Extract all email addresses' },
+        { label: '📞 Extract All Phones', desc: 'Extract all phone numbers' },
       ];
 
   // ---------------- RENDER ----------------
@@ -930,7 +989,7 @@ const handleParse = async () => {
                 </div>
                 <div className="job-info-status">
                   <span className={`status-dot ${hasContent ? 'has-content' : 'no-content'}`} />
-                  {hasContent ? 'Content Ready' : 'No Content'}
+                  {hasContent ? `Content Ready (${expectedCount} items)` : 'No Content'}
                   <span style={{ marginLeft: 8, color: 'var(--color-text-muted)' }}>
                     • {parsedResults.length} parsed results
                   </span>
@@ -951,6 +1010,16 @@ const handleParse = async () => {
               <div className="parse-input-label">
                 <MessageSquare size={14} />
                 What would you like to extract?
+                {expectedCount > 0 && (
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontSize: 11,
+                    color: 'var(--color-text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                  }}>
+                    → will extract EXACTLY {expectedCount} items
+                  </span>
+                )}
               </div>
               <div className="parse-input-wrapper">
                 <textarea
@@ -1033,7 +1102,7 @@ const handleParse = async () => {
                         disabled={!hasContent}
                         title={action.desc}
                       >
-                        {action.label || action.desc.split(' ').slice(0, 2).join(' ')}
+                        {action.label || action.desc}
                         {index < 3 && <span className="recommend-badge">TOP</span>}
                       </button>
                     ))}
@@ -1114,6 +1183,9 @@ const handleParse = async () => {
                     const isLong = content.length > 500;
                     const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
                     const lineCount = content.split('\n').length;
+                    const itemCount = countItemsInResult(content);
+                    const short = expectedCount > 0 && itemCount > 0 && itemCount < expectedCount * 0.9;
+                    const fields = result.fields || [];
 
                     return (
                       <div key={result.id} className="result-card">
@@ -1125,6 +1197,24 @@ const handleParse = async () => {
                             <span className="result-card-date">
                               {formatDate(result.created_at)}
                             </span>
+                            {itemCount > 0 && (
+                              <span
+                                className="result-card-date"
+                                style={{
+                                  color: short ? 'var(--color-error)' : 'var(--color-success)',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {short ? '⚠ ' : '✓ '}
+                                {itemCount}
+                                {expectedCount > 0 ? `/${expectedCount}` : ''} items
+                              </span>
+                            )}
+                            {fields.length > 0 && (
+                              <span className="result-card-date" style={{ opacity: 0.75 }}>
+                                fields: {fields.join(', ')}
+                              </span>
+                            )}
                           </div>
                           <div className="result-card-actions">
                             <button

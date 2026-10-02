@@ -8,10 +8,12 @@ from typing import Optional
 import logging
 import asyncio
 import json as json_module
+import re
 import traceback
 
-from parsing.Ollama import (
-    parse_with_openrouter_result,
+# --- Use the new enhanced parser directly ---
+from routes.enhanced_parsing import (
+    parse_content_async,
     ParseResult,
     DEFAULT_MODEL,
     ALLOWED_MODELS,
@@ -28,7 +30,7 @@ class ParseRequest(BaseModel):
     dom_content: Optional[str] = None
     parse_description: str
     model: Optional[str] = None
-    temperature: Optional[float] = 0.1
+    temperature: Optional[float] = 0.0
     use_cache: bool = True
 
 class ParseResponse(BaseModel):
@@ -41,6 +43,9 @@ class ParseResponse(BaseModel):
     cached: bool = False
     chunks_processed: int = 1
     error: Optional[str] = None
+    items_extracted: int = 0
+    items_expected: int = 0
+    fields: list = []
 
 class GenerateRecommendationsRequest(BaseModel):
     content: str
@@ -53,7 +58,7 @@ class GenerateRecommendationsRequest(BaseModel):
 def _get_job_content(job: dict) -> str:
     """
     Prefer structured `items` (per-record) over the text blob.
-    This gives the LLM clean, per-item lines it can count.
+    Emits the "#N | key=value" format the enhanced parser counts.
     """
     items = job.get("items") or []
     if items:
@@ -63,7 +68,7 @@ def _get_job_content(job: dict) -> str:
             for k, v in it.items():
                 if v in (None, "", []):
                     continue
-                if k in ("raw_html", "clean_text", "source_page"):
+                if k in ("raw_html", "clean_text", "source_page", "_id"):
                     continue
                 if isinstance(v, (dict, list)):
                     continue
@@ -95,6 +100,29 @@ def _resolve_model(requested: Optional[str]) -> str:
     )
     return DEFAULT_MODEL
 
+def _count_items(text: str) -> int:
+    """
+    Return the *minimum* array length across all fields in the LLM's JSON.
+    This is the number of fully-populated rows, not just the longest array.
+    """
+    if not text:
+        return 0
+    try:
+        cleaned = re.sub(r'```(?:json)?', '', text).replace('```', '').strip()
+        data = json_module.loads(cleaned)
+        if isinstance(data, list):
+            return len(data)
+        if isinstance(data, dict):
+            arrays = [len(v) for v in data.values() if isinstance(v, list) and v]
+            return min(arrays) if arrays else 0
+    except Exception:
+        return 0
+    return 0
+
+def _count_expected(content: str) -> int:
+    """Count "#N" lines in the source content."""
+    return len(re.findall(r'^#\d+', content, re.MULTILINE))
+
 # ============================================================
 # PARSE ENDPOINT
 # ============================================================
@@ -115,21 +143,20 @@ async def parse_job_content(job_id: str, request: ParseRequest):
             detail="No content available to parse. Please scrape the website first.",
         )
 
+    expected_items = _count_expected(content)
     model_to_use = _resolve_model(request.model)
     logger.info(
         f"Parsing job {job_id}: {len(content)} chars, "
+        f"{expected_items} expected items, "
         f"desc={request.parse_description!r}, model={model_to_use}"
     )
 
     try:
-        loop = asyncio.get_event_loop()
-        result: ParseResult = await loop.run_in_executor(
-            None,
-            lambda: parse_with_openrouter_result(
-                dom_content=content,
-                parse_description=request.parse_description,
-                model=model_to_use,
-            ),
+        result: ParseResult = await parse_content_async(
+            content=content,
+            description=request.parse_description,
+            job_id=job_id,
+            model=model_to_use,
         )
 
         if not result.success:
@@ -139,6 +166,13 @@ async def parse_job_content(job_id: str, request: ParseRequest):
                 detail=result.error or "Parsing failed",
             )
 
+        actual_items = _count_items(result.content)
+        fields = result.metadata.get("fields", [])
+        logger.info(
+            f"Job {job_id}: extracted {actual_items}/{expected_items} items, "
+            f"fields={fields}"
+        )
+
         parse_doc = {
             "job_id": ObjectId(job_id),
             "parse_description": request.parse_description,
@@ -146,7 +180,11 @@ async def parse_job_content(job_id: str, request: ParseRequest):
             "tokens_used": result.tokens_used,
             "processing_time_ms": result.processing_time_ms,
             "chunks_processed": result.chunks_processed,
+            "total_chunks": result.total_chunks,
             "model": result.metadata.get("model"),
+            "fields": fields,
+            "items_extracted": actual_items,
+            "items_expected": expected_items,
             "created_at": datetime.utcnow(),
         }
         insert_result = await db.parsed_results.insert_one(parse_doc)
@@ -159,6 +197,8 @@ async def parse_job_content(job_id: str, request: ParseRequest):
                     "last_parse_at": datetime.utcnow(),
                     "last_parsed_result": result.content,
                     "last_parse_tokens": result.tokens_used,
+                    "last_parse_items_extracted": actual_items,
+                    "last_parse_items_expected": expected_items,
                 }
             },
         )
@@ -177,6 +217,9 @@ async def parse_job_content(job_id: str, request: ParseRequest):
             processing_time_ms=result.processing_time_ms,
             cached=result.cached,
             chunks_processed=result.chunks_processed,
+            items_extracted=actual_items,
+            items_expected=expected_items,
+            fields=fields,
         )
 
     except HTTPException:
@@ -212,13 +255,58 @@ async def parse_job_content(job_id: str, request: ParseRequest):
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=(
                     "The configured LLM is unavailable. "
-                    "Please check parsing.Ollama FALLBACK_MODELS."
+                    "Please check parsing.enhanced_parser FALLBACK_MODELS."
                 ),
             )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to parse content: {error_msg[:200]}",
         )
+
+# ============================================================
+# PARSE (ENHANCED DIAGNOSTICS)
+# ============================================================
+@router.post("/api/scraping/jobs/{job_id}/parse-enhanced")
+async def parse_job_content_enhanced(job_id: str, request: ParseRequest):
+    """Same as /parse but returns detailed diagnostics."""
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    db = await get_database()
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    content = (request.dom_content or "").strip() or _get_job_content(job)
+    if not content:
+        raise HTTPException(status_code=400, detail="No content available to parse")
+
+    expected_items = _count_expected(content)
+    model_to_use = _resolve_model(request.model)
+
+    result: ParseResult = await parse_content_async(
+        content=content,
+        description=request.parse_description,
+        job_id=job_id,
+        model=model_to_use,
+    )
+
+    actual_items = _count_items(result.content)
+
+    return {
+        "success": result.success,
+        "items_expected": expected_items,
+        "items_extracted": actual_items,
+        "completeness": (actual_items / expected_items) if expected_items else 1.0,
+        "chunks_processed": result.chunks_processed,
+        "total_chunks": result.total_chunks,
+        "tokens_used": result.tokens_used,
+        "processing_time_ms": result.processing_time_ms,
+        "cached": result.cached,
+        "fields": result.metadata.get("fields", []),
+        "errors": result.metadata.get("partial_errors"),
+        "content": result.content,
+    }
 
 # ============================================================
 # STREAMING PARSE
@@ -238,59 +326,94 @@ async def parse_job_content_stream(job_id: str, request: ParseRequest):
         raise HTTPException(status_code=400, detail="No content available to parse")
 
     model_to_use = _resolve_model(request.model)
+    expected_items = _count_expected(content)
+
+    # Queue to bridge the parser's stream_callback into the SSE generator
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def stream_callback(event: dict):
+        await queue.put(event)
+
+    async def run_parser():
+        try:
+            result = await parse_content_async(
+                content=content,
+                description=request.parse_description,
+                job_id=job_id,
+                model=model_to_use,
+                stream_callback=stream_callback,
+            )
+            await queue.put({"_final_result": result})
+        except Exception as e:
+            logger.error(f"Stream parser error for job {job_id}: {e}")
+            logger.error(traceback.format_exc())
+            await queue.put({"_error": str(e)})
 
     async def event_generator():
+        task = asyncio.create_task(run_parser())
         try:
-            yield f"data: {json_module.dumps({'type': 'status', 'message': 'Parsing started'})}\n\n"
+            yield f"data: {json_module.dumps({'type': 'status', 'message': 'Parsing started', 'expected_items': expected_items})}\n\n"
 
-            loop = asyncio.get_event_loop()
-            result: ParseResult = await loop.run_in_executor(
-                None,
-                lambda: parse_with_openrouter_result(
-                    dom_content=content,
-                    parse_description=request.parse_description,
-                    model=model_to_use,
-                ),
-            )
+            while True:
+                event = await queue.get()
+                if "_final_result" in event:
+                    result: ParseResult = event["_final_result"]
+                    actual_items = _count_items(result.content)
 
-            if result.success:
-                parse_doc = {
-                    "job_id": ObjectId(job_id),
-                    "parse_description": request.parse_description,
-                    "parsed_content": result.content,
-                    "tokens_used": result.tokens_used,
-                    "processing_time_ms": result.processing_time_ms,
-                    "chunks_processed": result.chunks_processed,
-                    "model": result.metadata.get("model"),
-                    "created_at": datetime.utcnow(),
-                }
-                await db.parsed_results.insert_one(parse_doc)
-                await db.jobs.update_one(
-                    {"_id": ObjectId(job_id)},
-                    {
-                        "$set": {
-                            "last_parse_description": request.parse_description,
-                            "last_parse_at": datetime.utcnow(),
-                            "last_parsed_result": result.content,
+                    if result.success:
+                        parse_doc = {
+                            "job_id": ObjectId(job_id),
+                            "parse_description": request.parse_description,
+                            "parsed_content": result.content,
+                            "tokens_used": result.tokens_used,
+                            "processing_time_ms": result.processing_time_ms,
+                            "chunks_processed": result.chunks_processed,
+                            "total_chunks": result.total_chunks,
+                            "model": result.metadata.get("model"),
+                            "fields": result.metadata.get("fields", []),
+                            "items_extracted": actual_items,
+                            "items_expected": expected_items,
+                            "created_at": datetime.utcnow(),
                         }
-                    },
-                )
+                        await db.parsed_results.insert_one(parse_doc)
+                        await db.jobs.update_one(
+                            {"_id": ObjectId(job_id)},
+                            {
+                                "$set": {
+                                    "last_parse_description": request.parse_description,
+                                    "last_parse_at": datetime.utcnow(),
+                                    "last_parsed_result": result.content,
+                                    "last_parse_items_extracted": actual_items,
+                                    "last_parse_items_expected": expected_items,
+                                }
+                            },
+                        )
 
-            payload = {
-                "type": "result",
-                "success": result.success,
-                "content": result.content,
-                "tokens_used": result.tokens_used,
-                "processing_time_ms": result.processing_time_ms,
-                "error": result.error,
-            }
-            yield f"data: {json_module.dumps(payload)}\n\n"
-            yield f"data: {json_module.dumps({'type': 'done'})}\n\n"
+                    payload = {
+                        "type": "result",
+                        "success": result.success,
+                        "content": result.content,
+                        "tokens_used": result.tokens_used,
+                        "processing_time_ms": result.processing_time_ms,
+                        "error": result.error,
+                        "items_extracted": actual_items,
+                        "items_expected": expected_items,
+                        "fields": result.metadata.get("fields", []),
+                    }
+                    yield f"data: {json_module.dumps(payload)}\n\n"
+                    yield f"data: {json_module.dumps({'type': 'done'})}\n\n"
+                    break
 
-        except Exception as e:
-            logger.error(f"Stream error for job {job_id}: {e}")
-            logger.error(traceback.format_exc())
-            yield f"data: {json_module.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                if "_error" in event:
+                    yield f"data: {json_module.dumps({'type': 'error', 'error': event['_error']})}\n\n"
+                    break
+
+                # Forward chunk-level events
+                yield f"data: {json_module.dumps(event)}\n\n"
+
+        finally:
+            if not task.done():
+                task.cancel()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -317,6 +440,9 @@ async def get_parsed_results(job_id: str, limit: int = 50):
             "tokens_used": result.get("tokens_used", 0),
             "processing_time_ms": result.get("processing_time_ms", 0),
             "model": result.get("model"),
+            "fields": result.get("fields", []),
+            "items_extracted": result.get("items_extracted", 0),
+            "items_expected": result.get("items_expected", 0),
             "created_at": result.get("created_at", datetime.utcnow()),
         })
 
@@ -354,52 +480,52 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
             "pokemon": {
                 "keywords": ["pokémon", "pokemon", "pokedex", "evolution", "pokéball", "trainer"],
                 "recommendations": [
-                    {"label": "🔍 Names", "desc": "Extract all Pokémon names"},
-                    {"label": "⚡ Types", "desc": "Extract Pokémon types (Fire, Water, Grass, etc.)"},
-                    {"label": "📊 Stats", "desc": "Extract stats (HP, Attack, Defense, Speed)"},
-                    {"label": "🔄 Evolutions", "desc": "Extract evolution chains and requirements"},
-                    {"label": "🏆 Abilities", "desc": "Extract abilities and descriptions"},
-                    {"label": "🎯 Moves", "desc": "Extract moves and their effects"},
+                    {"label": "🔍 Extract All Names", "desc": "Extract all Pokémon names from the content"},
+                    {"label": "⚡ Extract All Types", "desc": "Extract all Pokémon types (Fire, Water, Grass, etc.)"},
+                    {"label": "📊 Extract All Stats", "desc": "Extract all Pokémon stats (HP, Attack, Defense, Speed)"},
+                    {"label": "🔄 Extract All Evolutions", "desc": "Extract all evolution chains and requirements"},
+                    {"label": "🏆 Extract All Abilities", "desc": "Extract all Pokémon abilities and descriptions"},
+                    {"label": "🎯 Extract All Moves", "desc": "Extract all moves and their effects"},
                 ],
             },
             "ecommerce": {
-                "keywords": ["product", "price", "buy", "shop", "cart", "checkout", "add to cart"],
+                "keywords": ["product", "price", "buy", "shop", "cart", "checkout", "add to cart", "£", "$", "€"],
                 "recommendations": [
-                    {"label": "📦 Products", "desc": "Extract all product names and IDs"},
-                    {"label": "💲 Prices", "desc": "Extract all prices with currency"},
-                    {"label": "📝 Descriptions", "desc": "Extract product descriptions"},
-                    {"label": "⭐ Ratings", "desc": "Extract ratings and review counts"},
-                    {"label": "🛒 Availability", "desc": "Extract stock status"},
-                    {"label": "🏷️ Categories", "desc": "Extract product categories"},
+                    {"label": "📦 Extract All Products", "desc": "Extract all product names and IDs"},
+                    {"label": "💲 Extract All Prices", "desc": "Extract all prices for every product"},
+                    {"label": "📝 Extract All Descriptions", "desc": "Extract all product descriptions"},
+                    {"label": "⭐ Extract All Ratings", "desc": "Extract all product ratings and review counts"},
+                    {"label": "🛒 Extract All Stock Status", "desc": "Extract the stock/availability status for every product"},
+                    {"label": "🏷️ Extract All Categories", "desc": "Extract all product categories"},
                 ],
             },
             "article": {
                 "keywords": ["article", "blog", "post", "news", "published", "author"],
                 "recommendations": [
-                    {"label": "📰 Headlines", "desc": "Extract article titles and headlines"},
-                    {"label": "✍️ Authors", "desc": "Extract author names"},
-                    {"label": "📅 Dates", "desc": "Extract publication dates"},
-                    {"label": "📊 Summary", "desc": "Create a summary of each article"},
-                    {"label": "🔗 Links", "desc": "Extract all links from articles"},
+                    {"label": "📰 Extract All Headlines", "desc": "Extract all article headlines and titles"},
+                    {"label": "✍️ Extract All Authors", "desc": "Extract all author names"},
+                    {"label": "📅 Extract All Dates", "desc": "Extract all publication dates"},
+                    {"label": "📊 Extract All Summaries", "desc": "Extract key points and summaries for every article"},
+                    {"label": "🔗 Extract All Links", "desc": "Extract all links from every article"},
                 ],
             },
             "jobs": {
                 "keywords": ["job", "hiring", "career", "position", "salary", "apply"],
                 "recommendations": [
-                    {"label": "💼 Titles", "desc": "Extract job titles"},
-                    {"label": "🏢 Companies", "desc": "Extract company names"},
-                    {"label": "📍 Locations", "desc": "Extract job locations"},
-                    {"label": "💰 Salaries", "desc": "Extract salary ranges"},
-                    {"label": "📋 Requirements", "desc": "Extract job requirements"},
+                    {"label": "💼 Extract All Job Titles", "desc": "Extract all job titles"},
+                    {"label": "🏢 Extract All Companies", "desc": "Extract all company names"},
+                    {"label": "📍 Extract All Locations", "desc": "Extract all job locations"},
+                    {"label": "💰 Extract All Salaries", "desc": "Extract all salary ranges"},
+                    {"label": "📋 Extract All Requirements", "desc": "Extract all job requirements"},
                 ],
             },
             "contact": {
                 "keywords": ["contact", "email", "phone", "address", "reach us"],
                 "recommendations": [
-                    {"label": "📧 Emails", "desc": "Extract all email addresses"},
-                    {"label": "📞 Phones", "desc": "Extract phone numbers"},
-                    {"label": "📍 Addresses", "desc": "Extract physical addresses"},
-                    {"label": "👤 Names", "desc": "Extract contact person names"},
+                    {"label": "📧 Extract All Emails", "desc": "Extract all email addresses"},
+                    {"label": "📞 Extract All Phones", "desc": "Extract all phone numbers"},
+                    {"label": "📍 Extract All Addresses", "desc": "Extract all physical addresses"},
+                    {"label": "👤 Extract All Names", "desc": "Extract all contact person names"},
                 ],
             },
         }
@@ -416,14 +542,14 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
             recommendations = content_patterns[detected_type]["recommendations"]
         else:
             recommendations = [
-                {"label": "📋 Summary", "desc": "Create a comprehensive summary of the content"},
-                {"label": "🔗 Links", "desc": "Extract all URLs and links"},
-                {"label": "📧 Emails", "desc": "Extract all email addresses"},
-                {"label": "📞 Phones", "desc": "Extract all phone numbers"},
-                {"label": "📅 Dates", "desc": "Extract all dates mentioned"},
-                {"label": "💰 Prices", "desc": "Extract all prices and costs"},
-                {"label": "📊 Tables", "desc": "Extract any tabular data"},
-                {"label": "🏷️ Keywords", "desc": "Extract key topics and keywords"},
+                {"label": "📋 Extract Full Summary", "desc": "Extract a comprehensive summary of the content"},
+                {"label": "🔗 Extract All Links", "desc": "Extract all URLs and links"},
+                {"label": "📧 Extract All Emails", "desc": "Extract all email addresses"},
+                {"label": "📞 Extract All Phones", "desc": "Extract all phone numbers"},
+                {"label": "📅 Extract All Dates", "desc": "Extract all dates mentioned"},
+                {"label": "💰 Extract All Prices", "desc": "Extract all prices and costs"},
+                {"label": "📊 Extract All Tables", "desc": "Extract any tabular data"},
+                {"label": "🏷️ Extract All Keywords", "desc": "Extract all key topics and keywords"},
             ]
 
         return {
@@ -439,10 +565,10 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
         return {
             "success": True,
             "recommendations": [
-                {"label": "📋 Summary", "desc": "Summarize the content"},
-                {"label": "🔗 Links", "desc": "Extract all URLs"},
-                {"label": "📧 Emails", "desc": "Extract email addresses"},
-                {"label": "📞 Phones", "desc": "Extract phone numbers"},
+                {"label": "📋 Extract Full Summary", "desc": "Extract a comprehensive summary of the content"},
+                {"label": "🔗 Extract All Links", "desc": "Extract all URLs"},
+                {"label": "📧 Extract All Emails", "desc": "Extract all email addresses"},
+                {"label": "📞 Extract All Phones", "desc": "Extract all phone numbers"},
             ],
             "detected_type": "generic",
             "confidence": 0,
@@ -453,4 +579,6 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
 # ============================================================
 @router.delete("/api/scraping/cache")
 async def clear_parse_cache():
+    from routes.enhanced_parsing import get_parser
+    get_parser().clear_cache()
     return {"success": True, "message": "Cache cleared"}
