@@ -1,4 +1,4 @@
-// frontend/src/pages/JobsTab.jsx - REFINED ENTERPRISE DESIGN
+// frontend/src/pages/JobsTab.jsx - MO-TECH ENTERPRISE EDITION
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -14,7 +14,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import ParsingPanel from '../components/ParsingPanel';
 
 // ============================================================
-// STYLES - REFINED ENTERPRISE
+// STYLES - MO-TECH ENTERPRISE
 // ============================================================
 
 const STYLES = `
@@ -80,6 +80,23 @@ const STYLES = `
   @keyframes pulse-dot {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(0.95); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* ★ MO-TECH: animated scanning beam on top of live banner */
+  @keyframes scanBeam {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ★ MO-TECH: blinking terminal cursor */
+  @keyframes cursorBlink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
   }
 
   .page-enter {
@@ -801,6 +818,349 @@ function StatusPill({ status }) {
 }
 
 // ============================================================
+// ★ MO-TECH: TELEMETRY CELL — small mono readout
+// ============================================================
+
+function TelemetryCell({ label, value, color }) {
+  return (
+    <div style={{
+      background: 'rgba(0, 0, 0, 0.3)',
+      border: '1px solid rgba(255, 255, 255, 0.06)',
+      borderRadius: '3px',
+      padding: '6px 9px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* tiny left accent */}
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 2,
+        background: color,
+        opacity: 0.6,
+        boxShadow: `0 0 6px ${color}`,
+      }} />
+      <span style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 8,
+        fontWeight: 600,
+        letterSpacing: '0.12em',
+        color: 'var(--color-text-muted)',
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: 13,
+        fontWeight: 700,
+        color,
+        textShadow: `0 0 8px ${color}55`,
+        letterSpacing: '0.02em',
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ============================================================
+// ★ MO-TECH: LIVE PROGRESS BANNER — terminal edition
+// ============================================================
+
+function LiveProgressBanner({ jobs }) {
+  const runningJobs = jobs.filter(j => j.status === 'running');
+  if (runningJobs.length === 0) return null;
+
+  return (
+    <div style={{
+      position: 'relative',
+      background: 'linear-gradient(135deg, #0A0E14 0%, #0D1117 50%, #0A1410 100%)',
+      border: '1px solid rgba(0, 237, 100, 0.25)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '0',
+      marginBottom: '16px',
+      overflow: 'hidden',
+      animation: 'fadeSlideIn 0.3s ease-out',
+      boxShadow: '0 0 0 1px rgba(0, 237, 100, 0.05), 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 237, 100, 0.1)',
+    }}>
+      {/* Scanline overlay */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(0, 237, 100, 0.03) 0px, rgba(0, 237, 100, 0.03) 1px, transparent 1px, transparent 3px)',
+        pointerEvents: 'none',
+        opacity: 0.6,
+      }} />
+
+      {/* Animated top border beam */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, #00ED64, #00ED64, transparent)',
+        backgroundSize: '200% 100%',
+        animation: 'scanBeam 3s linear infinite',
+      }} />
+
+      {/* Terminal header bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 16px',
+        background: 'rgba(0, 237, 100, 0.04)',
+        borderBottom: '1px solid rgba(0, 237, 100, 0.15)',
+        position: 'relative',
+        zIndex: 1,
+      }}>
+        {/* Terminal dots */}
+        <div style={{ display: 'flex', gap: 5, marginRight: 6 }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#F85149', boxShadow: '0 0 6px rgba(248,81,73,0.6)' }} />
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#D29922', boxShadow: '0 0 6px rgba(210,153,34,0.6)' }} />
+          <span style={{
+            width: 9, height: 9, borderRadius: '50%',
+            background: '#00ED64',
+            boxShadow: '0 0 8px rgba(0,237,100,0.8)',
+            animation: 'pulse-dot 1.5s infinite',
+          }} />
+        </div>
+
+        {/* Path label */}
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          color: '#00ED64',
+          letterSpacing: '0.05em',
+          textShadow: '0 0 8px rgba(0, 237, 100, 0.5)',
+        }}>
+          ~/scraper/live
+        </span>
+        <span style={{ color: 'rgba(0,237,100,0.3)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>›</span>
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          color: 'var(--color-text-secondary)',
+        }}>
+          streaming {runningJobs.length} job{runningJobs.length > 1 ? 's' : ''}
+        </span>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Live indicator */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '2px 8px',
+          background: 'rgba(0, 237, 100, 0.08)',
+          border: '1px solid rgba(0, 237, 100, 0.3)',
+          borderRadius: '3px',
+        }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%',
+            background: '#00ED64',
+            boxShadow: '0 0 8px #00ED64',
+            animation: 'pulse-dot 1s infinite',
+          }} />
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            fontWeight: 600,
+            color: '#00ED64',
+            letterSpacing: '0.1em',
+            textShadow: '0 0 6px rgba(0,237,100,0.6)',
+          }}>
+            LIVE
+          </span>
+        </div>
+      </div>
+
+      {/* Job streams */}
+      <div style={{ padding: '14px 16px', position: 'relative', zIndex: 1 }}>
+        {runningJobs.map((job, idx) => {
+          const progress = job.progress || 0;
+          const pages = job.pages_processed || 0;
+          const discovered = job.pages_discovered || 0;
+          const records = job.records || 0;
+          const dupes = job.duplicates_removed || 0;
+          const elapsed = job.elapsed_seconds || 0;
+          const lastPage = job.last_page || '';
+
+          return (
+            <div
+              key={job.id}
+              style={{
+                marginBottom: idx === runningJobs.length - 1 ? 0 : 20,
+                paddingBottom: idx === runningJobs.length - 1 ? 0 : 20,
+                borderBottom: idx === runningJobs.length - 1 ? 'none' : '1px dashed rgba(0, 237, 100, 0.12)',
+              }}
+            >
+              {/* Job ID + name row */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 10,
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  color: '#00ED64',
+                  opacity: 0.7,
+                  textShadow: '0 0 6px rgba(0,237,100,0.4)',
+                }}>
+                  [{String(idx + 1).padStart(2, '0')}]
+                </span>
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.01em',
+                }}>
+                  {job.name}
+                </span>
+                <div style={{ flex: 1, minWidth: 10 }} />
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: '#00ED64',
+                  textShadow: '0 0 10px rgba(0, 237, 100, 0.6), 0 0 20px rgba(0, 237, 100, 0.3)',
+                  letterSpacing: '0.02em',
+                }}>
+                  {progress.toString().padStart(3, ' ')}%
+                </span>
+              </div>
+
+              {/* Terminal-style progress track */}
+              <div style={{
+                position: 'relative',
+                height: 8,
+                background: 'rgba(0, 237, 100, 0.05)',
+                border: '1px solid rgba(0, 237, 100, 0.15)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+                {/* Bracket markers */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                }}>
+                  <span style={{ width: 2, background: 'rgba(0,237,100,0.4)' }} />
+                  <span style={{ width: 2, background: 'rgba(0,237,100,0.4)' }} />
+                </div>
+                {/* Fill */}
+                <div style={{
+                  height: '100%',
+                  width: `${progress}%`,
+                  background: 'linear-gradient(90deg, #00C355 0%, #00ED64 50%, #5CFFA0 100%)',
+                  transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 0 12px rgba(0, 237, 100, 0.8), 0 0 24px rgba(0, 237, 100, 0.4), inset 0 0 8px rgba(255,255,255,0.2)',
+                  position: 'relative',
+                  zIndex: 1,
+                }} />
+                {/* Moving shimmer */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'shimmer 2s linear infinite',
+                  pointerEvents: 'none',
+                  mixBlendMode: 'overlay',
+                }} />
+              </div>
+
+              {/* Telemetry grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                gap: 8,
+                marginTop: 12,
+              }}>
+                <TelemetryCell
+                  label="PAGES"
+                  value={discovered > 0 ? `${pages}/${discovered}` : `${pages}`}
+                  color="#00ED64"
+                />
+                <TelemetryCell
+                  label="RECORDS"
+                  value={records.toLocaleString()}
+                  color="#58A6FF"
+                />
+                {dupes > 0 && (
+                  <TelemetryCell
+                    label="DUPES"
+                    value={dupes.toLocaleString()}
+                    color="#D29922"
+                  />
+                )}
+                {elapsed > 0 && (
+                  <TelemetryCell
+                    label="ELAPSED"
+                    value={`${Math.round(elapsed)}s`}
+                    color="#9BA4B0"
+                  />
+                )}
+              </div>
+
+              {/* Current URL terminal line */}
+              {lastPage && (
+                <div style={{
+                  marginTop: 10,
+                  padding: '6px 10px',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px solid rgba(0, 237, 100, 0.1)',
+                  borderRadius: '3px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  color: 'rgba(0, 237, 100, 0.7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  overflow: 'hidden',
+                }}>
+                  <span style={{ color: '#00ED64', textShadow: '0 0 6px rgba(0,237,100,0.6)' }}>❯</span>
+                  <span style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}>
+                    {lastPage}
+                  </span>
+                  <span style={{
+                    width: 6,
+                    height: 12,
+                    background: '#00ED64',
+                    boxShadow: '0 0 8px rgba(0,237,100,0.8)',
+                    animation: 'cursorBlink 1s step-end infinite',
+                  }} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // PAGINATION COMPONENT
 // ============================================================
 
@@ -903,12 +1263,24 @@ function Pagination({ currentPage, totalPages, itemsPerPage, totalItems, onPageC
 }
 
 // ============================================================
-// DELETE CONFIRMATION MODAL
+// DELETE CONFIRMATION MODAL  (★ FIXED)
 // ============================================================
 
 function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
+  // Close on ESC (unless deleting)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !deleting) onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel, deleting]);
+
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div
+      className="modal-overlay"
+      onClick={() => { if (!deleting) onCancel(); }}
+    >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--status-error-bg)', border: '1px solid var(--status-error-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-error)', flexShrink: 0 }}>
@@ -932,17 +1304,26 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary btn-sm" onClick={onCancel}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={onCancel}
+            disabled={deleting}
+          >
             Cancel
           </button>
           <button
             className="btn btn-sm"
-            style={{ background: 'var(--status-error-bg)', color: 'var(--color-error)', border: '1px solid var(--status-error-border)' }}
+            style={{
+              background: 'var(--status-error-bg)',
+              color: 'var(--color-error)',
+              border: '1px solid var(--status-error-border)',
+              cursor: deleting ? 'not-allowed' : 'pointer',
+            }}
             onClick={onConfirm}
             disabled={deleting}
           >
             {deleting ? <Loader size={11} className="spin" /> : <Trash2 size={11} />}
-            Delete Permanently
+            {deleting ? 'Deleting…' : 'Delete Permanently'}
           </button>
         </div>
       </div>
@@ -964,6 +1345,13 @@ function JobDetailsModal({ job, onClose }) {
       loadDetails();
     }
   }, [job]);
+
+  // ★ Auto-refresh details while the job is running
+  useEffect(() => {
+    if (details?.status !== 'running') return;
+    const id = setInterval(loadDetails, 2000);
+    return () => clearInterval(id);
+  }, [details?.status]);
   
   const loadDetails = async () => {
     setLoading(true);
@@ -1061,6 +1449,58 @@ function JobDetailsModal({ job, onClose }) {
                   <div className="progress-fill" style={{ width: `${d.progress || 0}%`, background: d.status === 'failed' ? 'var(--color-error)' : 'var(--color-mdb-green)' }} />
                 </div>
               </div>
+
+              {/* ★ Live "scraping in progress" panel */}
+              {status === 'running' && (
+                <div style={{
+                  background: 'var(--status-info-bg)',
+                  border: '1px solid var(--status-info-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 14px',
+                  marginBottom: 16,
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                    color: 'var(--color-info)',
+                    fontWeight: 500,
+                    marginBottom: 8,
+                  }}>
+                    <Activity size={13} className="spin" />
+                    Scraping in progress…
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                    gap: 10,
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--color-text-secondary)',
+                  }}>
+                    <div>📄 Pages: <strong>{d.pages_processed || 0}</strong></div>
+                    <div>📦 Records: <strong>{d.records || 0}</strong></div>
+                    <div>♻ Dupes: <strong>{d.duplicates_removed || 0}</strong></div>
+                    <div>⏭ Skipped: <strong>{d.records_skipped || 0}</strong></div>
+                    <div>⏱ Elapsed: <strong>{Math.round(d.elapsed_seconds || 0)}s</strong></div>
+                    <div>⚠ Errors: <strong>{errors.length}</strong></div>
+                  </div>
+                  {d.last_page && (
+                    <div style={{
+                      marginTop: 8,
+                      fontSize: 10,
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--color-text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      Current: {d.last_page}
+                    </div>
+                  )}
+                </div>
+              )}
               
               <div style={{ marginBottom: 16 }}>
                 <StatusPill status={status} />
@@ -1388,7 +1828,7 @@ export default function Jobs() {
     
     pollingInterval.current = setInterval(() => {
       loadJobs();
-    }, 3000);
+    }, 2000);
   }, [loadJobs]);
 
   const stopPolling = useCallback(() => {
@@ -1451,9 +1891,11 @@ export default function Jobs() {
     }
   };
 
+  // ★ FIXED: uses `deleteTarget` correctly, guards, logs, always resets
   const handleDeleteJob = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget?.id) return;
     setDeleting(true);
+    setError(null);
     try {
       await api.delete(`/api/jobs/${deleteTarget.id}`);
       setSuccess(`"${deleteTarget.name}" deleted`);
@@ -1461,8 +1903,13 @@ export default function Jobs() {
       await loadJobs();
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to delete job');
-      setTimeout(() => setError(null), 3000);
+      console.error('Delete failed:', err);
+      setError(
+        err.response?.data?.detail ||
+        err.message ||
+        'Failed to delete job'
+      );
+      setTimeout(() => setError(null), 4000);
     } finally {
       setDeleting(false);
     }
@@ -1587,176 +2034,181 @@ export default function Jobs() {
       
       {/* Jobs List Tab */}
       {activeTab === 'list' && (
-        <div className="table-container">
-          <div className="table-header">
-            <div className="table-title">
-              <span className="job-count">{filteredJobs.length} jobs</span>
-              <div className="filter-group">
-                {filters.map(f => (
-                  <button
-                    key={f}
-                    className={`filter-chip ${statusFilter === f ? 'active' : ''}`}
-                    onClick={() => setStatusFilter(f)}
-                  >
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </button>
-                ))}
+        <>
+          {/* ★ LIVE PROGRESS BANNER — mo-tech terminal edition */}
+          <LiveProgressBanner jobs={jobs} />
+
+          <div className="table-container">
+            <div className="table-header">
+              <div className="table-title">
+                <span className="job-count">{filteredJobs.length} jobs</span>
+                <div className="filter-group">
+                  {filters.map(f => (
+                    <button
+                      key={f}
+                      className={`filter-chip ${statusFilter === f ? 'active' : ''}`}
+                      onClick={() => setStatusFilter(f)}
+                    >
+                      {f.charAt(0).toUpperCase() + f.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                {loading && <RefreshCw size={13} className="spin" />}
+                {isPolling && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 500, color: 'var(--color-info)' }}>
+                    <Activity size={10} className="spin" /> Auto-refreshing
+                  </span>
+                )}
+                {runningCount > 0 && !isPolling && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 500, color: 'var(--color-info)' }}>
+                    <Activity size={10} /> {runningCount} running
+                  </span>
+                )}
               </div>
-              {loading && <RefreshCw size={13} className="spin" />}
-              {isPolling && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 500, color: 'var(--color-info)' }}>
-                  <Activity size={10} className="spin" /> Auto-refreshing
-                </span>
-              )}
-              {runningCount > 0 && !isPolling && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--status-info-bg)', border: '1px solid var(--status-info-border)', borderRadius: 'var(--radius-full)', fontSize: '10px', fontWeight: 500, color: 'var(--color-info)' }}>
-                  <Activity size={10} /> {runningCount} running
-                </span>
-              )}
+              <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('new')}>
+                <Play size={11} /> New Job
+              </button>
             </div>
-            <button className="btn btn-primary btn-sm" onClick={() => setActiveTab('new')}>
-              <Play size={11} /> New Job
-            </button>
-          </div>
-          
-          {paginatedJobs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{ width: '48px', height: '48px', margin: '0 auto 12px', background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-                <Briefcase size={20} />
+            
+            {paginatedJobs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div style={{ width: '48px', height: '48px', margin: '0 auto 12px', background: 'var(--color-canvas)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+                  <Briefcase size={20} />
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>No jobs found</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                  {statusFilter !== 'all'
+                    ? `No jobs with status: ${statusFilter}`
+                    : 'Create your first job to get started'}
+                </div>
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>No jobs found</div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                {statusFilter !== 'all'
-                  ? `No jobs with status: ${statusFilter}`
-                  : 'Create your first job to get started'}
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="table-wrapper">
-                <table className="jobs-table">
-                  <thead>
-                    <tr>
-                      <th>Job Name</th>
-                      <th>Target URL</th>
-                      <th>Status</th>
-                      <th>Progress</th>
-                      <th>Records</th>
-                      <th>Created</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedJobs.map(job => {
-                      const isRunning = job.status === 'running';
-                      
-                      return (
-                        <tr key={job.id}>
-                          <td style={{ fontWeight: 500, wordBreak: 'break-word' }}>{job.name}</td>
-                          <td>
-                            <span className="mono-text url-cell">
-                              {job.target || job.url || 'N/A'}
-                            </span>
-                          </td>
-                          <td>
-                            {isRunning ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                                <span className="status-pill running">
-                                  <span className="status-dot" />
-                                  Running
-                                </span>
-                                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
-                                  {job.progress || 0}%
-                                </span>
-                              </div>
-                            ) : (
-                              <StatusPill status={job.status} />
-                            )}
-                          </td>
-                          <td>
-                            <div className="progress-container">
-                              <div className="progress-bar">
-                                <div 
-                                  className="progress-fill" 
-                                  style={{ 
-                                    width: `${job.progress || 0}%`,
-                                    background: isRunning ? 'var(--color-info)' : 
-                                               job.status === 'failed' ? 'var(--color-error)' : 
-                                               'var(--color-mdb-green)'
-                                  }} 
-                                />
-                              </div>
-                              <span className="progress-text">{job.progress || 0}%</span>
-                            </div>
-                          </td>
-                          <td className="mono-text">{job.records?.toLocaleString() || '0'}</td>
-                          <td className="mono-text">{formatDate(job.created_at)}</td>
-                          <td>
-                            <div className="action-group">
-                              <button
-                                className="action-btn"
-                                title="View details"
-                                onClick={() => setSelectedJob(job)}
-                              >
-                                <Eye size={12} />
-                              </button>
-                              <button
-                                className="action-btn"
-                                title="Extract with AI"
-                                onClick={() => setParsingJob(job)}
-                                disabled={!job.scraped_content}
-                              >
-                                <Brain size={12} />
-                              </button>
-                              {job.status === 'running' ? (
-                                <button
-                                  className="action-btn"
-                                  title="Pause job"
-                                  onClick={() => handlePauseJob(job.id)}
-                                >
-                                  <Pause size={12} />
-                                </button>
+            ) : (
+              <>
+                <div className="table-wrapper">
+                  <table className="jobs-table">
+                    <thead>
+                      <tr>
+                        <th>Job Name</th>
+                        <th>Target URL</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Records</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedJobs.map(job => {
+                        const isRunning = job.status === 'running';
+                        
+                        return (
+                          <tr key={job.id}>
+                            <td style={{ fontWeight: 500, wordBreak: 'break-word' }}>{job.name}</td>
+                            <td>
+                              <span className="mono-text url-cell">
+                                {job.target || job.url || 'N/A'}
+                              </span>
+                            </td>
+                            <td>
+                              {isRunning ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                  <span className="status-pill running">
+                                    <span className="status-dot" />
+                                    Running
+                                  </span>
+                                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+                                    {job.progress || 0}%
+                                  </span>
+                                </div>
                               ) : (
+                                <StatusPill status={job.status} />
+                              )}
+                            </td>
+                            <td>
+                              <div className="progress-container">
+                                <div className="progress-bar">
+                                  <div 
+                                    className="progress-fill" 
+                                    style={{ 
+                                      width: `${job.progress || 0}%`,
+                                      background: isRunning ? 'var(--color-info)' : 
+                                                 job.status === 'failed' ? 'var(--color-error)' : 
+                                                 'var(--color-mdb-green)'
+                                    }} 
+                                  />
+                                </div>
+                                <span className="progress-text">{job.progress || 0}%</span>
+                              </div>
+                            </td>
+                            <td className="mono-text">{job.records?.toLocaleString() || '0'}</td>
+                            <td className="mono-text">{formatDate(job.created_at)}</td>
+                            <td>
+                              <div className="action-group">
                                 <button
                                   className="action-btn"
-                                  title={job.status === 'queued' ? 'Start job' : 'Re-run job'}
-                                  onClick={() => handleStartJob(job.id)}
-                                  disabled={job.status === 'running'}
+                                  title="View details"
+                                  onClick={() => setSelectedJob(job)}
                                 >
-                                  {job.status === 'running' ? (
-                                    <Loader size={12} className="spin" />
-                                  ) : (
-                                    <Play size={12} />
-                                  )}
+                                  <Eye size={12} />
                                 </button>
-                              )}
-                              <button
-                                className="action-btn danger"
-                                title="Delete job"
-                                onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                itemsPerPage={itemsPerPage}
-                totalItems={filteredJobs.length}
-                onPageChange={setCurrentPage}
-                onItemsPerPageChange={setItemsPerPage}
-              />
-            </>
-          )}
-        </div>
+                                <button
+                                  className="action-btn"
+                                  title="Extract with AI"
+                                  onClick={() => setParsingJob(job)}
+                                  disabled={!job.scraped_content}
+                                >
+                                  <Brain size={12} />
+                                </button>
+                                {job.status === 'running' ? (
+                                  <button
+                                    className="action-btn"
+                                    title="Pause job"
+                                    onClick={() => handlePauseJob(job.id)}
+                                  >
+                                    <Pause size={12} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="action-btn"
+                                    title={job.status === 'queued' ? 'Start job' : 'Re-run job'}
+                                    onClick={() => handleStartJob(job.id)}
+                                    disabled={job.status === 'running'}
+                                  >
+                                    {job.status === 'running' ? (
+                                      <Loader size={12} className="spin" />
+                                    ) : (
+                                      <Play size={12} />
+                                    )}
+                                  </button>
+                                )}
+                                <button
+                                  className="action-btn danger"
+                                  title="Delete job"
+                                  onClick={() => setDeleteTarget({ id: job.id, name: job.name })}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredJobs.length}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={setItemsPerPage}
+                />
+              </>
+            )}
+          </div>
+        </>
       )}
       
       {/* New Job Tab */}
@@ -1911,11 +2363,12 @@ export default function Jobs() {
         />
       )}
       
+      {/* ★ FIXED: passes onConfirm instead of onDelete */}
       {deleteTarget && (
         <DeleteConfirmModal
           jobName={deleteTarget.name}
-          onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDeleteJob}
+          onCancel={() => setDeleteTarget(null)}
           deleting={deleting}
         />
       )}

@@ -440,14 +440,18 @@ function tryParseLLMJson(text) {
 
 /**
  * Count complete rows in the LLM's JSON — minimum array length across fields.
- * This matches the backend's `_count_items` logic so the UI displays the
- * same "items extracted" number that gets saved to Mongo.
+ * ★ FIX: also unwraps single-array wrappers like {"items": [...]}.
  */
 function countItemsInResult(resultText) {
   const data = tryParseLLMJson(resultText);
   if (!data) return 0;
   if (Array.isArray(data)) return data.length;
   if (typeof data === 'object') {
+    // ★ FIX: unwrap common single-array wrappers so we don't report 0
+    const keys = Object.keys(data);
+    if (keys.length === 1 && Array.isArray(data[keys[0]])) {
+      return data[keys[0]].length;
+    }
     const arrays = Object.values(data).filter(a => Array.isArray(a) && a.length > 0);
     return arrays.length ? Math.min(...arrays.map(a => a.length)) : 0;
   }
