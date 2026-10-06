@@ -1,4 +1,4 @@
-// frontend/src/components/ParsingPanel.jsx - Full working version
+// frontend/src/components/ParsingPanel.jsx - Full working version (streaming)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Brain, Loader, X, CheckCircle, AlertCircle,
@@ -8,7 +8,7 @@ import {
 import api, { jobService } from '../api';
 
 // ============================================================
-// NORMALIZER — makes any job shape work with this panel
+// NORMALIZER
 // ============================================================
 function normalizeJob(raw, fallbackId) {
   if (!raw) return null;
@@ -208,6 +208,26 @@ const STYLES = `
     transform: translateY(-1px);
   }
   .parse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .progress-bar {
+    margin-top: 10px;
+    height: 6px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--color-mdb-green);
+    transition: width 0.3s ease;
+  }
+  .progress-text {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+  }
 
   .quick-actions-section { margin-top: 12px; }
   .quick-actions-label {
@@ -426,7 +446,7 @@ function injectStyles(id, css) {
 }
 
 // ============================================================
-// UTILITY — parse the LLM's JSON output safely
+// UTILITY
 // ============================================================
 function tryParseLLMJson(text) {
   if (!text) return null;
@@ -438,16 +458,11 @@ function tryParseLLMJson(text) {
   }
 }
 
-/**
- * Count complete rows in the LLM's JSON — minimum array length across fields.
- * ★ FIX: also unwraps single-array wrappers like {"items": [...]}.
- */
 function countItemsInResult(resultText) {
   const data = tryParseLLMJson(resultText);
   if (!data) return 0;
   if (Array.isArray(data)) return data.length;
   if (typeof data === 'object') {
-    // ★ FIX: unwrap common single-array wrappers so we don't report 0
     const keys = Object.keys(data);
     if (keys.length === 1 && Array.isArray(data[keys[0]])) {
       return data[keys[0]].length;
@@ -560,6 +575,7 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
   const [jobError, setJobError] = useState(null);
   const [parseDescription, setParseDescription] = useState('');
   const [isParsing, setIsParsing] = useState(false);
+  const [parseProgress, setParseProgress] = useState(null);
   const [parsedResults, setParsedResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
@@ -588,23 +604,13 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
   const loadJob = useCallback(async () => {
     if (!resolvedJobId) {
       setJobError('No job ID provided to ParsingPanel');
-      console.warn('[ParsingPanel] missing jobId prop');
       return;
     }
     setLoading(true);
     setJobError(null);
     try {
       const raw = await jobService.getJob(resolvedJobId);
-      console.log('[ParsingPanel] raw job keys:', Object.keys(raw || {}));
-      console.log('[ParsingPanel] items count:', raw?.items?.length);
       const data = normalizeJob(raw, resolvedJobId);
-      console.log('[ParsingPanel] normalized job:', {
-        id: data.id,
-        name: data.name,
-        has_content: data.has_content,
-        content_length: data.content_length,
-        items_count: data.items?.length,
-      });
       if (!mountedRef.current) return;
       setJob(data);
     } catch (err) {
@@ -613,7 +619,6 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
         err?.response?.data?.message ||
         err.message ||
         'Failed to load job details';
-      console.error('[ParsingPanel] load job failed:', err);
       if (!mountedRef.current) return;
       setJobError(msg);
       setToast({ message: msg, type: 'error' });
@@ -631,7 +636,6 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
       const list = response?.data?.parsed_results || [];
       if (mountedRef.current) setParsedResults(list);
     } catch (err) {
-      console.error('[ParsingPanel] load parsed results failed:', err);
       if (mountedRef.current) setParsedResults([]);
     } finally {
       if (mountedRef.current) setLoadingResults(false);
@@ -731,7 +735,6 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
         }
       }
     } catch (err) {
-      console.error('[ParsingPanel] recommendations failed:', err);
       const fallbackRecs = generateFallbackRecommendations(job);
       if (mountedRef.current) {
         setRecommendations(fallbackRecs);
@@ -772,17 +775,10 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
         }
         return parts.join(' | ');
       });
-      const content = lines.join('\n');
-      console.log(`[ParsingPanel] built ${items.length} items (${content.length} chars)`);
-      return content;
+      return lines.join('\n');
     }
 
-    const fallback = job.scraped_content || '';
-    const fallbackCount = (fallback.match(/^#\d+/gm) || []).length;
-    console.log(
-      `[ParsingPanel] fallback to scraped_content (${fallback.length} chars, ${fallbackCount} #N lines)`
-    );
-    return fallback;
+    return job.scraped_content || '';
   }, [job]);
 
   // ---------------- EXPECTED ITEM COUNT ----------------
@@ -793,7 +789,7 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
     return (text.match(/^#\d+/gm) || []).length;
   }, [job]);
 
-  // ---------------- PARSE ACTION ----------------
+  // ---------------- PARSE ACTION (STREAMING) ----------------
   const handleParse = async () => {
     if (!parseDescription.trim()) {
       setToast({ message: 'Please enter a parsing description', type: 'error' });
@@ -814,32 +810,73 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
     }
 
     const expected = expectedItemCount();
-    console.log(`[ParsingPanel] expected item count: ${expected}`);
-
     setIsParsing(true);
+    setParseProgress({ done: 0, total: 0 });
+
     try {
-      const response = await api.post(`/api/scraping/jobs/${resolvedJobId}/parse`, {
-        parse_description: parseDescription,
-        dom_content: content,
-      });
+      const baseURL = api.defaults?.baseURL || '';
+      const response = await fetch(
+        `${baseURL}/api/scraping/jobs/${resolvedJobId}/parse-stream`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parse_description: parseDescription,
+            dom_content: content,
+          }),
+        }
+      );
 
-      if (response?.data?.success) {
-        const resultText = response.data.parse_result || response.data.parsed_content || '';
-        const actual = countItemsInResult(resultText);
-        const fields = response.data.fields || [];
+      if (!response.ok || !response.body) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+      }
 
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResult = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const blocks = buffer.split('\n\n');
+        buffer = blocks.pop() || '';
+
+        for (const block of blocks) {
+          const line = block.trim();
+          if (!line.startsWith('data:')) continue;
+          try {
+            const evt = JSON.parse(line.slice(5).trim());
+
+            if (evt.type === 'start') {
+              setParseProgress({ done: 0, total: evt.total_chunks });
+            } else if (evt.type === 'chunk_complete') {
+              setParseProgress(p => ({
+                done: (p?.done || 0) + 1,
+                total: p?.total || 0,
+              }));
+            } else if (evt.type === 'chunk_error') {
+              // non-fatal, keep going
+            } else if (evt.type === 'result') {
+              finalResult = evt;
+            }
+          } catch {
+            // ignore malformed
+          }
+        }
+      }
+
+      if (finalResult?.success) {
+        const actual = countItemsInResult(finalResult.content);
+        const fields = finalResult.fields || [];
         const isShort = expected > 0 && actual > 0 && actual < expected * 0.9;
-        const warning = isShort
-          ? ` ⚠ expected ${expected}, got ${actual}`
-          : expected > 0 && actual > 0
-            ? ` (${actual}/${expected} items)`
-            : '';
-
-        const fieldsMsg = fields.length ? ` • fields: ${fields.join(', ')}` : '';
 
         setToast({
-          message: `Parsed successfully${warning}${fieldsMsg} — ${response.data.tokens_used || 0} tokens, ${(
-            response.data.processing_time_ms || 0
+          message: `Parsed ${actual}/${expected} items • fields: ${fields.join(', ') || 'n/a'} • ${(
+            finalResult.processing_time_ms || 0
           ).toFixed(0)}ms`,
           type: isShort ? 'error' : 'success',
         });
@@ -848,25 +885,21 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
         await loadJob();
       } else {
         setToast({
-          message: response?.data?.error || response?.data?.detail || 'Failed to parse content',
+          message: finalResult?.error || 'Parsing failed',
           type: 'error',
         });
       }
     } catch (err) {
-      const detail = err?.response?.data?.detail;
-      let errorMsg;
-      if (Array.isArray(detail)) {
-        errorMsg = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
-      } else if (typeof detail === 'string') {
-        errorMsg = detail;
-      } else {
-        errorMsg = err?.response?.data?.error || err.message || 'Failed to parse content';
-      }
-      setToast({ message: errorMsg, type: 'error' });
+      setToast({
+        message: err?.message || 'Failed to parse content',
+        type: 'error',
+      });
       console.error('[ParsingPanel] parse error:', err);
-      console.error('[ParsingPanel] response data:', err?.response?.data);
     } finally {
-      if (mountedRef.current) setIsParsing(false);
+      if (mountedRef.current) {
+        setIsParsing(false);
+        setParseProgress(null);
+      }
     }
   };
 
@@ -878,7 +911,6 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
       setToast({ message: 'Result deleted', type: 'success' });
       await loadParsedResults();
     } catch (err) {
-      console.error('[ParsingPanel] delete failed:', err);
       setToast({ message: 'Failed to delete result', type: 'error' });
     }
   };
@@ -1053,7 +1085,9 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
                     {isParsing ? (
                       <>
                         <Loader size={16} className="spin" />
-                        Parsing...
+                        {parseProgress?.total
+                          ? `Parsing ${parseProgress.done}/${parseProgress.total}…`
+                          : 'Parsing…'}
                       </>
                     ) : (
                       <>
@@ -1064,6 +1098,29 @@ export default function ParsingPanel({ jobId, jobName, onClose }) {
                   </button>
                 </div>
               </div>
+
+              {isParsing && parseProgress?.total > 0 && (
+                <>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${Math.round(
+                          (parseProgress.done / parseProgress.total) * 100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="progress-text">
+                    {parseProgress.done}/{parseProgress.total} chunks processed
+                    {' • '}
+                    {Math.round(
+                      (parseProgress.done / parseProgress.total) * 100
+                    )}%
+                  </div>
+                </>
+              )}
+
               <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: 8 }}>
                 ⌘ + Enter to submit • AI will extract structured data from your job content
               </div>

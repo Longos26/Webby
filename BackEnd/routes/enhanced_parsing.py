@@ -1,15 +1,18 @@
 # backend/parsing/enhanced_parser.py
 """
-Enhanced LLM Parser — v3 (NO-TRUNCATION edition)
+Enhanced LLM Parser — v4 (FAST + RELIABLE edition)
 
-Key changes vs v2:
-  ★ max_tokens raised to 32000 (was 8192) — output never cut mid-JSON
-  ★ max_chunks raised to 1000 (was 20) — no chunk is ever dropped
-  ★ chunk_size raised to 200000 (was 40000) — fewer chunks, less boundary loss
-  ★ Truncation warning logged instead of silently slicing
-  ★ Per-chunk token budget scales with chunk size
-  ★ Post-processing no longer coerces strings down (values preserved verbatim)
-  ★ Raw LLM output preserved 1:1 — no field is dropped for length
+Key changes vs v3:
+  ★ chunk_size reduced 200k → 12k (fits free model context)
+  ★ max_tokens reduced 32k → 4096 (free models honor this)
+  ★ timeout reduced 300s → 60s (fail fast)
+  ★ max_retries reduced 3 → 2
+  ★ Parallel chunk processing (4 concurrent by default)
+  ★ Removed response_format (free models reject it)
+  ★ _split_into_items joins with " | " (no more key concatenation)
+  ★ _merge_chunks concatenates disjoint chunks (no false dedupe)
+  ★ _extract_chunk retries once on empty JSON
+  ★ Better free models in FALLBACK_MODELS
 """
 
 import asyncio
@@ -38,10 +41,11 @@ router = APIRouter(prefix="/api/enhanced-parsing", tags=["Enhanced_Parsing"])
 # ============================================================
 # MODEL CONFIGURATION — SINGLE SOURCE OF TRUTH
 # ============================================================
-DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+DEFAULT_MODEL = "meta-llama/llama-3.2-3b-instruct:free"
 FALLBACK_MODELS = [
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
     "meta-llama/llama-3.2-3b-instruct:free",
+    "google/gemma-2-9b-it:free",
+    "mistralai/mistral-7b-instruct:free",
 ]
 ALLOWED_MODELS = set(FALLBACK_MODELS)
 
@@ -58,7 +62,7 @@ def sanitize_model(requested: Optional[str]) -> str:
 
 
 # ============================================================
-# CONFIGURATION  ★ FIX: no truncation caps
+# CONFIGURATION  ★ SPEED + RELIABILITY FIX
 # ============================================================
 @dataclass
 class ParserConfig:
@@ -67,19 +71,22 @@ class ParserConfig:
     api_key: str = ""
     base_url: str = "https://openrouter.ai/api/v1"
 
-    # ★ FIX: allow the LLM to emit the whole JSON array
-    max_tokens: int = 32000
+    # ★ FIX: free models cap output ~8k; 4k is safe and fast
+    max_tokens: int = 4096
 
     temperature: float = 0.0
-    timeout_seconds: int = 300          # ★ FIX: longer to allow large outputs
-    max_retries: int = 3
-    retry_delay: float = 2.0
+    timeout_seconds: int = 60          # ★ FIX: 60s per chunk, fail fast
+    max_retries: int = 2               # ★ FIX: 2 retries is plenty
+    retry_delay: float = 1.5
 
-    # ★ FIX: much larger chunks → fewer boundaries → fewer missing items
-    chunk_size: int = 200_000
+    # ★ FIX: 12k chars ≈ 3k tokens. Fits free model context comfortably.
+    chunk_size: int = 12_000
 
-    # ★ FIX: no chunk cap. 1000 chunks is effectively "unlimited" for web scraping
-    max_chunks: int = 1000
+    # ★ FIX: hard cap so we never hang. 500 × 12k = 6M chars.
+    max_chunks: int = 500
+
+    # ★ FIX: process N chunks in parallel
+    max_concurrent_chunks: int = 4
 
     enable_cache: bool = True
     cache_ttl_seconds: int = 3600
@@ -153,6 +160,8 @@ ITEM_LINE_RE = re.compile(r'^#\d+\s*\|.*$', re.MULTILINE)
 
 
 def _split_into_items(content: str) -> Optional[List[str]]:
+    """Split source into per-item strings, joining continuation lines
+    with ' | ' so key=value pairs stay separated."""
     if not re.search(r'^#\d+', content, re.MULTILINE):
         return None
     items = []
@@ -160,14 +169,15 @@ def _split_into_items(content: str) -> Optional[List[str]]:
         if re.match(r'^#\d+', line):
             items.append(line)
         elif items and line.strip():
-            items[-1] += ' ' + line.strip()
+            # ★ FIX: join with " | " to keep keys separated
+            items[-1] += ' | ' + line.strip()
     return items if items else None
 
 
-def chunk_content(content: str, chunk_size: int = 200_000, overlap: int = 200) -> List[str]:
+def chunk_content(content: str, chunk_size: int = 12_000, overlap: int = 100) -> List[str]:
     """
-    ★ FIX: never drops content. If a single item is larger than chunk_size,
-    it is emitted as its own chunk instead of being truncated.
+    ★ FIX: if a single item exceeds chunk_size, split it across chunks
+    (never truncate, never drop).
     """
     if len(content) <= chunk_size:
         return [content]
@@ -179,11 +189,17 @@ def chunk_content(content: str, chunk_size: int = 200_000, overlap: int = 200) -
         current_len = 0
         for item in items:
             item_len = len(item) + 1
-            # ★ FIX: even if a single item is > chunk_size, keep it whole
+            # Oversized single item → split across chunks
+            if item_len > chunk_size:
+                if current:
+                    chunks.append('\n'.join(current))
+                    current, current_len = [], 0
+                for start in range(0, len(item), chunk_size):
+                    chunks.append(item[start:start + chunk_size])
+                continue
             if current and current_len + item_len > chunk_size:
                 chunks.append('\n'.join(current))
-                current = [item]
-                current_len = item_len
+                current, current_len = [item], item_len
             else:
                 current.append(item)
                 current_len += item_len
@@ -191,21 +207,19 @@ def chunk_content(content: str, chunk_size: int = 200_000, overlap: int = 200) -
             chunks.append('\n'.join(current))
         return chunks
 
+    # Plain text fallback
     chunks = []
     start = 0
     while start < len(content):
-        end = start + chunk_size
-        if end >= len(content):
-            chunks.append(content[start:])
-            break
-        break_point = end
-        for sep in ('\n\n', '\n', '. ', '! ', '? ', ' '):
-            pos = content.rfind(sep, start + chunk_size // 2, end)
-            if pos > start:
-                break_point = pos + len(sep)
-                break
-        chunks.append(content[start:break_point])
-        start = max(break_point - overlap, start + 1)
+        end = min(start + chunk_size, len(content))
+        if end < len(content):
+            for sep in ('\n\n', '\n', '. ', ' '):
+                pos = content.rfind(sep, start + chunk_size // 2, end)
+                if pos > start:
+                    end = pos + len(sep)
+                    break
+        chunks.append(content[start:end])
+        start = max(end - overlap, start + 1)
     return chunks
 
 
@@ -314,9 +328,9 @@ async def call_openrouter(
             {"role": "user", "content": prompt},
         ],
         "temperature": config.temperature,
-        # ★ FIX: 32000 tokens — enough for any realistic JSON extraction
         "max_tokens": config.max_tokens,
-        "response_format": {"type": "json_object"},
+        # ★ FIX: removed response_format — free models reject it.
+        #        The system prompt already enforces JSON-only output.
     }
 
     async with aiohttp.ClientSession() as session:
@@ -337,7 +351,6 @@ async def call_openrouter(
             finish_reason = choice.get("finish_reason", "unknown")
             tokens = data.get("usage", {}).get("total_tokens", 0)
 
-            # ★ FIX: detect truncation explicitly
             if finish_reason == "length":
                 logger.warning(
                     f"LLM output was TRUNCATED (finish_reason=length). "
@@ -372,7 +385,7 @@ async def call_llm_with_retry(
                     f"Model '{model}' is unavailable. "
                     f"Update ParserConfig.model or ALLOWED_MODELS."
                 )
-            if "rate limit" in str(e).lower():
+            if "rate limit" in str(e).lower() or "429" in str(e):
                 await asyncio.sleep(config.retry_delay * (attempt + 2))
                 continue
 
@@ -409,10 +422,7 @@ def _safe_json_load(text: str) -> Optional[Any]:
 
 
 def _normalize_output(data: Any) -> Dict[str, List[Any]]:
-    """
-    ★ FIX: values are preserved verbatim. Nested objects are JSON-stringified
-    (so no data is lost) rather than dropped.
-    """
+    """Values preserved verbatim. Nested objects JSON-stringified."""
     if not isinstance(data, dict):
         return {}
     out: Dict[str, List[Any]] = {}
@@ -451,7 +461,7 @@ def _missing_item_indices(data: Dict[str, List[Any]], expected: int) -> List[int
 
 
 # ============================================================
-# DEDUPLICATION
+# DEDUPLICATION / ROW HELPERS
 # ============================================================
 def _row_key(row: Dict[str, Any]) -> str:
     normalized = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str)
@@ -513,6 +523,25 @@ class EnhancedParser:
         raw, tokens = await call_llm_with_retry(prompt, self.config)
         data = _safe_json_load(raw)
         normalized = _normalize_output(data) if data else {}
+
+        # ★ FIX: if model returned nothing usable, retry once with strict nudge
+        if not normalized and expected > 0:
+            logger.warning(
+                f"Chunk {chunk_index+1}/{total_chunks}: empty JSON, retrying once"
+            )
+            retry_prompt = build_parse_prompt(
+                chunk, description, chunk_index, total_chunks,
+                missing_indices=list(range(1, expected + 1)),
+            )
+            try:
+                raw2, tokens2 = await call_llm_with_retry(retry_prompt, self.config)
+                tokens += tokens2
+                data2 = _safe_json_load(raw2)
+                if data2:
+                    normalized = _normalize_output(data2)
+            except Exception as e:
+                logger.warning(f"Retry failed for chunk {chunk_index+1}: {e}")
+            return normalized, tokens
 
         if expected <= 0:
             return normalized, tokens
@@ -583,12 +612,12 @@ class EnhancedParser:
 
         chunks = chunk_content(content, self.config.chunk_size)
 
-        # ★ FIX: warn instead of silently truncating
         if len(chunks) > self.config.max_chunks:
             logger.warning(
                 f"Job {job_id}: {len(chunks)} chunks > max {self.config.max_chunks}. "
-                f"Raising max_chunks — this should never happen with 200k chunk_size."
+                f"Truncating to first {self.config.max_chunks} chunks."
             )
+            chunks = chunks[: self.config.max_chunks]
 
         total_chunks = len(chunks)
         per_chunk_expected = [_count_source_items(c) for c in chunks]
@@ -607,45 +636,55 @@ class EnhancedParser:
                 "model": self.config.model,
             })
 
-        all_data: List[Dict[str, List[Any]]] = []
-        total_tokens = 0
+        # ★ FIX: parallel processing with semaphore
+        sem = asyncio.Semaphore(self.config.max_concurrent_chunks)
+        results: List[Optional[Dict[str, List[Any]]]] = [None] * total_chunks
         errors: List[str] = []
+        total_tokens = 0
+        tokens_lock = asyncio.Lock()
 
-        for i, chunk in enumerate(chunks):
-            try:
-                if stream_callback:
-                    await stream_callback({
-                        "type": "chunk_start",
-                        "chunk_index": i,
-                        "total_chunks": total_chunks,
-                        "expected_items": per_chunk_expected[i],
-                    })
+        async def _process(idx: int, chunk: str):
+            nonlocal total_tokens
+            async with sem:
+                try:
+                    if stream_callback:
+                        await stream_callback({
+                            "type": "chunk_start",
+                            "chunk_index": idx,
+                            "total_chunks": total_chunks,
+                            "expected_items": per_chunk_expected[idx],
+                        })
 
-                data, tokens = await self._extract_chunk(
-                    chunk, description, i, total_chunks
-                )
-                total_tokens += tokens
-                all_data.append(data)
+                    data, tokens = await self._extract_chunk(
+                        chunk, description, idx, total_chunks
+                    )
+                    results[idx] = data
+                    async with tokens_lock:
+                        total_tokens += tokens
 
-                if stream_callback:
-                    await stream_callback({
-                        "type": "chunk_complete",
-                        "chunk_index": i,
-                        "items_extracted": _detect_item_count_in_output(data),
-                        "tokens": tokens,
-                    })
+                    if stream_callback:
+                        await stream_callback({
+                            "type": "chunk_complete",
+                            "chunk_index": idx,
+                            "items_extracted": _detect_item_count_in_output(data),
+                            "tokens": tokens,
+                        })
 
-            except Exception as e:
-                err = f"Chunk {i + 1} failed: {e}"
-                logger.error(f"Job {job_id}: {err}")
-                errors.append(err)
-                if stream_callback:
-                    await stream_callback({
-                        "type": "chunk_error",
-                        "chunk_index": i,
-                        "error": str(e),
-                    })
+                except Exception as e:
+                    err = f"Chunk {idx + 1} failed: {e}"
+                    logger.error(f"Job {job_id}: {err}")
+                    errors.append(err)
+                    results[idx] = {}
+                    if stream_callback:
+                        await stream_callback({
+                            "type": "chunk_error",
+                            "chunk_index": idx,
+                            "error": str(e),
+                        })
 
+        await asyncio.gather(*[_process(i, c) for i, c in enumerate(chunks)])
+
+        all_data = [r for r in results if r]
         if not all_data:
             return ParseResult(
                 success=False,
@@ -662,8 +701,6 @@ class EnhancedParser:
             merged = self._merge_chunks(all_data)
 
         merged = self._post_process(merged)
-
-        # ★ FIX: preserve the full JSON structure and all values
         final_json = json.dumps(merged, indent=2, ensure_ascii=False)
 
         if self.config.enable_cache and not errors:
@@ -703,13 +740,17 @@ class EnhancedParser:
         )
 
     def _merge_chunks(self, chunks: List[Dict[str, List[Any]]]) -> Dict[str, List[Any]]:
-        all_rows: List[Dict[str, Any]] = []
+        """
+        ★ FIX: chunks are disjoint regions of the source, so we CONCATENATE
+        row-by-row instead of deduping. Deduping was silently dropping valid
+        rows that happened to share a value.
+        """
+        merged: Dict[str, List[Any]] = {}
         for data in chunks:
             rows = _to_rows(data)
-            all_rows.extend(rows)
-
-        deduped = _dedupe_rows(all_rows)
-        merged = _from_rows(deduped)
+            for row in rows:
+                for k, v in row.items():
+                    merged.setdefault(k, []).append(v)
 
         if merged:
             length = max(len(v) for v in merged.values())
@@ -726,7 +767,7 @@ class EnhancedParser:
         clean: Dict[str, List[Any]] = {}
         for field, values in data.items():
             key = self._normalize_key(field)
-            # ★ FIX: keep values verbatim — no trimming, no cutting, no coercing
+            # Keep values verbatim
             clean[key] = list(values)
 
         length = max(len(v) for v in clean.values()) if clean else 0
@@ -777,10 +818,13 @@ async def parse_content_async(
         base_url=base.config.base_url or os.getenv(
             "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
         ),
-        # ★ FIX: no truncation caps
-        chunk_size=200_000,
-        max_tokens=32_000,
-        max_chunks=1000,
+        # ★ FIX: safe defaults for free models
+        chunk_size=12_000,
+        max_tokens=4_096,
+        max_chunks=500,
+        timeout_seconds=60,
+        max_retries=2,
+        max_concurrent_chunks=4,
     )
     parser = EnhancedParser(config)
     parser.cache = base.cache

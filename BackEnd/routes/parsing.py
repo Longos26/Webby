@@ -11,7 +11,6 @@ import json as json_module
 import re
 import traceback
 
-# --- Use the new enhanced parser directly ---
 from routes.enhanced_parsing import (
     parse_content_async,
     ParseResult,
@@ -23,6 +22,7 @@ from mongodb.database import get_database
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 # ============================================================
 # MODELS
 # ============================================================
@@ -32,6 +32,7 @@ class ParseRequest(BaseModel):
     model: Optional[str] = None
     temperature: Optional[float] = 0.0
     use_cache: bool = True
+
 
 class ParseResponse(BaseModel):
     success: bool
@@ -47,10 +48,12 @@ class ParseResponse(BaseModel):
     items_expected: int = 0
     fields: list = []
 
+
 class GenerateRecommendationsRequest(BaseModel):
     content: str
     job_name: str = "Unknown"
     url: str = "Unknown"
+
 
 # ============================================================
 # HELPERS
@@ -90,6 +93,7 @@ def _get_job_content(job: dict) -> str:
             return val
     return ""
 
+
 def _resolve_model(requested: Optional[str]) -> str:
     if not requested:
         return DEFAULT_MODEL
@@ -100,10 +104,11 @@ def _resolve_model(requested: Optional[str]) -> str:
     )
     return DEFAULT_MODEL
 
+
 def _count_items(text: str) -> int:
     """
     Return the *minimum* array length across all fields in the LLM's JSON.
-    This is the number of fully-populated rows, not just the longest array.
+    Also unwraps single-array wrappers like {"items": [...]}.
     """
     if not text:
         return 0
@@ -113,15 +118,21 @@ def _count_items(text: str) -> int:
         if isinstance(data, list):
             return len(data)
         if isinstance(data, dict):
+            keys = list(data.keys())
+            # Unwrap single-array wrapper
+            if len(keys) == 1 and isinstance(data[keys[0]], list):
+                return len(data[keys[0]])
             arrays = [len(v) for v in data.values() if isinstance(v, list) and v]
             return min(arrays) if arrays else 0
     except Exception:
         return 0
     return 0
 
+
 def _count_expected(content: str) -> int:
     """Count "#N" lines in the source content."""
     return len(re.findall(r'^#\d+', content, re.MULTILINE))
+
 
 # ============================================================
 # PARSE ENDPOINT
@@ -136,7 +147,10 @@ async def parse_job_content(job_id: str, request: ParseRequest):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    content = (request.dom_content or "").strip() or _get_job_content(job)
+    # ★ FIX: trust frontend-provided dom_content; only fall back to DB
+    content = (request.dom_content or "").strip()
+    if not content:
+        content = _get_job_content(job)
     if not content:
         raise HTTPException(
             status_code=400,
@@ -263,6 +277,7 @@ async def parse_job_content(job_id: str, request: ParseRequest):
             detail=f"Failed to parse content: {error_msg[:200]}",
         )
 
+
 # ============================================================
 # PARSE (ENHANCED DIAGNOSTICS)
 # ============================================================
@@ -277,7 +292,9 @@ async def parse_job_content_enhanced(job_id: str, request: ParseRequest):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    content = (request.dom_content or "").strip() or _get_job_content(job)
+    content = (request.dom_content or "").strip()
+    if not content:
+        content = _get_job_content(job)
     if not content:
         raise HTTPException(status_code=400, detail="No content available to parse")
 
@@ -308,6 +325,7 @@ async def parse_job_content_enhanced(job_id: str, request: ParseRequest):
         "content": result.content,
     }
 
+
 # ============================================================
 # STREAMING PARSE
 # ============================================================
@@ -321,7 +339,9 @@ async def parse_job_content_stream(job_id: str, request: ParseRequest):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    content = (request.dom_content or "").strip() or _get_job_content(job)
+    content = (request.dom_content or "").strip()
+    if not content:
+        content = _get_job_content(job)
     if not content:
         raise HTTPException(status_code=400, detail="No content available to parse")
 
@@ -417,6 +437,7 @@ async def parse_job_content_stream(job_id: str, request: ParseRequest):
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+
 # ============================================================
 # GET PARSED RESULTS
 # ============================================================
@@ -452,6 +473,7 @@ async def get_parsed_results(job_id: str, limit: int = 50):
         "count": len(parsed_results),
     }
 
+
 # ============================================================
 # DELETE PARSED RESULT
 # ============================================================
@@ -466,6 +488,7 @@ async def delete_parsed_result(result_id: str):
         raise HTTPException(status_code=404, detail="Parse result not found")
 
     return {"success": True, "message": "Parse result deleted successfully"}
+
 
 # ============================================================
 # AI RECOMMENDATIONS
@@ -573,6 +596,7 @@ async def generate_recommendations(request: GenerateRecommendationsRequest):
             "detected_type": "generic",
             "confidence": 0,
         }
+
 
 # ============================================================
 # CACHE MANAGEMENT
