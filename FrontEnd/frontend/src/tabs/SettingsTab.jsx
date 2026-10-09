@@ -1,29 +1,28 @@
-// frontend/src/pages/SettingsPage.jsx - REFINED ENTERPRISE DESIGN
+// frontend/src/pages/SettingsPage.jsx - CLEAN ENTERPRISE DESIGN
 
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Bell, Shield, Key, Lock,
-  Save, Plus, Trash2, 
-  ArrowLeft, Activity, Loader2, CheckCircle,
-  Copy, Eye, EyeOff, Smartphone, Server,
-  Calendar, TrendingUp, AlertTriangle, X
+  User, Bell, Shield,
+  Save, Trash2,
+  Activity, Loader2, CheckCircle,
+  Eye, EyeOff, Smartphone,
+  AlertTriangle
 } from 'lucide-react';
 import api from '../api';
 
 // ============================================================
-// STYLES - REFINED ENTERPRISE
+// STYLES - CLEAN UNTITLED UI AESTHETIC
 // ============================================================
 
 const styles = `
-  /* Enterprise Design Tokens - Refined */
   .settings-root {
     --color-mdb-green: #00ED64;
     --color-mdb-green-dark: #00C355;
     --color-canvas: #0D1117;
     --color-surface: #161B22;
-    --color-surface-elevated: #1F242E;
+    --color-surface-elevated: #1C2128;
     --color-border: #30363D;
     --color-border-subtle: #21262D;
     --color-text-primary: #F0F6FC;
@@ -33,13 +32,12 @@ const styles = `
     --color-warning: #D29922;
     --color-error: #F85149;
     --color-info: #58A6FF;
-    --color-accent-dim: rgba(0, 237, 100, 0.06);
-    --color-accent-border: rgba(0, 237, 100, 0.12);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
     --radius-full: 9999px;
     --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
@@ -57,14 +55,14 @@ const styles = `
     color: var(--color-text-primary);
     background: var(--color-canvas);
     line-height: 1.5;
-    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
 
   @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  
+
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
@@ -74,7 +72,7 @@ const styles = `
   }
 
   .spin {
-    animation: spin 0.6s linear infinite;
+    animation: spin 0.7s linear infinite;
   }
 
   .loading-state {
@@ -82,32 +80,33 @@ const styles = `
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 48px;
+    padding: 64px 24px;
     gap: 14px;
   }
 
   .loading-spinner {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border: 2px solid var(--color-border);
     border-top-color: var(--color-mdb-green);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.7s linear infinite;
   }
 
   .settings-container {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 20px;
   }
 
+  /* ---------- Layout ---------- */
   .settings-grid {
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 260px 1fr;
     gap: 24px;
     align-items: start;
   }
-  
+
+  /* ---------- Sidebar ---------- */
   .settings-sidebar {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -116,45 +115,46 @@ const styles = `
     position: sticky;
     top: 20px;
   }
-  
+
   .sidebar-header {
-    padding: 12px 16px 8px;
-    font-size: 9px;
-    font-weight: 600;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    padding: 14px 18px 10px;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--color-text-muted);
   }
-  
+
   .nav-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 8px 16px;
+    padding: 10px 18px;
     background: transparent;
     border: none;
-    border-left: 2px solid transparent;
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
+    font-family: inherit;
     cursor: pointer;
-    transition: all var(--transition);
+    transition: background var(--transition), color var(--transition);
     text-align: left;
   }
-  
+
   .nav-item:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--color-surface-elevated);
     color: var(--color-text-primary);
   }
-  
+
   .nav-item.active {
-    background: var(--color-accent-dim);
-    border-left-color: var(--color-mdb-green);
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+  }
+
+  .nav-item.active svg {
     color: var(--color-mdb-green);
   }
 
+  /* ---------- Cards ---------- */
   .settings-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -162,243 +162,242 @@ const styles = `
     overflow: hidden;
     margin-bottom: 16px;
   }
-  
+
   .card-header {
-    padding: 14px 20px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--color-border);
-    background: rgba(255, 255, 255, 0.01);
   }
-  
+
   .card-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     letter-spacing: -0.01em;
     margin-bottom: 2px;
+    color: var(--color-text-primary);
   }
-  
+
   .card-description {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text-muted);
   }
-  
+
   .card-body {
     padding: 20px;
   }
 
+  /* ---------- Forms ---------- */
   .form-group {
     margin-bottom: 16px;
   }
-  
+
   .form-label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--color-text-muted);
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
     margin-bottom: 6px;
   }
-  
+
   .form-input,
   .form-select,
   .form-textarea {
     width: 100%;
-    padding: 8px 12px;
+    padding: 9px 12px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     color: var(--color-text-primary);
     font-size: 14px;
-    font-family: var(--font-sans);
+    font-family: inherit;
     outline: none;
-    transition: all var(--transition);
+    transition: border-color var(--transition), box-shadow var(--transition);
   }
-  
+
   .form-input:focus,
   .form-select:focus,
   .form-textarea:focus {
     border-color: var(--color-mdb-green);
-    box-shadow: 0 0 0 2px rgba(0, 237, 100, 0.06);
+    box-shadow: 0 0 0 3px rgba(0, 237, 100, 0.08);
   }
-  
+
   .form-input::placeholder {
     color: var(--color-text-muted);
   }
-  
+
   .form-hint {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--color-text-muted);
     margin-top: 4px;
   }
-  
+
   .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
   }
 
+  /* ---------- Toggle ---------- */
   .toggle-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 12px 0;
     cursor: pointer;
-    gap: 10px;
+    gap: 12px;
   }
-  
+
   .toggle-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
+    color: var(--color-text-primary);
     margin-bottom: 2px;
   }
-  
+
   .toggle-description {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--color-text-muted);
   }
-  
+
   .toggle-switch {
-    width: 38px;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--color-border);
+    width: 40px;
+    height: 22px;
+    background: var(--color-border);
     border-radius: var(--radius-full);
     position: relative;
-    transition: all var(--transition);
+    transition: background var(--transition);
     flex-shrink: 0;
+    cursor: pointer;
   }
-  
+
   .toggle-switch.active {
     background: var(--color-mdb-green);
-    border-color: var(--color-mdb-green);
   }
-  
+
   .toggle-knob {
     position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 14px;
-    height: 14px;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
     background: white;
     border-radius: 50%;
     transition: left var(--transition);
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .toggle-switch.active .toggle-knob {
-    left: 20px;
-  }
-  
-  .divider {
-    height: 1px;
-    background: var(--color-border);
-    margin: 6px 0;
   }
 
+  .toggle-switch.active .toggle-knob {
+    left: 21px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--color-border-subtle);
+    margin: 2px 0;
+  }
+
+  /* ---------- Alerts ---------- */
   .alert {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border-radius: var(--radius-md);
     margin-bottom: 16px;
-    font-size: 12px;
-  }
-  
-  .alert-success {
-    background: var(--status-success-bg);
-    border: 1px solid var(--status-success-border);
-    color: var(--color-success);
-  }
-  
-  .alert-error {
-    background: var(--status-error-bg);
-    border: 1px solid var(--status-error-border);
-    color: var(--color-error);
-  }
-  
-  .alert-info {
-    background: var(--status-info-bg);
-    border: 1px solid var(--status-info-border);
-    color: var(--color-info);
+    font-size: 13px;
   }
 
+  .alert-success {
+    background: rgba(0, 237, 100, 0.1);
+    border: 1px solid rgba(0, 237, 100, 0.2);
+    color: #56D364;
+  }
+
+  .alert-error {
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.2);
+    color: #FF7B72;
+  }
+
+  .alert-info {
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    color: #79B8FF;
+  }
+
+  /* ---------- Buttons ---------- */
   .btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
+    gap: 8px;
+    padding: 9px 16px;
     border-radius: var(--radius-md);
-    font-size: 11px;
-    font-weight: 600;
-    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
     cursor: pointer;
-    transition: all var(--transition);
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
     border: none;
+    white-space: nowrap;
   }
-  
+
   .btn-primary {
     background: var(--color-mdb-green);
     color: #0D1117;
   }
-  
+
   .btn-primary:hover:not(:disabled) {
     background: var(--color-mdb-green-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
   }
-  
+
   .btn-secondary {
     background: var(--color-canvas);
     color: var(--color-text-secondary);
     border: 1px solid var(--color-border);
   }
-  
+
   .btn-secondary:hover:not(:disabled) {
     background: var(--color-surface-elevated);
-    border-color: var(--color-text-muted);
+    border-color: #484F58;
     color: var(--color-text-primary);
   }
-  
+
   .btn-danger {
-    background: var(--status-error-bg);
-    color: var(--color-error);
-    border: 1px solid var(--status-error-border);
+    background: rgba(248, 81, 73, 0.1);
+    color: #FF7B72;
+    border: 1px solid rgba(248, 81, 73, 0.2);
   }
-  
+
   .btn-danger:hover:not(:disabled) {
     background: rgba(248, 81, 73, 0.15);
   }
-  
+
   .btn-sm {
-    padding: 5px 10px;
-    font-size: 10px;
-    gap: 5px;
+    padding: 6px 12px;
+    font-size: 12px;
+    gap: 6px;
   }
-  
+
   .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
+  /* ---------- Sessions ---------- */
   .session-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 0;
+    gap: 12px;
+    padding: 14px 0;
     border-bottom: 1px solid var(--color-border-subtle);
     flex-wrap: wrap;
   }
-  
+
   .session-item:last-child {
     border-bottom: none;
   }
-  
+
   .session-icon {
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    height: 36px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -408,69 +407,76 @@ const styles = `
     flex-shrink: 0;
     color: var(--color-text-muted);
   }
-  
+
   .session-info {
     flex: 1;
-    min-width: 100px;
-  }
-  
-  .session-device {
-    font-size: 12px;
-    font-weight: 500;
-  }
-  
-  .session-meta {
-    font-size: 10px;
-    color: var(--color-text-muted);
-  }
-  
-  .session-badge {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    background: var(--color-accent-dim);
-    color: var(--color-mdb-green);
-    padding: 1px 8px;
-    border-radius: var(--radius-full);
+    min-width: 120px;
   }
 
+  .session-device {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .session-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+  }
+
+  .session-badge {
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(0, 237, 100, 0.1);
+    color: #56D364;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(0, 237, 100, 0.2);
+  }
+
+  /* ---------- Empty State ---------- */
   .empty-state {
     text-align: center;
-    padding: 32px;
+    padding: 40px 20px;
     color: var(--color-text-muted);
   }
-  
+
   .empty-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 12px;
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
+  /* ---------- QR Container ---------- */
   .qrcode-container {
     background: var(--color-canvas);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: 16px;
+    padding: 20px;
     text-align: center;
     margin-bottom: 16px;
   }
-  
+
   .secret-code {
-    background: rgba(0, 0, 0, 0.35);
-    padding: 6px 10px;
-    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
     font-family: var(--font-mono);
-    font-size: 11px;
-    margin-top: 10px;
+    font-size: 12px;
+    margin-top: 14px;
     word-break: break-all;
+    color: var(--color-text-secondary);
   }
 
+  /* ---------- Modal ---------- */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -479,276 +485,154 @@ const styles = `
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: rgba(13, 17, 23, 0.92);
-    backdrop-filter: blur(8px);
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
-  
+
   .modal {
-    max-width: 400px;
+    max-width: 440px;
     width: 100%;
-    background: var(--color-surface-elevated);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
   }
-  
+
   .modal-header {
-    padding: 14px 18px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--color-border);
   }
-  
+
   .modal-title {
     font-size: 15px;
     font-weight: 600;
+    color: var(--color-text-primary);
   }
-  
+
   .modal-body {
-    padding: 14px 18px;
+    padding: 16px 20px;
   }
-  
+
   .modal-footer {
-    padding: 12px 18px;
+    padding: 14px 20px;
     display: flex;
     gap: 10px;
     justify-content: flex-end;
     border-top: 1px solid var(--color-border);
-    background: var(--color-surface);
+    background: var(--color-canvas);
     flex-wrap: wrap;
   }
 
-  /* ============================================================ */
-  /* RESPONSIVE BREAKPOINTS */
-  /* ============================================================ */
-
+  /* ---------- Responsive ---------- */
   @media (max-width: 1024px) {
     .settings-grid {
-      grid-template-columns: 200px 1fr;
+      grid-template-columns: 220px 1fr;
       gap: 16px;
     }
   }
 
   @media (max-width: 768px) {
-    .settings-container {
-      padding: 14px;
-    }
-    
     .settings-grid {
       grid-template-columns: 1fr;
-      gap: 14px;
+      gap: 16px;
     }
-    
+
     .settings-sidebar {
       position: sticky;
       top: 0;
       z-index: 10;
       display: flex;
       flex-wrap: nowrap;
-      gap: 4px;
-      padding: 6px 10px;
+      gap: 6px;
+      padding: 8px 12px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
       overflow-x: auto;
     }
-    
+
     .settings-sidebar .sidebar-header {
       display: none;
     }
-    
+
     .settings-sidebar .nav-item {
-      padding: 6px 12px;
-      border-left: none;
-      border-bottom: 2px solid transparent;
-      font-size: 11px;
+      padding: 8px 14px;
+      font-size: 12px;
       width: auto;
       flex-shrink: 0;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-canvas);
     }
-    
+
     .settings-sidebar .nav-item.active {
-      border-left: none;
-      border-bottom-color: var(--color-mdb-green);
+      border-color: var(--color-mdb-green);
+      background: rgba(0, 237, 100, 0.05);
     }
-    
+
     .card-header {
-      padding: 12px 16px;
+      padding: 14px 16px;
     }
-    
+
     .card-body {
-      padding: 14px;
+      padding: 16px;
     }
-    
+
     .form-row {
       grid-template-columns: 1fr;
       gap: 12px;
     }
-    
+
     .form-input,
     .form-select {
       font-size: 16px;
-      padding: 8px 12px;
     }
-    
-    .toggle-item {
-      flex-wrap: wrap;
-    }
-    
-    .toggle-item > div:first-child {
-      flex: 1;
-      min-width: 120px;
-    }
-    
+
     .session-item {
       flex-wrap: wrap;
-    }
-    
-    .session-badge {
-      margin-left: auto;
-    }
-    
-    .qrcode-container img {
-      width: 120px !important;
-      height: 120px !important;
     }
   }
 
   @media (max-width: 480px) {
     .settings-container {
-      padding: 10px;
+      padding: 0;
     }
-    
+
     .settings-sidebar {
-      padding: 4px 8px;
-      gap: 2px;
+      padding: 6px 8px;
+      gap: 4px;
     }
-    
+
     .settings-sidebar .nav-item {
-      padding: 4px 8px;
-      font-size: 10px;
+      padding: 6px 10px;
+      font-size: 11px;
     }
-    
-    .settings-sidebar .nav-item svg {
-      width: 13px;
-      height: 13px;
-    }
-    
+
     .card-header {
-      padding: 10px 12px;
+      padding: 12px 14px;
     }
-    
-    .card-title {
-      font-size: 13px;
-    }
-    
-    .card-description {
-      font-size: 10px;
-    }
-    
+
     .card-body {
-      padding: 12px;
+      padding: 14px;
     }
-    
-    .form-group {
-      margin-bottom: 12px;
-    }
-    
-    .form-label {
-      font-size: 9px;
-    }
-    
+
     .form-input,
     .form-select {
-      padding: 7px 10px;
       font-size: 16px;
     }
-    
-    .toggle-item {
-      padding: 8px 0;
-    }
-    
-    .toggle-label {
-      font-size: 11px;
-    }
-    
-    .toggle-description {
-      font-size: 9px;
-    }
-    
-    .toggle-switch {
-      width: 34px;
-      height: 18px;
-    }
-    
-    .toggle-switch .toggle-knob {
-      width: 12px;
-      height: 12px;
-    }
-    
-    .toggle-switch.active .toggle-knob {
-      left: 18px;
-    }
-    
-    .btn {
-      font-size: 10px;
-      padding: 5px 10px;
-    }
-    
+
     .modal {
       max-width: 100%;
-      margin: 8px;
     }
-    
-    .modal-header {
-      padding: 12px 14px;
-    }
-    
-    .modal-body {
-      padding: 12px 14px;
-    }
-    
-    .modal-footer {
-      padding: 10px 14px;
-    }
-    
+
     .secret-code {
-      font-size: 9px;
-      word-break: break-all;
-    }
-    
-    .session-item {
-      padding: 8px 0;
-    }
-    
-    .session-device {
       font-size: 11px;
-    }
-    
-    .session-meta {
-      font-size: 9px;
-    }
-    
-    .session-badge {
-      font-size: 8px;
-      padding: 1px 6px;
-    }
-    
-    .empty-state {
-      padding: 20px;
-    }
-    
-    .empty-icon {
-      width: 36px;
-      height: 36px;
-    }
-    
-    .loading-state {
-      padding: 24px;
-      font-size: 12px;
     }
   }
 `;
 
-// Inject styles
 if (typeof document !== 'undefined' && !document.getElementById('settings-enterprise-styles')) {
   const style = document.createElement('style');
   style.id = 'settings-enterprise-styles';
@@ -762,7 +646,7 @@ if (typeof document !== 'undefined' && !document.getElementById('settings-enterp
 
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message }) {
   if (!isOpen) return null;
-  
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
@@ -770,7 +654,7 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message }) {
           <div className="modal-title">{title}</div>
         </div>
         <div className="modal-body">
-          <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{message}</p>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{message}</p>
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
@@ -824,7 +708,7 @@ function ProfileSettings() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <span style={{ color: 'var(--color-text-muted)' }}>Loading profile...</span>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Loading profile…</span>
       </div>
     );
   }
@@ -854,13 +738,13 @@ function ProfileSettings() {
     <>
       {error && (
         <div className="alert alert-error">
-          <AlertTriangle size={13} />
+          <AlertTriangle size={14} />
           {error}
         </div>
       )}
       {saved && (
         <div className="alert alert-success">
-          <CheckCircle size={13} />
+          <CheckCircle size={14} />
           Profile updated successfully!
         </div>
       )}
@@ -943,8 +827,8 @@ function ProfileSettings() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+          {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
     </>
@@ -990,7 +874,7 @@ function NotificationSettings() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <span style={{ color: 'var(--color-text-muted)' }}>Loading notifications...</span>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Loading notifications…</span>
       </div>
     );
   }
@@ -1023,7 +907,7 @@ function NotificationSettings() {
     <>
       {saved && (
         <div className="alert alert-success">
-          <CheckCircle size={13} />
+          <CheckCircle size={14} />
           Preferences saved successfully!
         </div>
       )}
@@ -1114,8 +998,8 @@ function NotificationSettings() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
-          {saving ? 'Saving...' : 'Save Preferences'}
+          {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+          {saving ? 'Saving…' : 'Save Preferences'}
         </button>
       </div>
     </>
@@ -1171,7 +1055,7 @@ function SecuritySettings() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <span style={{ color: 'var(--color-text-muted)' }}>Loading security settings...</span>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Loading security settings…</span>
       </div>
     );
   }
@@ -1179,7 +1063,7 @@ function SecuritySettings() {
   const updatePassword = async () => {
     setPasswordError(null);
     setPasswordSuccess(false);
-    
+
     if (passwordForm.new_password !== passwordForm.confirm_password) {
       setPasswordError('Passwords do not match');
       return;
@@ -1188,7 +1072,7 @@ function SecuritySettings() {
       setPasswordError('Password must be at least 8 characters');
       return;
     }
-    
+
     setUpdatingPassword(true);
     try {
       await api.put('/api/settings/password', {
@@ -1283,8 +1167,8 @@ function SecuritySettings() {
         onClose={() => setConfirmModal({ isOpen: false, type: '', sessionId: null })}
         onConfirm={confirmModal.type === '2fa' ? confirmDisable2FA : confirmRevokeSession}
         title={confirmModal.type === '2fa' ? 'Disable 2FA' : 'Revoke Session'}
-        message={confirmModal.type === '2fa' 
-          ? 'Disable two-factor authentication? This will make your account less secure.' 
+        message={confirmModal.type === '2fa'
+          ? 'Disable two-factor authentication? This will make your account less secure.'
           : 'Revoke this session? You will be signed out on that device.'}
       />
 
@@ -1296,17 +1180,17 @@ function SecuritySettings() {
         <div className="card-body">
           {passwordError && (
             <div className="alert alert-error">
-              <AlertTriangle size={13} />
+              <AlertTriangle size={14} />
               {passwordError}
             </div>
           )}
           {passwordSuccess && (
             <div className="alert alert-success">
-              <CheckCircle size={13} />
+              <CheckCircle size={14} />
               Password updated successfully!
             </div>
           )}
-          
+
           <div className="form-group">
             <label className="form-label">Current Password</label>
             <div style={{ position: 'relative' }}>
@@ -1319,9 +1203,13 @@ function SecuritySettings() {
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center',
+                }}
               >
-                {showCurrentPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                {showCurrentPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
           </div>
@@ -1338,9 +1226,13 @@ function SecuritySettings() {
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                  style={{
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center',
+                  }}
                 >
-                  {showNewPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                  {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
               <div className="form-hint">Minimum 8 characters</div>
@@ -1357,8 +1249,8 @@ function SecuritySettings() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
             <button className="btn btn-primary" onClick={updatePassword} disabled={updatingPassword}>
-              {updatingPassword ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
-              {updatingPassword ? 'Updating...' : 'Update Password'}
+              {updatingPassword ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+              {updatingPassword ? 'Updating…' : 'Update Password'}
             </button>
           </div>
         </div>
@@ -1373,7 +1265,7 @@ function SecuritySettings() {
           {twoFA ? (
             <>
               <div className="alert alert-success" style={{ marginBottom: 14 }}>
-                <CheckCircle size={13} />
+                <CheckCircle size={14} />
                 2FA is enabled on your account
               </div>
               <button className="btn btn-danger" onClick={disableTwoFactor}>Disable 2FA</button>
@@ -1387,7 +1279,7 @@ function SecuritySettings() {
                   style={{ width: 140, height: 140, maxWidth: '100%' }}
                 />
                 <div className="secret-code">
-                  Secret: <span style={{ fontFamily: 'monospace' }}>{twoFASetup.secret}</span>
+                  Secret: {twoFASetup.secret}
                 </div>
               </div>
               <div className="form-group">
@@ -1416,8 +1308,8 @@ function SecuritySettings() {
                 </div>
               </div>
               {settingUp2FA && (
-                <div style={{ marginTop: 10 }}>
-                  <Loader2 size={13} className="spin" /> Setting up...
+                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  <Loader2 size={14} className="spin" /> Setting up…
                 </div>
               )}
             </>
@@ -1433,13 +1325,13 @@ function SecuritySettings() {
         <div className="card-body">
           {sessions.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon"><Smartphone size={20} /></div>
-              <div style={{ fontSize: '13px' }}>No active sessions</div>
+              <div className="empty-icon"><Smartphone size={22} /></div>
+              <div style={{ fontSize: 13 }}>No active sessions</div>
             </div>
           ) : (
             sessions.map(s => (
               <div key={s.id} className="session-item">
-                <div className="session-icon"><Activity size={14} /></div>
+                <div className="session-icon"><Activity size={15} /></div>
                 <div className="session-info">
                   <div className="session-device">{s.device || 'Unknown Device'}</div>
                   <div className="session-meta">
@@ -1450,7 +1342,7 @@ function SecuritySettings() {
                   <span className="session-badge">Current</span>
                 ) : (
                   <button className="btn btn-danger btn-sm" onClick={() => revokeSession(s.id)}>
-                    <Trash2 size={11} /> Revoke
+                    <Trash2 size={12} /> Revoke
                   </button>
                 )}
               </div>
@@ -1479,14 +1371,12 @@ const SECTION_MAP = {
 };
 
 export default function SettingsPage() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const ActiveSection = SECTION_MAP[activeTab];
 
   return (
     <div className="settings-root page-enter">
       <div className="settings-container">
-
         <div className="settings-grid">
           {/* Sidebar */}
           <div className="settings-sidebar">
@@ -1499,7 +1389,7 @@ export default function SettingsPage() {
                   className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
                 >
-                  <Icon size={15} />
+                  <Icon size={16} />
                   {tab.label}
                 </button>
               );

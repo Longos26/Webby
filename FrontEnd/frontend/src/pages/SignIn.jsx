@@ -1,42 +1,31 @@
-// src/pages/SignUp.jsx
+// src/pages/SignUp.jsx - CLEAN ENTERPRISE DESIGN
 import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   signInStart,
   signInSuccess,
   signInFailure,
 } from '../redux/user/userSlice';
-import { Eye, EyeOff, AlertCircle, UserPlus, CheckCircle2, Shield, Zap, BarChart3 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react';
 import api from '../api';
 import { authService } from '../api';
 import React from 'react';
 import logo from '../newlogo.png';
 
 // ============================================================
-// ENTERPRISE-GRADE UI - MongoDB Atlas Inspired
-// No gradients, no glassmorphism, no neon effects
-// Professional, clean, data-platform aesthetic
+// STYLES - CLEAN UNTITLED UI AESTHETIC
 // ============================================================
 
-const globalStyles = `
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :root {
+const STYLES = `
+  .signup-root {
     --bg-canvas: #0D1117;
     --bg-surface: #161B22;
     --bg-surface-elevated: #1C2128;
-    --bg-sidebar: #0D1117;
     --border-default: #30363D;
     --border-subtle: #21262D;
-    --border-focus: #00ED64;
     --text-primary: #F0F6FC;
-    --text-secondary: #8B949E;
+    --text-secondary: #9BA4B0;
     --text-muted: #6E7681;
     --text-link: #58A6FF;
     --accent-green: #00ED64;
@@ -44,126 +33,438 @@ const globalStyles = `
     --status-success: #00ED64;
     --status-warning: #D29922;
     --status-error: #F85149;
-    --status-info: #58A6FF;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.25);
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    --transition-base: all 0.15s ease;
     --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  body {
+  .signup-root * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .signup-root {
+    min-height: 100vh;
     background: var(--bg-canvas);
-    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
     font-family: var(--font-sans);
     font-size: 15px;
+    color: var(--text-primary);
     line-height: 1.5;
-  }
-
-  *:focus-visible {
-    outline: none;
-    ring: 2px solid var(--accent-green);
-    ring-offset: 2px;
+    -webkit-font-smoothing: antialiased;
   }
 
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
 
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+
+  .signup-container {
+    width: 100%;
+    max-width: 460px;
+  }
+
+  .signup-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+
+  .signup-logo img {
+    height: 100px;
+    width: auto;
+  }
+
+  .signup-header {
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .signup-header h2 {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .signup-header p {
+    font-size: 15px;
+    color: var(--text-secondary);
+  }
+
+  .signup-error {
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.25);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #FF7B72;
+    margin-bottom: 24px;
+  }
+
+  .signup-name-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .signup-field {
+    margin-bottom: 20px;
+  }
+
+  .signup-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  .signup-input-wrap {
+    position: relative;
+  }
+
+  .signup-input {
+    width: 100%;
+    background: var(--bg-canvas);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+
+  .signup-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .signup-input:focus {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 3px rgba(0, 237, 100, 0.08);
+  }
+
+  .signup-input.has-error {
+    border-color: var(--status-error);
+  }
+
+  .signup-input.has-error:focus {
+    box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.12);
+  }
+
+  .signup-input.with-toggle {
+    padding-right: 40px;
+  }
+
+  .signup-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition);
+  }
+
+  .signup-toggle:hover {
+    color: var(--text-primary);
+  }
+
+  .signup-field-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #FF7B72;
+  }
+
+  /* ---------- Password strength ---------- */
+  .signup-strength {
+    margin-top: 8px;
+  }
+
+  .signup-strength-bars {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .signup-strength-bar {
+    flex: 1;
+    height: 3px;
+    border-radius: var(--radius-sm);
+    background: var(--border-default);
+    transition: background var(--transition);
+  }
+
+  .signup-strength-bar.weak { background: var(--status-error); }
+  .signup-strength-bar.fair { background: var(--status-warning); }
+  .signup-strength-bar.strong { background: var(--accent-green); }
+
+  .signup-strength-label {
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .signup-strength-label.weak { color: var(--status-error); }
+  .signup-strength-label.fair { color: var(--status-warning); }
+  .signup-strength-label.strong { color: var(--accent-green); }
+
+  /* ---------- Terms ---------- */
+  .signup-terms {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .signup-terms input {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    accent-color: var(--accent-green);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .signup-terms label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    cursor: pointer;
+  }
+
+  .signup-terms a {
+    color: var(--text-link);
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .signup-terms a:hover {
+    color: #79B8FF;
+  }
+
+  .signup-terms-error {
+    margin-top: -18px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: #FF7B72;
+  }
+
+  /* ---------- Submit ---------- */
+  .signup-submit {
+    width: 100%;
+    background: var(--accent-green);
+    color: #0D1117;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background var(--transition);
+  }
+
+  .signup-submit:hover:not(:disabled) {
+    background: var(--accent-green-dark);
+  }
+
+  .signup-submit:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .signup-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(13, 17, 23, 0.3);
+    border-top-color: #0D1117;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* ---------- Divider ---------- */
+  .signup-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 28px 0 20px;
+  }
+
+  .signup-divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-subtle);
+  }
+
+  .signup-divider span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .signup-footer {
+    text-align: center;
+  }
+
+  .signup-footer a {
+    color: var(--accent-green);
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color var(--transition);
+  }
+
+  .signup-footer a:hover {
+    color: var(--accent-green-dark);
+  }
+
+  .signup-copyright {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Skeleton ---------- */
+  .signup-skeleton {
+    min-height: 100vh;
+    background: var(--bg-canvas);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    font-family: var(--font-sans);
+  }
+
+  .signup-skeleton-inner {
+    width: 100%;
+    max-width: 460px;
   }
 
   .skeleton {
-    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-elevated) 50%, var(--bg-surface) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
+    background: var(--bg-surface);
     border-radius: var(--radius-sm);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @media (max-width: 480px) {
+    .signup-root {
+      padding: 32px 20px;
+    }
+
+    .signup-header h2 {
+      font-size: 24px;
+    }
+
+    .signup-logo img {
+      height: 72px;
+    }
+
+    .signup-name-grid {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .signup-name-grid > div {
+      margin-bottom: 20px;
+    }
   }
 `;
 
-const PERKS = [
-  { text: 'Free 14-day trial', subtext: 'No credit card required', icon: CheckCircle2 },
-  { text: '10,000 records', subtext: 'Processed on signup', icon: BarChart3 },
-  { text: 'Real-time monitoring', subtext: 'Error alerts included', icon: Zap },
-  { text: 'Cancel anytime', subtext: 'No lock-in contracts', icon: Shield },
-];
+function injectStyles(id, css) {
+  if (typeof document !== 'undefined' && !document.getElementById(id)) {
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+}
+
+// ============================================================
+// SKELETON
+// ============================================================
 
 const SignUpSkeleton = () => (
-  <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', display: 'flex' }}>
-    {/* Left Panel Skeleton */}
-    <div style={{
-      width: '42%',
-      background: 'var(--bg-surface)',
-      borderRight: '1px solid var(--border-default)',
-      padding: '48px 40px',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <div className="skeleton" style={{ width: '120px', height: '100px', marginBottom: '48px' }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ marginBottom: '40px' }}>
-          <div className="skeleton" style={{ width: '180px', height: '20px', marginBottom: '12px' }} />
-          <div className="skeleton" style={{ width: '80%', height: '36px', marginBottom: '16px' }} />
-          <div className="skeleton" style={{ width: '70%', height: '18px' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '40px', flexWrap: 'wrap' }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} style={{ flex: 1, padding: '16px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-              <div className="skeleton" style={{ width: '60%', height: '32px', marginBottom: '8px' }} />
-              <div className="skeleton" style={{ width: '50%', height: '16px' }} />
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div className="skeleton" style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)' }} />
-              <div className="skeleton" style={{ width: '40%', height: '16px' }} />
-              <div className="skeleton" style={{ width: '30%', height: '14px' }} />
-            </div>
-          ))}
-        </div>
+  <div className="signup-skeleton">
+    <div className="signup-skeleton-inner">
+      {/* Logo */}
+      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'center' }}>
+        <div className="skeleton" style={{ width: 120, height: 100 }} />
       </div>
-    </div>
 
-    {/* Right Panel Skeleton */}
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
-      <div style={{ width: '100%', maxWidth: '460px' }}>
-        <div style={{ marginBottom: '32px' }}>
-          <div className="skeleton" style={{ width: '60%', height: '32px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '50%', height: '18px' }} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-          <div>
-            <div className="skeleton" style={{ width: '40%', height: '16px', marginBottom: '8px' }} />
-            <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-          </div>
-          <div>
-            <div className="skeleton" style={{ width: '40%', height: '16px', marginBottom: '8px' }} />
-            <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-          </div>
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <div className="skeleton" style={{ width: '30%', height: '16px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <div className="skeleton" style={{ width: '30%', height: '16px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-        </div>
-        <div style={{ marginBottom: '24px' }}>
-          <div className="skeleton" style={{ width: '40%', height: '16px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-        </div>
-        <div className="skeleton" style={{ width: '100%', height: '48px', borderRadius: 'var(--radius-md)', marginBottom: '28px' }} />
+      {/* Header */}
+      <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <div className="skeleton" style={{ width: '60%', height: 32, margin: '0 auto 8px' }} />
+        <div className="skeleton" style={{ width: '50%', height: 18, margin: '0 auto' }} />
       </div>
+
+      {/* Names */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <div>
+          <div className="skeleton" style={{ width: '40%', height: 16, marginBottom: 8 }} />
+          <div className="skeleton" style={{ width: '100%', height: 44 }} />
+        </div>
+        <div>
+          <div className="skeleton" style={{ width: '40%', height: 16, marginBottom: 8 }} />
+          <div className="skeleton" style={{ width: '100%', height: 44 }} />
+        </div>
+      </div>
+
+      {/* Email */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: '30%', height: 16, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44 }} />
+      </div>
+
+      {/* Password */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: '30%', height: 16, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44 }} />
+      </div>
+
+      {/* Confirm */}
+      <div style={{ marginBottom: 24 }}>
+        <div className="skeleton" style={{ width: '40%', height: 16, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44 }} />
+      </div>
+
+      {/* Button */}
+      <div className="skeleton" style={{ width: '100%', height: 48, marginBottom: 28 }} />
     </div>
   </div>
 );
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -182,6 +483,8 @@ const SignUp = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  injectStyles('signup-styles', STYLES);
 
   const getPasswordStrength = (pw) => {
     if (!pw) return { score: 0, label: '', cls: '' };
@@ -269,276 +572,198 @@ const SignUp = () => {
   }
 
   return (
-    <>
-      <style>{globalStyles}</style>
-      <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', display: 'flex' }}>
-        {/* LEFT PANEL - Brand Section */}
-        <div style={{
-          width: '42%',
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border-default)',
-          padding: '48px 40px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', marginBottom: '48px' }}>
-            <img src={logo} alt="Webby" style={{ height: '100px', width: 'auto' }} />
+    <div className="signup-root">
+      <div className="signup-container">
+        {/* Logo */}
+        <div className="signup-logo">
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <img src={logo} alt="Webby" />
           </Link>
-
-          <div style={{ flex: 1 }}>
-            <div style={{ marginBottom: '40px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--accent-green)', letterSpacing: '0.5px', marginBottom: '12px' }}>ENTERPRISE DATA PLATFORM</div>
-              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px', lineHeight: 1.2 }}>Start scaling your<br />web intelligence</h1>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>Join thousands of engineering teams using Webby to automate data pipelines at scale.</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '40px' }}>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                {[
-                  { value: '2.8K', label: 'Active scraping jobs' },
-                  { value: '184M', label: 'Records processed daily' },
-                  { value: '99.6%', label: 'Success rate' },
-                ].map((stat, i) => (
-                  <div key={i} style={{ flex: 1, padding: '16px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>{stat.value}</div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {PERKS.map((perk, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: 28, height: 28, background: 'rgba(0, 237, 100, 0.1)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <perk.icon size={16} color="var(--accent-green)" />
-                  </div>
-                  <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{perk.text}</span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{perk.subtext}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginTop: 'auto', paddingTop: '32px', borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-              {['SOC 2 Type II', 'GDPR Compliant', 'ISO 27001'].map((badge, i) => (
-                <span key={i} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{badge}</span>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* RIGHT PANEL - Signup Form */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
-          <div style={{ width: '100%', maxWidth: '460px' }}>
-            <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Create account</h2>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Start your 14-day free trial. No credit card required.</p>
+        {/* Header */}
+        <div className="signup-header">
+          <h2>Create account</h2>
+          <p>Start your 14-day free trial. No credit card required.</p>
+        </div>
+
+        {/* Error */}
+        {errorMessage && (
+          <div className="signup-error">
+            <AlertCircle size={16} />
+            <span>{typeof errorMessage === 'string' ? errorMessage : 'Registration failed'}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Names */}
+          <div className="signup-name-grid">
+            <div>
+              <label htmlFor="firstName" className="signup-label">First name</label>
+              <input
+                type="text"
+                id="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                autoComplete="given-name"
+                className={`signup-input ${validationErrors.firstName ? 'has-error' : ''}`}
+              />
+              {validationErrors.firstName && (
+                <p className="signup-field-error">{validationErrors.firstName}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="lastName" className="signup-label">Last name</label>
+              <input
+                type="text"
+                id="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                autoComplete="family-name"
+                className={`signup-input ${validationErrors.lastName ? 'has-error' : ''}`}
+              />
+              {validationErrors.lastName && (
+                <p className="signup-field-error">{validationErrors.lastName}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Email */}
+          <div className="signup-field">
+            <label htmlFor="email" className="signup-label">Work email</label>
+            <input
+              type="email"
+              id="email"
+              placeholder="name@company.com"
+              value={formData.email}
+              onChange={handleChange}
+              autoComplete="email"
+              className={`signup-input ${validationErrors.email ? 'has-error' : ''}`}
+            />
+            {validationErrors.email && (
+              <p className="signup-field-error">{validationErrors.email}</p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div className="signup-field">
+            <label htmlFor="password" className="signup-label">Password</label>
+            <div className="signup-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                value={formData.password}
+                onChange={handleChange}
+                autoComplete="new-password"
+                className={`signup-input with-toggle ${validationErrors.password ? 'has-error' : ''}`}
+              />
+              <button
+                type="button"
+                className="signup-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
 
-            {errorMessage && (
-              <div style={{
-                background: 'rgba(248, 81, 73, 0.1)',
-                border: '1px solid var(--status-error)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '14px',
-                color: 'var(--status-error)',
-                marginBottom: '24px'
-              }}>
-                <AlertCircle size={16} />
-                <span>{typeof errorMessage === 'string' ? errorMessage : 'Registration failed'}</span>
+            {formData.password && (
+              <div className="signup-strength">
+                <div className="signup-strength-bars">
+                  {[1, 2, 3].map((n) => (
+                    <div
+                      key={n}
+                      className={`signup-strength-bar ${strength.score >= n ? strength.cls : ''}`}
+                    />
+                  ))}
+                </div>
+                <span className={`signup-strength-label ${strength.cls}`}>
+                  {strength.label}
+                </span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>First name</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    style={{
-                      width: '100%',
-                      background: 'var(--bg-canvas)',
-                      border: `1px solid ${validationErrors.firstName ? 'var(--status-error)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      padding: '10px 14px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                    onBlur={e => { if (!validationErrors.firstName) e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-                  />
-                  {validationErrors.firstName && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.firstName}</p>}
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Last name</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    style={{
-                      width: '100%',
-                      background: 'var(--bg-canvas)',
-                      border: `1px solid ${validationErrors.lastName ? 'var(--status-error)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      padding: '10px 14px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                    onBlur={e => { if (!validationErrors.lastName) e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-                  />
-                  {validationErrors.lastName && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.lastName}</p>}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Work email</label>
-                <input
-                  type="email"
-                  id="email"
-                  placeholder="name@company.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-canvas)',
-                    border: `1px solid ${validationErrors.email ? 'var(--status-error)' : 'var(--border-default)'}`,
-                    borderRadius: 'var(--radius-md)',
-                    padding: '10px 14px',
-                    fontSize: '14px',
-                    color: 'var(--text-primary)',
-                    outline: 'none'
-                  }}
-                  onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                />
-                {validationErrors.email && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.email}</p>}
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    style={{
-                      width: '100%',
-                      background: 'var(--bg-canvas)',
-                      border: `1px solid ${validationErrors.password ? 'var(--status-error)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      padding: '10px 40px 10px 14px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {formData.password && (
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
-                      {[1, 2, 3].map((n) => (
-                        <div key={n} style={{ flex: 1, height: '3px', borderRadius: 'var(--radius-sm)', background: strength.score >= n ? (strength.cls === 'weak' ? 'var(--status-error)' : strength.cls === 'fair' ? 'var(--status-warning)' : 'var(--accent-green)') : 'var(--border-default)' }} />
-                      ))}
-                    </div>
-                    <span style={{ fontSize: '12px', color: strength.cls === 'weak' ? 'var(--status-error)' : strength.cls === 'fair' ? 'var(--status-warning)' : 'var(--accent-green)' }}>{strength.label}</span>
-                  </div>
-                )}
-                {validationErrors.password && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.password}</p>}
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Confirm password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showConfirm ? 'text' : 'password'}
-                    id="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    style={{
-                      width: '100%',
-                      background: 'var(--bg-canvas)',
-                      border: `1px solid ${validationErrors.confirmPassword ? 'var(--status-error)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      padding: '10px 40px 10px 14px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                  />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {validationErrors.confirmPassword && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.confirmPassword}</p>}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '28px' }}>
-                <input type="checkbox" id="terms" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-green)' }} />
-                <label htmlFor="terms" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  I agree to Webby's <Link to="/terms" style={{ color: 'var(--text-link)', textDecoration: 'none' }}>Terms of Service</Link> and <Link to="/privacy" style={{ color: 'var(--text-link)', textDecoration: 'none' }}>Privacy Policy</Link>
-                </label>
-              </div>
-              {validationErrors.terms && <p style={{ marginTop: '-16px', marginBottom: '16px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.terms}</p>}
-
-              <button type="submit" disabled={loading} style={{
-                width: '100%',
-                background: 'var(--accent-green)',
-                color: '#0D1117',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                opacity: loading ? 0.7 : 1,
-              }}>
-                {loading ? (
-                  <><div style={{ width: 16, height: 16, border: '2px solid rgba(13, 17, 23, 0.3)', borderTopColor: '#0D1117', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Creating account...</>
-                ) : (
-                  <>Create account <UserPlus size={16} /></>
-                )}
-              </button>
-            </form>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '28px 0 20px' }}>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Already have an account</span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-            </div>
-
-            <div style={{ textAlign: 'center' }}>
-              <Link to="/login" style={{ color: 'var(--accent-green)', fontWeight: 500, textDecoration: 'none', fontSize: '14px' }}>Sign in →</Link>
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '32px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              © 2026 Webby · Enterprise Web Intelligence
-            </div>
+            {validationErrors.password && (
+              <p className="signup-field-error">{validationErrors.password}</p>
+            )}
           </div>
+
+          {/* Confirm Password */}
+          <div className="signup-field">
+            <label htmlFor="confirmPassword" className="signup-label">Confirm password</label>
+            <div className="signup-input-wrap">
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                id="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                autoComplete="new-password"
+                className={`signup-input with-toggle ${validationErrors.confirmPassword ? 'has-error' : ''}`}
+              />
+              <button
+                type="button"
+                className="signup-toggle"
+                onClick={() => setShowConfirm(!showConfirm)}
+                aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              >
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {validationErrors.confirmPassword && (
+              <p className="signup-field-error">{validationErrors.confirmPassword}</p>
+            )}
+          </div>
+
+          {/* Terms */}
+          <div className="signup-terms">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+            />
+            <label htmlFor="terms">
+              I agree to Webby's{' '}
+              <Link to="/terms">Terms of Service</Link>
+              {' '}and{' '}
+              <Link to="/privacy">Privacy Policy</Link>
+            </label>
+          </div>
+          {validationErrors.terms && (
+            <p className="signup-terms-error">{validationErrors.terms}</p>
+          )}
+
+          {/* Submit */}
+          <button type="submit" disabled={loading} className="signup-submit">
+            {loading ? (
+              <>
+                <div className="signup-spinner" />
+                Creating account…
+              </>
+            ) : (
+              <>
+                Create account <UserPlus size={16} />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div className="signup-divider">
+          <div className="signup-divider-line" />
+          <span>Already have an account</span>
+          <div className="signup-divider-line" />
+        </div>
+
+        <div className="signup-footer">
+          <Link to="/login">Sign in →</Link>
+        </div>
+
+        <div className="signup-copyright">
+          © 2026 Webby · Enterprise Web Intelligence
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

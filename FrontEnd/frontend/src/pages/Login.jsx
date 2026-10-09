@@ -1,6 +1,6 @@
-// src/pages/Login.jsx
+// src/pages/Login.jsx - CLEAN ENTERPRISE DESIGN
 import { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   signInStart,
@@ -14,18 +14,11 @@ import React from 'react';
 import logo from '../newlogo.png';
 
 // ============================================================
-// ENTERPRISE-GRADE UI - MongoDB Atlas Inspired Login
-// No gradients, clean, professional
+// STYLES - CLEAN UNTITLED UI AESTHETIC
 // ============================================================
 
-const globalStyles = `
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :root {
+const STYLES = `
+  .login-root {
     --bg-canvas: #0D1117;
     --bg-surface: #161B22;
     --bg-surface-elevated: #1C2128;
@@ -33,108 +26,361 @@ const globalStyles = `
     --border-subtle: #21262D;
     --border-focus: #00ED64;
     --text-primary: #F0F6FC;
-    --text-secondary: #8B949E;
+    --text-secondary: #9BA4B0;
     --text-muted: #6E7681;
     --text-link: #58A6FF;
     --accent-green: #00ED64;
     --accent-green-dark: #00C255;
     --status-error: #F85149;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --radius-sm: 6px;
     --radius-md: 8px;
     --radius-lg: 12px;
-    --transition-base: all 0.15s ease;
     --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  body {
+  .login-root * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .login-root {
+    min-height: 100vh;
     background: var(--bg-canvas);
-    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
     font-family: var(--font-sans);
     font-size: 15px;
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
   }
 
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
 
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+
+  .login-container {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .login-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+
+  .login-logo img {
+    height: 100px;
+    width: auto;
+  }
+
+  .login-header {
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .login-header h2 {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .login-header p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .login-error {
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.25);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #FF7B72;
+    margin-bottom: 24px;
+  }
+
+  .login-field {
+    margin-bottom: 20px;
+  }
+
+  .login-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  .login-input-wrap {
+    position: relative;
+  }
+
+  .login-input {
+    width: 100%;
+    background: var(--bg-canvas);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+
+  .login-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .login-input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(0, 237, 100, 0.08);
+  }
+
+  .login-input.has-error {
+    border-color: var(--status-error);
+  }
+
+  .login-input.has-error:focus {
+    box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.12);
+  }
+
+  .login-input.with-toggle {
+    padding-right: 40px;
+  }
+
+  .login-password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition);
+  }
+
+  .login-password-toggle:hover {
+    color: var(--text-primary);
+  }
+
+  .login-field-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #FF7B72;
+  }
+
+  .login-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .login-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .login-remember input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-green);
+    cursor: pointer;
+  }
+
+  .login-link {
+    font-size: 13px;
+    color: var(--text-link);
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .login-link:hover {
+    color: #79B8FF;
+  }
+
+  .login-submit {
+    width: 100%;
+    background: var(--accent-green);
+    color: #0D1117;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background var(--transition);
+  }
+
+  .login-submit:hover:not(:disabled) {
+    background: var(--accent-green-dark);
+  }
+
+  .login-submit:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .login-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(13, 17, 23, 0.3);
+    border-top-color: #0D1117;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .login-footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .login-footer a {
+    color: var(--accent-green);
+    font-weight: 500;
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .login-footer a:hover {
+    color: var(--accent-green-dark);
+  }
+
+  .login-copyright {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Skeleton ---------- */
+  .login-skeleton {
+    min-height: 100vh;
+    background: var(--bg-canvas);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    font-family: var(--font-sans);
+  }
+
+  .login-skeleton-inner {
+    width: 100%;
+    max-width: 420px;
   }
 
   .skeleton {
-    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-elevated) 50%, var(--bg-surface) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
+    background: var(--bg-surface);
     border-radius: var(--radius-sm);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @media (max-width: 480px) {
+    .login-root {
+      padding: 32px 20px;
+    }
+
+    .login-header h2 {
+      font-size: 24px;
+    }
+
+    .login-logo img {
+      height: 72px;
+    }
   }
 `;
 
-const LoginSkeleton = () => (
-  <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', display: 'flex' }}>
-    {/* Left Panel Skeleton */}
-    <div style={{
-      width: '42%',
-      background: 'var(--bg-surface)',
-      borderRight: '1px solid var(--border-default)',
-      padding: '48px 40px',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <div className="skeleton" style={{ width: '120px', height: '100px', marginBottom: '48px' }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ marginBottom: '40px' }}>
-          <div className="skeleton" style={{ width: '120px', height: '20px', marginBottom: '12px' }} />
-          <div className="skeleton" style={{ width: '80%', height: '32px', marginBottom: '16px' }} />
-          <div className="skeleton" style={{ width: '60%', height: '18px' }} />
-        </div>
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '40px', flexWrap: 'wrap' }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} style={{ flex: 1, padding: '16px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-              <div className="skeleton" style={{ width: '60%', height: '28px', marginBottom: '8px' }} />
-              <div className="skeleton" style={{ width: '40%', height: '16px' }} />
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: '24px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-          <div className="skeleton" style={{ width: '90%', height: '16px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '70%', height: '16px', marginBottom: '16px' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="skeleton" style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)' }} />
-            <div>
-              <div className="skeleton" style={{ width: '100px', height: '16px', marginBottom: '4px' }} />
-              <div className="skeleton" style={{ width: '80px', height: '14px' }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+function injectStyles(id, css) {
+  if (typeof document !== 'undefined' && !document.getElementById(id)) {
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+}
 
-    {/* Right Panel Skeleton */}
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
-      <div style={{ width: '100%', maxWidth: '420px' }}>
-        <div style={{ marginBottom: '32px' }}>
-          <div className="skeleton" style={{ width: '60%', height: '32px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '50%', height: '18px' }} />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <div className="skeleton" style={{ width: '30%', height: '16px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-        </div>
-        <div style={{ marginBottom: '20px' }}>
-          <div className="skeleton" style={{ width: '30%', height: '16px', marginBottom: '8px' }} />
-          <div className="skeleton" style={{ width: '100%', height: '44px', borderRadius: 'var(--radius-md)' }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '28px' }}>
-          <div className="skeleton" style={{ width: '120px', height: '16px' }} />
-          <div className="skeleton" style={{ width: '120px', height: '16px' }} />
-        </div>
-        <div className="skeleton" style={{ width: '100%', height: '48px', borderRadius: 'var(--radius-md)' }} />
+// ============================================================
+// SKELETON
+// ============================================================
+
+const LoginSkeleton = () => (
+  <div className="login-skeleton">
+    <div className="login-skeleton-inner">
+      {/* Logo */}
+      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'center' }}>
+        <div className="skeleton" style={{ width: 120, height: 100 }} />
       </div>
+
+      {/* Header */}
+      <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <div className="skeleton" style={{ width: '60%', height: 32, margin: '0 auto 8px' }} />
+        <div className="skeleton" style={{ width: '50%', height: 18, margin: '0 auto' }} />
+      </div>
+
+      {/* Email */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: '30%', height: 16, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44 }} />
+      </div>
+
+      {/* Password */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: '30%', height: 16, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: '100%', height: 44 }} />
+      </div>
+
+      {/* Remember / Forgot */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div className="skeleton" style={{ width: 120, height: 16 }} />
+        <div className="skeleton" style={{ width: 120, height: 16 }} />
+      </div>
+
+      {/* Button */}
+      <div className="skeleton" style={{ width: '100%', height: 48 }} />
     </div>
   </div>
 );
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -146,6 +392,8 @@ const Login = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  injectStyles('login-styles', STYLES);
 
   const validateForm = () => {
     const errors = {};
@@ -206,190 +454,113 @@ const Login = () => {
   }
 
   return (
-    <>
-      <style>{globalStyles}</style>
-      <div style={{ minHeight: '100vh', background: 'var(--bg-canvas)', display: 'flex' }}>
-        {/* LEFT PANEL */}
-        <div style={{
-          width: '42%',
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border-default)',
-          padding: '48px 40px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', marginBottom: '48px' }}>
-            <img src={logo} alt="Webby" style={{ height: '100px', width: 'auto' }} />
+    <div className="login-root">
+      <div className="login-container">
+        {/* Logo */}
+        <div className="login-logo">
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <img src={logo} alt="Webby" />
           </Link>
-
-          <div style={{ flex: 1 }}>
-            <div style={{ marginBottom: '40px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--accent-green)', letterSpacing: '0.5px', marginBottom: '12px' }}>SECURE ACCESS</div>
-              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Sign in to Webby</h1>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Access your data pipelines, monitoring, and analytics.</p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '40px', flexWrap: 'wrap' }}>
-              {[
-                { value: '99.6%', label: 'Uptime SLA' },
-                { value: '<400ms', label: 'Avg response' },
-                { value: '24/7', label: 'Support' },
-              ].map((stat, i) => (
-                <div key={i} style={{ flex: 1, padding: '16px', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>{stat.value}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{
-              padding: '24px',
-              background: 'var(--bg-canvas)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
-                "Webby cut our data pipeline setup time by 80 percent. What took weeks now runs in hours."
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: '#0D1117' }}>SC</div>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>Sarah Chen</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Head of Data, Acme Corp</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 'auto', paddingTop: '32px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '16px', justifyContent: 'center' }}>
-            {['SOC 2 Type II', 'GDPR Compliant', 'ISO 27001'].map((badge, i) => (
-              <span key={i} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{badge}</span>
-            ))}
-          </div>
         </div>
 
-        {/* RIGHT PANEL - Login Form */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px' }}>
-          <div style={{ width: '100%', maxWidth: '420px' }}>
-            <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Welcome back</h2>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Enter your credentials to access your account.</p>
-            </div>
+        {/* Header */}
+        <div className="login-header">
+          <h2>Welcome back</h2>
+          <p>Enter your credentials to access your account.</p>
+        </div>
 
-            {errorMessage && (
-              <div style={{
-                background: 'rgba(248, 81, 73, 0.1)',
-                border: '1px solid var(--status-error)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '14px',
-                color: 'var(--status-error)',
-                marginBottom: '24px'
-              }}>
-                <AlertCircle size={16} />
-                <span>{typeof errorMessage === 'string' ? errorMessage : 'Login failed'}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Email address</label>
-                <input
-                  type="email"
-                  id="email"
-                  placeholder="name@company.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-canvas)',
-                    border: `1px solid ${validationErrors.email ? 'var(--status-error)' : 'var(--border-default)'}`,
-                    borderRadius: 'var(--radius-md)',
-                    padding: '10px 14px',
-                    fontSize: '14px',
-                    color: 'var(--text-primary)',
-                    outline: 'none'
-                  }}
-                  onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                />
-                {validationErrors.email && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.email}</p>}
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    style={{
-                      width: '100%',
-                      background: 'var(--bg-canvas)',
-                      border: `1px solid ${validationErrors.password ? 'var(--status-error)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      padding: '10px 40px 10px 14px',
-                      fontSize: '14px',
-                      color: 'var(--text-primary)',
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = 'var(--accent-green)'}
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {validationErrors.password && <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--status-error)' }}>{validationErrors.password}</p>}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-green)' }} />
-                  Remember me
-                </label>
-                <Link to="/forgot-password" style={{ fontSize: '13px', color: 'var(--text-link)', textDecoration: 'none' }}>Forgot password?</Link>
-              </div>
-
-              <button type="submit" disabled={loading} style={{
-                width: '100%',
-                background: 'var(--accent-green)',
-                color: '#0D1117',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                opacity: loading ? 0.7 : 1,
-              }}>
-                {loading ? (
-                  <><div style={{ width: 16, height: 16, border: '2px solid rgba(13, 17, 23, 0.3)', borderTopColor: '#0D1117', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Signing in...</>
-                ) : (
-                  <>Sign in <ArrowRight size={16} /></>
-                )}
-              </button>
-            </form>
-
-            <div style={{ textAlign: 'center', marginTop: '32px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-              Don't have an account?{' '}
-              <Link to="/signin" style={{ color: 'var(--accent-green)', fontWeight: 500, textDecoration: 'none' }}>Create one free →</Link>
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              © 2026 Webby · Enterprise Web Intelligence
-            </div>
+        {/* Error */}
+        {errorMessage && (
+          <div className="login-error">
+            <AlertCircle size={16} />
+            <span>{typeof errorMessage === 'string' ? errorMessage : 'Login failed'}</span>
           </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Email */}
+          <div className="login-field">
+            <label htmlFor="email" className="login-label">Email address</label>
+            <input
+              type="email"
+              id="email"
+              placeholder="name@company.com"
+              value={formData.email}
+              onChange={handleChange}
+              autoComplete="email"
+              className={`login-input ${validationErrors.email ? 'has-error' : ''}`}
+            />
+            {validationErrors.email && (
+              <p className="login-field-error">{validationErrors.email}</p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div className="login-field">
+            <label htmlFor="password" className="login-label">Password</label>
+            <div className="login-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                autoComplete="current-password"
+                className={`login-input with-toggle ${validationErrors.password ? 'has-error' : ''}`}
+              />
+              <button
+                type="button"
+                className="login-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {validationErrors.password && (
+              <p className="login-field-error">{validationErrors.password}</p>
+            )}
+          </div>
+
+          {/* Remember / Forgot */}
+          <div className="login-row">
+            <label className="login-remember">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Remember me
+            </label>
+            <Link to="/forgot-password" className="login-link">Forgot password?</Link>
+          </div>
+
+          {/* Submit */}
+          <button type="submit" disabled={loading} className="login-submit">
+            {loading ? (
+              <>
+                <div className="login-spinner" />
+                Signing in…
+              </>
+            ) : (
+              <>
+                Sign in <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div className="login-footer">
+          Don't have an account?{' '}
+          <Link to="/signin">Create one free →</Link>
+        </div>
+
+        <div className="login-copyright">
+          © 2026 Webby · Enterprise Web Intelligence
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

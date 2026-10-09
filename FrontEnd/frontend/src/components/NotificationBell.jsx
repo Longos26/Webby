@@ -2,12 +2,251 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, X, Trash2, Info, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 import api from '../api';
 
+// ============================================================
+// STYLES - inject once
+// ============================================================
+const STYLES = `
+  .notif-root {
+    --color-mdb-green: #00ED64;
+    --color-mdb-green-dark: #00C355;
+    --color-canvas: #0D1117;
+    --color-surface: #161B22;
+    --color-surface-elevated: #1C2128;
+    --color-border: #30363D;
+    --color-border-subtle: #21262D;
+    --color-text-primary: #F0F6FC;
+    --color-text-secondary: #9BA4B0;
+    --color-text-muted: #6E7681;
+    --color-error: #F85149;
+    --color-success: #00ED64;
+    --color-warning: #D29922;
+    --color-info: #58A6FF;
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .notif-trigger {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+    color: var(--color-text-secondary);
+    font-family: inherit;
+  }
+
+  .notif-trigger:hover {
+    background: var(--color-surface-elevated);
+    border-color: #484F58;
+    color: var(--color-text-primary);
+  }
+
+  .notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--color-error);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    font-family: var(--font-sans);
+    border: 2px solid var(--color-canvas);
+  }
+
+  .notif-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    overflow: hidden;
+  }
+
+  .notif-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .notif-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .notif-mark-all {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition), color var(--transition);
+  }
+
+  .notif-mark-all:hover {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+  }
+
+  .notif-list {
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .notif-item {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    transition: background var(--transition);
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .notif-item:last-child {
+    border-bottom: none;
+  }
+
+  .notif-item:hover {
+    background: var(--color-surface-elevated);
+  }
+
+  .notif-item.read {
+    background: var(--color-surface);
+  }
+
+  .notif-item.unread {
+    background: var(--color-canvas);
+  }
+
+  .notif-icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .notif-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notif-item-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+  }
+
+  .notif-item-message {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin-bottom: 6px;
+    word-break: break-word;
+  }
+
+  .notif-item-time {
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+
+  .notif-delete {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), color var(--transition);
+    flex-shrink: 0;
+  }
+
+  .notif-delete:hover {
+    background: var(--color-surface);
+    color: var(--color-error);
+  }
+
+  .notif-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+
+  .notif-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--color-border);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-align: center;
+    background: var(--color-surface);
+  }
+
+  @media (max-width: 480px) {
+    .notif-dropdown {
+      width: calc(100vw - 24px);
+      right: -8px;
+    }
+  }
+`;
+
+function injectNotifStyles() {
+  if (typeof document !== 'undefined' && !document.getElementById('notif-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notif-styles';
+    style.textContent = STYLES;
+    document.head.appendChild(style);
+  }
+}
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
+
+  injectNotifStyles();
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -106,212 +345,77 @@ export default function NotificationBell() {
   };
 
   return (
-    <div style={{ position: 'relative' }} ref={dropdownRef}>
+    <div className="notif-root" style={{ position: 'relative' }} ref={dropdownRef}>
       <button
+        className="notif-trigger"
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          position: 'relative',
-          background: '#161B22',
-          border: '1px solid #30363D',
-          borderRadius: '8px',
-          width: 36,
-          height: 36,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          color: '#8B949E',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = '#00ED64';
-          e.currentTarget.style.color = '#00ED64';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = '#30363D';
-          e.currentTarget.style.color = '#8B949E';
-        }}
+        aria-label="Notifications"
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span
-            style={{
-              position: 'absolute',
-              top: -4,
-              right: -4,
-              background: '#F85149',
-              color: 'white',
-              fontSize: 10,
-              fontWeight: 600,
-              borderRadius: '20px',
-              minWidth: 16,
-              height: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '0 4px',
-              fontFamily: "'Inter', monospace",
-            }}
-          >
+          <span className="notif-badge">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            width: 400,
-            maxWidth: 'calc(100vw - 32px)',
-            background: '#161B22',
-            border: '1px solid #30363D',
-            borderRadius: '12px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-            zIndex: 1000,
-            overflow: 'hidden',
-          }}
-        >
+        <div className="notif-dropdown">
           {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 20px',
-              borderBottom: '1px solid #30363D',
-              background: '#0D1117',
-            }}
-          >
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#F0F6FC' }}>Notifications</span>
+          <div className="notif-header">
+            <span className="notif-title">Notifications</span>
             {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#8B949E',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  fontFamily: "'Inter', sans-serif",
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#21262D';
-                  e.currentTarget.style.color = '#00ED64';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#8B949E';
-                }}
-              >
+              <button className="notif-mark-all" onClick={markAllAsRead}>
                 <CheckCheck size={12} /> Mark all read
               </button>
             )}
           </div>
 
-          {/* Notification List */}
-          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+          {/* List */}
+          <div className="notif-list">
             {loading && notifications.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8B949E', fontSize: 13 }}>
-                Loading...
-              </div>
+              <div className="notif-empty">Loading…</div>
             ) : notifications.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8B949E', fontSize: 13 }}>
-                No notifications
-              </div>
+              <div className="notif-empty">No notifications</div>
             ) : (
               notifications.map((notif) => {
                 const iconColor = getTypeColor(notif.type);
                 return (
                   <div
                     key={notif.id}
-                    style={{
-                      padding: '14px 20px',
-                      borderBottom: '1px solid #21262D',
-                      background: notif.read ? '#161B22' : '#0D1117',
-                      transition: 'background 0.15s ease',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#1C2128';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = notif.read ? '#161B22' : '#0D1117';
-                    }}
+                    className={`notif-item ${notif.read ? 'read' : 'unread'}`}
                     onClick={() => !notif.read && markAsRead(notif.id)}
                   >
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      {/* Icon container */}
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '8px',
-                          background: `${iconColor}12`,
-                          border: `1px solid ${iconColor}28`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          color: iconColor,
-                        }}
-                      >
-                        {getTypeIcon(notif.type)}
-                      </div>
-                      
-                      {/* Content */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#F0F6FC', marginBottom: 2 }}>
-                          {notif.title}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#8B949E', lineHeight: 1.4, marginBottom: 6 }}>
-                          {notif.message}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6E7681' }}>
-                          {getTimeAgo(notif.created_at)}
-                        </div>
-                      </div>
-                      
-                      {/* Delete button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNotification(notif.id);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#6E7681',
-                          cursor: 'pointer',
-                          padding: 4,
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.15s ease',
-                          flexShrink: 0,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#21262D';
-                          e.currentTarget.style.color = '#F85149';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#6E7681';
-                        }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                    {/* Icon */}
+                    <div
+                      className="notif-icon-wrap"
+                      style={{
+                        background: `${iconColor}15`,
+                        border: `1px solid ${iconColor}30`,
+                        color: iconColor,
+                      }}
+                    >
+                      {getTypeIcon(notif.type)}
                     </div>
+
+                    {/* Content */}
+                    <div className="notif-content">
+                      <div className="notif-item-title">{notif.title}</div>
+                      <div className="notif-item-message">{notif.message}</div>
+                      <div className="notif-item-time">{getTimeAgo(notif.created_at)}</div>
+                    </div>
+
+                    {/* Delete */}
+                    <button
+                      className="notif-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotification(notif.id);
+                      }}
+                      aria-label="Delete notification"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 );
               })
@@ -319,17 +423,7 @@ export default function NotificationBell() {
           </div>
 
           {/* Footer */}
-          <div
-            style={{
-              padding: '10px 20px',
-              borderTop: '1px solid #30363D',
-              fontSize: 11,
-              color: '#6E7681',
-              textAlign: 'center',
-              background: '#0D1117',
-              fontWeight: 400,
-            }}
-          >
+          <div className="notif-footer">
             {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
           </div>
         </div>
