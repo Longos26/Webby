@@ -20,6 +20,39 @@ class JobExecutor:
         data["updated_at"] = datetime.now(timezone.utc)
         await db.jobs.update_one({"_id": ObjectId(job_id)}, {"$set": data})
 
+    # ============================================================
+    # PROGRESS LOGGING (now correctly inside the class)
+    # ============================================================
+
+    async def _log_progress(
+        self,
+        db,
+        user_id: str,
+        job_id: str,
+        message: str,
+        level: str = "info",
+        metadata: dict = None,
+    ):
+        """Log a progress update to the activities collection for
+        the Monitoring & Logs tab."""
+        try:
+            await db.activities.insert_one({
+                "type": level,
+                "title": "Job Progress",
+                "description": message,
+                "user_id": user_id,
+                "job_id": ObjectId(job_id),
+                "source": "job_executor",
+                "metadata": metadata or {},
+                "created_at": datetime.now(timezone.utc),
+            })
+        except Exception as e:
+            logger.warning(f"Failed to log progress for job {job_id}: {e}")
+
+    # ============================================================
+    # MAIN EXECUTION
+    # ============================================================
+
     async def execute_job(self, job_id: str, user_id: str):
         db = await get_database()
         if job_id in self.active_jobs:
@@ -51,12 +84,25 @@ class JobExecutor:
                 "progress": 2,
                 "error_message": None,
                 "errors": [],
+                "started_at": datetime.now(timezone.utc),
             })
+
+            await self._log_progress(
+                db, user_id, job_id,
+                f"Job started — mode={mode}, target={target_url}",
+                "info",
+                {"mode": mode, "target_url": target_url, "max_pages": max_pages},
+            )
 
             scraper = get_enhanced_scraper()
 
             # ---- Run the crawl in a worker thread ----
             if mode == "deep":
+                await self._log_progress(
+                    db, user_id, job_id,
+                    f"Starting deep crawl (max_depth={job.get('max_depth', 2)})",
+                    "info",
+                )
                 data = await asyncio.to_thread(
                     scraper.deep_crawl, target_url, job.get("max_depth", 2)
                 )
@@ -76,11 +122,24 @@ class JobExecutor:
                     raise Exception(
                         "link_selector is required for details mode"
                     )
+                await self._log_progress(
+                    db, user_id, job_id,
+                    f"Starting listing crawl with detail pages "
+                    f"(selector={link_selector!r}, max_pages={max_pages})",
+                    "info",
+                    {"link_selector": link_selector, "max_pages": max_pages},
+                )
                 summary = await asyncio.to_thread(
                     scraper.scrape_listing_with_details,
                     target_url, link_selector, max_pages,
                 )
             else:
+                await self._log_progress(
+                    db, user_id, job_id,
+                    f"Starting pagination crawl (max_pages={max_pages})",
+                    "info",
+                    {"max_pages": max_pages},
+                )
                 summary = await asyncio.to_thread(
                     scraper.scrape_with_pagination_full,
                     target_url, max_pages,
@@ -100,6 +159,30 @@ class JobExecutor:
                 f"{len(items)} items, dupes={duplicates_removed}, "
                 f"skipped={records_skipped}, errors={len(errors)}"
             )
+
+            await self._log_progress(
+                db, user_id, job_id,
+                f"Scraping complete — {pages_processed} pages processed, "
+                f"{len(items)} items extracted, {duplicates_removed} duplicates removed",
+                "info",
+                {
+                    "pages_processed": pages_processed,
+                    "items_extracted": len(items),
+                    "duplicates_removed": duplicates_removed,
+                    "records_skipped": records_skipped,
+                    "errors_count": len(errors),
+                },
+            )
+
+            # Log each page error individually so they appear in the Errors tab
+            for err in errors:
+                await self._log_progress(
+                    db, user_id, job_id,
+                    f"Extraction error on {err.get('url', 'unknown')}: "
+                    f"{err.get('error', 'unknown error')}",
+                    "error",
+                    {"url": err.get("url"), "error": err.get("error")},
+                )
 
             await self.update_job(db, job_id, {
                 "progress": 60,
@@ -145,6 +228,7 @@ class JobExecutor:
                 "errors": errors,
                 "scraped_content": scraped_text[:2_000_000],
                 "scraped_at": datetime.now(timezone.utc),
+                "completed_at": datetime.now(timezone.utc),
                 "error_message": (
                     f"Completed with {len(errors)} page errors "
                     f"and {records_skipped} skipped records"
@@ -154,12 +238,27 @@ class JobExecutor:
             # Optional auto-parse
             if job.get("auto_parse") and job.get("parse_description"):
                 try:
+                    await self._log_progress(
+                        db, user_id, job_id,
+                        "Starting auto-parse with LLM…",
+                        "info",
+                    )
                     await self.parse_job_content(
                         job_id, job["parse_description"]
+                    )
+                    await self._log_progress(
+                        db, user_id, job_id,
+                        "Auto-parse completed successfully",
+                        "success",
                     )
                 except Exception as e:
                     logger.warning(
                         f"Auto-parse failed for job {job_id}: {e}"
+                    )
+                    await self._log_progress(
+                        db, user_id, job_id,
+                        f"Auto-parse failed: {str(e)[:200]}",
+                        "warning",
                     )
 
             await db.activities.insert_one({
@@ -174,6 +273,14 @@ class JobExecutor:
                     + (f" ({len(errors)} errors)" if errors else "")
                 ),
                 "user_id": user_id,
+                "job_id": ObjectId(job_id),
+                "source": "job_executor",
+                "metadata": {
+                    "url": target_url,
+                    "records": record_count,
+                    "pages_processed": pages_processed,
+                    "job_name": job.get("name", "Untitled"),
+                },
                 "created_at": datetime.now(timezone.utc),
             })
 
@@ -218,7 +325,20 @@ class JobExecutor:
                 "status": "failed",
                 "progress": 0,
                 "error_message": error_message,
+                "failed_at": datetime.now(timezone.utc),
             })
+
+            # Log the failure to monitoring
+            await self._log_progress(
+                db, user_id, job_id,
+                f"Job failed: {error_message[:200]}",
+                "error",
+                {
+                    "url": (job or {}).get("url", "unknown"),
+                    "error": error_message,
+                },
+            )
+
             await db.activities.insert_one({
                 "type": "error",
                 "title": "Job Failed",
@@ -228,8 +348,16 @@ class JobExecutor:
                     f"{error_message[:200]}"
                 ),
                 "user_id": user_id,
+                "job_id": ObjectId(job_id),
+                "source": "job_executor",
+                "metadata": {
+                    "url": (job or {}).get("url", "unknown"),
+                    "error": error_message,
+                    "job_name": (job or {}).get("name", "Untitled"),
+                },
                 "created_at": datetime.now(timezone.utc),
             })
+
             try:
                 from services.notification_service import NotificationService
                 await NotificationService.create_notification(

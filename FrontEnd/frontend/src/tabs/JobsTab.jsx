@@ -1,11 +1,11 @@
-// frontend/src/pages/JobsTab.jsx - MO-TECH ENTERPRISE EDITION
+// frontend/src/pages/JobsTab.jsx - MO-TECH ENTERPRISE EDITION (with Search)
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Briefcase, Play, Eye, AlertCircle,
   Pause, Trash2, RefreshCw, X, Loader,
   Database, Link as LinkIcon, Calendar, Activity,
-  CheckCircle, Zap, Brain,
+  CheckCircle, Zap, Brain, Search,
   AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Clock, Hash
 } from 'lucide-react';
@@ -886,6 +886,126 @@ const STYLES = `
     color: var(--color-text-muted);
   }
 
+  /* ---------- Search Bar ---------- */
+  .search-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    flex-wrap: wrap;
+  }
+
+  .search-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .search-input-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 8px 32px 8px 34px;
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .search-input:focus {
+    border-color: var(--color-mdb-green);
+    box-shadow: 0 0 0 3px rgba(0, 237, 100, 0.08);
+  }
+
+  .search-clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .search-clear-btn:hover {
+    color: var(--color-text-primary);
+  }
+
+  .search-match-counter {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .search-match-counter.has-matches {
+    color: #56D364;
+    background: rgba(0, 237, 100, 0.08);
+    border: 1px solid rgba(0, 237, 100, 0.2);
+  }
+
+  .search-match-counter.no-matches {
+    color: #FF7B72;
+    background: rgba(248, 81, 73, 0.08);
+    border: 1px solid rgba(248, 81, 73, 0.2);
+  }
+
+  .search-nav-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .search-nav-btn:hover:not(:disabled) {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+  }
+
+  .search-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .search-results-summary {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+    padding: 0 2px;
+  }
+
   /* ---------- Live Banner (clean) ---------- */
   .live-banner {
     background: var(--color-surface);
@@ -985,6 +1105,8 @@ const STYLES = `
     .modal { max-width: 100%; margin: 0 8px; max-height: 95vh; }
     .url-cell { max-width: 140px; }
     .content-header { flex-direction: column; align-items: flex-start; }
+    .search-bar-container { flex-direction: column; align-items: stretch; }
+    .search-input-wrapper { min-width: 100%; }
   }
 
   @media (max-width: 480px) {
@@ -1034,7 +1156,7 @@ function StatusPill({ status }) {
 }
 
 // ============================================================
-// LIVE PROGRESS BANNER — clean version
+// LIVE PROGRESS BANNER
 // ============================================================
 
 function LiveProgressBanner({ jobs }) {
@@ -1314,13 +1436,20 @@ function DeleteConfirmModal({ jobName, onCancel, onConfirm, deleting }) {
 }
 
 // ============================================================
-// JOB DETAILS MODAL
+// JOB DETAILS MODAL (with Search)
 // ============================================================
 
 function JobDetailsModal({ job, onClose }) {
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
+
+  // ---- Search state ----
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchMatches, setSearchMatches] = useState([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const contentRef = useRef(null);
+  const matchRefs = useRef({});
 
   useEffect(() => {
     if (job?.id) loadDetails();
@@ -1351,7 +1480,6 @@ function JobDetailsModal({ job, onClose }) {
   const wordCount = scrapedContent ? scrapedContent.split(/\s+/).filter(w => w.length > 0).length : 0;
   const charCount = scrapedContent.length;
   const recordCount = d.records || 0;
-  const items = d.items || [];
   const errors = d.errors || [];
 
   const hasHtmlTags = /<[^>]+>/.test(scrapedContent);
@@ -1363,6 +1491,217 @@ function JobDetailsModal({ job, onClose }) {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString();
   };
+
+  // ============================================================
+  // SEARCH LOGIC
+  // ============================================================
+
+  // When search query changes, find all matches in the content
+  useEffect(() => {
+    if (!searchQuery.trim() || !displayContent) {
+      setSearchMatches([]);
+      setCurrentMatchIndex(0);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const lines = displayContent.split('\n');
+    const matches = [];
+
+    lines.forEach((line, lineIdx) => {
+      const lowerLine = line.toLowerCase();
+      let startIdx = 0;
+      let matchIdx;
+      while ((matchIdx = lowerLine.indexOf(query, startIdx)) !== -1) {
+        matches.push({
+          lineIndex: lineIdx,
+          start: matchIdx,
+          end: matchIdx + query.length,
+        });
+        startIdx = matchIdx + query.length;
+      }
+    });
+
+    setSearchMatches(matches);
+    setCurrentMatchIndex(matches.length > 0 ? 0 : -1);
+  }, [searchQuery, displayContent]);
+
+  // Scroll to current match
+  useEffect(() => {
+    if (searchMatches.length === 0 || currentMatchIndex < 0) return;
+    const match = searchMatches[currentMatchIndex];
+    const el = matchRefs.current[match.lineIndex];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentMatchIndex, searchMatches]);
+
+  const goToNextMatch = () => {
+    if (searchMatches.length === 0) return;
+    setCurrentMatchIndex((prev) => (prev + 1) % searchMatches.length);
+  };
+
+  const goToPrevMatch = () => {
+    if (searchMatches.length === 0) return;
+    setCurrentMatchIndex((prev) => (prev - 1 + searchMatches.length) % searchMatches.length);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchMatches([]);
+    setCurrentMatchIndex(-1);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        goToPrevMatch();
+      } else {
+        goToNextMatch();
+      }
+    } else if (e.key === 'Escape') {
+      clearSearch();
+    }
+  };
+
+  const isMatchLine = (lineIndex) => {
+    return searchMatches.some((m) => m.lineIndex === lineIndex);
+  };
+
+  const isCurrentMatchLine = (lineIndex) => {
+    if (currentMatchIndex < 0 || searchMatches.length === 0) return false;
+    return searchMatches[currentMatchIndex].lineIndex === lineIndex;
+  };
+
+  const highlightText = (text) => {
+    if (!searchQuery.trim()) return text;
+    const query = searchQuery;
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const parts = [];
+    let lastIdx = 0;
+    let idx;
+
+    while ((idx = lowerText.indexOf(lowerQuery, lastIdx)) !== -1) {
+      if (idx > lastIdx) {
+        parts.push(text.substring(lastIdx, idx));
+      }
+      parts.push(
+        <mark
+          key={`${idx}-${lastIdx}`}
+          style={{
+            background: 'rgba(255, 211, 61, 0.6)',
+            color: '#0D1117',
+            padding: '1px 2px',
+            borderRadius: '2px',
+            fontWeight: 600,
+          }}
+        >
+          {text.substring(idx, idx + query.length)}
+        </mark>
+      );
+      lastIdx = idx + query.length;
+    }
+    if (lastIdx < text.length) {
+      parts.push(text.substring(lastIdx));
+    }
+    return parts.length > 0 ? parts : text;
+  };
+
+  // ============================================================
+  // RENDER CONTENT LINE
+  // ============================================================
+
+  const renderContentLine = (line, idx) => {
+    const trimmed = line.trim();
+
+    if (!trimmed) return <div key={idx} className="content-empty-line" />;
+
+    if (trimmed.startsWith('═')) {
+      return <div key={idx} className="content-divider" />;
+    }
+    if (trimmed.startsWith('─') && trimmed.length > 10) {
+      return <div key={idx} className="content-divider-subtle" />;
+    }
+
+    if (trimmed.startsWith('📄 PAGE') || trimmed.startsWith('🔗') ||
+        trimmed.startsWith('📝') || trimmed.startsWith('📊')) {
+      return (
+        <div key={idx} className="content-page-marker">
+          {highlightText(trimmed)}
+        </div>
+      );
+    }
+
+    if (trimmed.startsWith('### ')) {
+      return (
+        <div key={idx} className="content-h3">
+          {highlightText(trimmed.replace('### ', ''))}
+        </div>
+      );
+    }
+    if (trimmed.startsWith('## ')) {
+      return (
+        <div key={idx} className="content-h2">
+          {highlightText(trimmed.replace('## ', ''))}
+        </div>
+      );
+    }
+    if (trimmed.startsWith('# ')) {
+      return (
+        <div key={idx} className="content-h1">
+          {highlightText(trimmed.replace('# ', ''))}
+        </div>
+      );
+    }
+
+    if (trimmed.startsWith('• ') || trimmed.startsWith('- ') ||
+        trimmed.startsWith('  • ')) {
+      const isNested = trimmed.startsWith('  • ');
+      const content = trimmed.replace(/^[\s]*[•\-]\s*/, '');
+      return (
+        <div key={idx} className={`content-bullet ${isNested ? 'nested' : ''}`}>
+          <span className="content-bullet-dot" />
+          <span className="content-bullet-text">
+            {highlightText(content)}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div key={idx} className="content-paragraph">
+        {highlightText(trimmed)}
+      </div>
+    );
+  };
+
+  // ============================================================
+  // FILTERED CONTENT
+  // ============================================================
+
+  const allLines = displayContent.split('\n');
+
+  const getFilteredLines = () => {
+    if (!searchQuery.trim() || searchMatches.length === 0) {
+      return allLines.map((line, idx) => ({ line, idx }));
+    }
+
+    const matchingLineIndices = new Set();
+    searchMatches.forEach((m) => {
+      for (let i = Math.max(0, m.lineIndex - 2); i <= Math.min(allLines.length - 1, m.lineIndex + 2); i++) {
+        matchingLineIndices.add(i);
+      }
+    });
+
+    return Array.from(matchingLineIndices)
+      .sort((a, b) => a - b)
+      .map((idx) => ({ line: allLines[idx], idx }));
+  };
+
+  const filteredLines = getFilteredLines();
+  const uniqueMatchLines = new Set(searchMatches.map(m => m.lineIndex)).size;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -1502,7 +1841,7 @@ function JobDetailsModal({ job, onClose }) {
                       <span>Scraped Content</span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span className="content-stat-chip">
                         <Hash size={10} />
                         {charCount.toLocaleString()} chars
@@ -1513,86 +1852,129 @@ function JobDetailsModal({ job, onClose }) {
                     </div>
                   </div>
 
-                  {/* Content Viewer */}
-                  <div className="content-viewer">
-                    {/* Subtle top gradient fade */}
+                  {/* ============================================================ */}
+                  {/* SEARCH BAR */}
+                  {/* ============================================================ */}
+                  <div className="search-bar-container">
+                    <div className="search-input-wrapper">
+                      <Search size={15} className="search-input-icon" />
+                      <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Search in scraped content… (e.g., ivysaur)"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={handleSearchKeyDown}
+                      />
+                      {searchQuery && (
+                        <button
+                          className="search-clear-btn"
+                          onClick={clearSearch}
+                          title="Clear search (Esc)"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {searchQuery.trim() && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span
+                          className={`search-match-counter ${
+                            searchMatches.length > 0 ? 'has-matches' : 'no-matches'
+                          }`}
+                        >
+                          {searchMatches.length > 0
+                            ? `${currentMatchIndex + 1} / ${searchMatches.length}`
+                            : 'No matches'}
+                        </span>
+
+                        {searchMatches.length > 0 && (
+                          <>
+                            <button
+                              className="search-nav-btn"
+                              onClick={goToPrevMatch}
+                              title="Previous match (Shift+Enter)"
+                            >
+                              <ChevronLeft size={14} />
+                            </button>
+                            <button
+                              className="search-nav-btn"
+                              onClick={goToNextMatch}
+                              title="Next match (Enter)"
+                            >
+                              <ChevronRight size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Search results summary */}
+                  {searchQuery.trim() && searchMatches.length > 0 && (
+                    <div className="search-results-summary">
+                      Found <strong style={{ color: '#56D364' }}>{searchMatches.length}</strong> match
+                      {searchMatches.length !== 1 ? 'es' : ''} in{' '}
+                      <strong style={{ color: '#56D364' }}>{uniqueMatchLines}</strong> line
+                      {uniqueMatchLines !== 1 ? 's' : ''}
+                    </div>
+                  )}
+
+                  {/* ============================================================ */}
+                  {/* CONTENT VIEWER */}
+                  {/* ============================================================ */}
+                  <div className="content-viewer" ref={contentRef}>
                     <div className="content-fade-top" />
 
                     <div className="content-body">
-                      {displayContent.split('\n').map((line, idx) => {
-                        const trimmed = line.trim();
-
-                        // Empty line spacing
-                        if (!trimmed) return <div key={idx} className="content-empty-line" />;
-
-                        // Divider lines
-                        if (trimmed.startsWith('═')) {
-                          return <div key={idx} className="content-divider" />;
-                        }
-                        if (trimmed.startsWith('─') && trimmed.length > 10) {
-                          return <div key={idx} className="content-divider-subtle" />;
-                        }
-
-                        // Page markers and special prefixes
-                        if (trimmed.startsWith('📄 PAGE') || trimmed.startsWith('🔗') ||
-                            trimmed.startsWith('📝') || trimmed.startsWith('📊')) {
-                          return (
-                            <div key={idx} className="content-page-marker">
-                              {trimmed}
-                            </div>
-                          );
-                        }
-
-                        // Markdown headings
-                        if (trimmed.startsWith('### ')) {
-                          return (
-                            <div key={idx} className="content-h3">
-                              {trimmed.replace('### ', '')}
-                            </div>
-                          );
-                        }
-                        if (trimmed.startsWith('## ')) {
-                          return (
-                            <div key={idx} className="content-h2">
-                              {trimmed.replace('## ', '')}
-                            </div>
-                          );
-                        }
-                        if (trimmed.startsWith('# ')) {
-                          return (
-                            <div key={idx} className="content-h1">
-                              {trimmed.replace('# ', '')}
-                            </div>
-                          );
-                        }
-
-                        // Bullet points
-                        if (trimmed.startsWith('• ') || trimmed.startsWith('- ') ||
-                            trimmed.startsWith('  • ')) {
-                          const isNested = trimmed.startsWith('  • ');
-                          const content = trimmed.replace(/^[\s]*[•\-]\s*/, '');
-                          return (
-                            <div key={idx} className={`content-bullet ${isNested ? 'nested' : ''}`}>
-                              <span className="content-bullet-dot" />
-                              <span className="content-bullet-text">
-                                {content}
-                              </span>
-                            </div>
-                          );
-                        }
-
-                        // Regular paragraphs
+                      {filteredLines.map(({ line, idx }) => {
+                        const isMatch = isMatchLine(idx);
+                        const isCurrent = isCurrentMatchLine(idx);
                         return (
-                          <div key={idx} className="content-paragraph">
-                            {trimmed}
+                          <div
+                            key={idx}
+                            ref={(el) => (matchRefs.current[idx] = el)}
+                            style={{
+                              borderRadius: isMatch ? 'var(--radius-sm)' : undefined,
+                              background: isCurrent
+                                ? 'rgba(255, 211, 61, 0.08)'
+                                : isMatch
+                                ? 'rgba(255, 211, 61, 0.03)'
+                                : undefined,
+                              borderLeft: isCurrent
+                                ? '3px solid #FFD33D'
+                                : isMatch
+                                ? '3px solid rgba(255, 211, 61, 0.3)'
+                                : '3px solid transparent',
+                              paddingLeft: isMatch ? 8 : 0,
+                              transition: 'background 150ms ease, border-color 150ms ease',
+                            }}
+                          >
+                            {renderContentLine(line, idx)}
                           </div>
                         );
                       })}
                     </div>
                   </div>
+
+                  {/* No results state */}
+                  {searchQuery.trim() && searchMatches.length === 0 && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '24px 16px',
+                      color: 'var(--color-text-muted)',
+                      fontSize: 13,
+                    }}>
+                      <Search size={20} style={{ marginBottom: 8, opacity: 0.5 }} />
+                      <div>
+                        No results found for "<strong style={{ color: 'var(--color-text-primary)' }}>{searchQuery}</strong>"
+                      </div>
+                      <div style={{ fontSize: 11, marginTop: 4 }}>Try a different search term</div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                /* Empty State - Untitled UI Style */
                 <div className="content-empty-state">
                   <div className="content-empty-icon-wrapper">
                     <Database size={24} color="var(--color-text-muted)" />

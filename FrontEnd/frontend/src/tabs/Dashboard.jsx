@@ -23,6 +23,7 @@ import {
   Activity,
   PieChart as PieChartIcon,
   RefreshCw,
+  Library,
   ChevronRight,
   Users,
   Zap,
@@ -32,13 +33,15 @@ import {
   Shield,
   Bell,
   Search,
-  Filter
+  Filter,
 } from 'lucide-react';
 import NotificationBell from '../components/NotificationBell';
 import api from '../api';
 import JobsTab from './JobsTab';
 import ExportTab from './ExportTab';
 import SettingsPage from './SettingsTab';
+import MonitoringTab from './MonitoringTab';
+import DatasetLibraryTab from './DatasetLibraryTab';
 import ModelsTab from './ModelsTab';
 import React from 'react';
 import logo from '../newlogo.png';
@@ -870,7 +873,10 @@ const globalStyles = `
   }
 `;
 
-// Status Badge Component
+// ============================================================
+// STATUS BADGE
+// ============================================================
+
 function StatusBadge({ status }) {
   const config = {
     running: { label: 'Running', icon: PlayCircle, variant: 'info' },
@@ -879,7 +885,7 @@ function StatusBadge({ status }) {
     failed: { label: 'Failed', icon: XCircle, variant: 'error' },
     error: { label: 'Error', icon: AlertCircle, variant: 'error' },
     paused: { label: 'Paused', icon: Clock, variant: 'warning' },
-    queued: { label: 'Queued', icon: Clock, variant: 'default' }
+    queued: { label: 'Queued', icon: Clock, variant: 'default' },
   };
 
   const c = config[status?.toLowerCase()] || config.queued;
@@ -893,7 +899,10 @@ function StatusBadge({ status }) {
   );
 }
 
-// Sidebar Component
+// ============================================================
+// SIDEBAR
+// ============================================================
+
 function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
   const navigate = useNavigate();
 
@@ -902,11 +911,13 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
     : user?.name?.charAt(0).toUpperCase() || 'U';
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'export', label: 'Export', icon: Download },
-    { id: 'models', label: 'Models', icon: Bot },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard',  label: 'Dashboard',        icon: LayoutDashboard },
+    { id: 'jobs',       label: 'Jobs',             icon: Briefcase },
+    { id: 'datasets',   label: 'Library',  icon: Library },
+    { id: 'monitoring', label: 'Monitoring',       icon: Server },
+    { id: 'export',     label: 'Export',           icon: Download },
+    { id: 'models',     label: 'Models',           icon: Bot },
+    { id: 'settings',   label: 'Settings',         icon: Settings },
   ];
 
   return (
@@ -914,7 +925,7 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
       {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <Link to="/" className="logo">
+          <Link to="/dashboard" className="logo">
             <img src={logo} alt="Webby" style={{ height: '52px', width: 'auto' }} />
           </Link>
         </div>
@@ -922,11 +933,16 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
         <div style={{ padding: '16px 0', flex: 1, overflowY: 'auto' }}>
           {navItems.map(item => {
             const Icon = item.icon;
+            const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
-                className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => { setActiveTab(item.id); setOpen(false); }}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setOpen(false);
+                  navigate(`/${item.id}`);
+                }}
               >
                 <Icon size={17} />
                 {item.label}
@@ -944,7 +960,7 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
               fontSize: 13, fontWeight: 600,
               color: 'var(--text-primary)',
               border: '1px solid var(--border-default)',
-              flexShrink: 0
+              flexShrink: 0,
             }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
@@ -973,14 +989,19 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
   );
 }
 
-// Topbar Component
+// ============================================================
+// TOPBAR
+// ============================================================
+
 function Topbar({ activeTab, open, setOpen }) {
   const tabTitles = {
-    dashboard: { title: 'Dashboard', subtitle: 'Monitor your scraping infrastructure' },
-    jobs: { title: 'Jobs', subtitle: 'Manage scraping and extraction pipelines' },
-    export: { title: 'Export', subtitle: 'Download and deliver your data' },
-    models: { title: 'Models', subtitle: 'LLM configuration and management' },
-    settings: { title: 'Settings', subtitle: 'Account and system preferences' }
+    dashboard:  { title: 'Dashboard',       subtitle: 'Monitor your scraping infrastructure' },
+    jobs:       { title: 'Jobs',            subtitle: 'Manage scraping and extraction pipelines' },
+    datasets:   { title: 'Dataset Library', subtitle: 'Organize, compare and manage your datasets' },
+    monitoring: { title: 'Monitoring & Logs', subtitle: 'Live operations, execution logs and errors' },
+    export:     { title: 'Export',          subtitle: 'Download and deliver your data' },
+    models:     { title: 'Models',          subtitle: 'LLM configuration and management' },
+    settings:   { title: 'Settings',        subtitle: 'Account and system preferences' },
   };
 
   const meta = tabTitles[activeTab] || tabTitles.dashboard;
@@ -1003,7 +1024,10 @@ function Topbar({ activeTab, open, setOpen }) {
   );
 }
 
-// Dashboard Tab - 100% Real Data
+// ============================================================
+// DASHBOARD TAB - 100% Real Data
+// ============================================================
+
 function DashboardTab() {
   const [stats, setStats] = useState([
     { label: 'Active Jobs', value: '0', trend: 'Live', icon: Activity },
@@ -1593,37 +1617,82 @@ function DashboardTab() {
   );
 }
 
-// Main AppShell Component
+// ============================================================
+// MAIN APP SHELL COMPONENT
+// ============================================================
+
+const VALID_TABS = ['dashboard', 'jobs', 'datasets', 'monitoring', 'export', 'models', 'settings'];
+
 export default function AppShell() {
   const { currentUser, token } = useSelector(s => s.user);
   const navigate = useNavigate();
   const location = useLocation();
-  const pathTab = location.pathname.replace('/', '') || 'dashboard';
-  const [activeTab, setActiveTab] = useState(['dashboard', 'jobs', 'export', 'settings', 'models'].includes(pathTab) ? pathTab : 'dashboard');
+
+  // Derive current tab from URL
+  const pathTab = location.pathname.replace(/^\//, '').split('/')[0] || 'dashboard';
+  const initialTab = VALID_TABS.includes(pathTab) ? pathTab : 'dashboard';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Auth guard
   useEffect(() => {
     if (!currentUser && !token) navigate('/login');
   }, [currentUser, token, navigate]);
 
+  // Sync activeTab when URL changes (browser back/forward, deep links)
+  useEffect(() => {
+    if (VALID_TABS.includes(pathTab) && pathTab !== activeTab) {
+      setActiveTab(pathTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathTab]);
+
+  // Push URL when activeTab changes via sidebar click
+  useEffect(() => {
+    const expected = `/${activeTab}`;
+    if (location.pathname !== expected) {
+      navigate(expected, { replace: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Inject global styles once
   useEffect(() => {
     const style = document.createElement('style');
+    style.id = 'app-shell-global-styles';
     style.textContent = globalStyles;
     document.head.appendChild(style);
-    return () => { document.head.removeChild(style); };
+    return () => {
+      const el = document.getElementById('app-shell-global-styles');
+      if (el) document.head.removeChild(el);
+    };
   }, []);
 
+  // Close mobile sidebar whenever route changes
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Tab → Component map
   const tabComponents = {
-    dashboard: <DashboardTab />,
-    jobs: <JobsTab />,
-    export: <ExportTab />,
-    models: <ModelsTab />,
-    settings: <SettingsPage />
+    dashboard:  <DashboardTab />,
+    jobs:       <JobsTab />,
+    datasets:   <DatasetLibraryTab />,
+    monitoring: <MonitoringTab />,
+    export:     <ExportTab />,
+    models:     <ModelsTab />,
+    settings:   <SettingsPage />,
   };
 
   return (
     <div className="app-container">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} open={sidebarOpen} setOpen={setSidebarOpen} user={currentUser} />
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        open={sidebarOpen}
+        setOpen={setSidebarOpen}
+        user={currentUser}
+      />
       <div className="main-content">
         <Topbar activeTab={activeTab} open={sidebarOpen} setOpen={setSidebarOpen} />
         <main style={{ padding: '28px' }}>

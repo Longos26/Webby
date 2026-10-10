@@ -337,10 +337,91 @@ export const settingsService = {
 };
 
 // ============================================================
+// MONITORING SERVICE
+// ============================================================
+
+export const monitoringService = {
+  getLiveJobs: async () => {
+    const response = await api.get('/api/monitoring/live-jobs');
+    return response.data;
+  },
+
+  getExecutionLogs: async (params = {}) => {
+    const response = await api.get('/api/monitoring/logs', { params });
+    return response.data;
+  },
+
+  getErrors: async (params = {}) => {
+    const response = await api.get('/api/monitoring/errors', { params });
+    return response.data;
+  },
+
+  retryJob: async (jobId) => {
+    const response = await api.post(`/api/monitoring/retry/${jobId}`);
+    return response.data;
+  },
+
+  cancelJob: async (jobId) => {
+    const response = await api.post(`/api/monitoring/cancel/${jobId}`);
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/api/monitoring/stats');
+    return response.data;
+  },
+
+  clearOldLogs: async (days = 30) => {
+    const response = await api.delete('/api/monitoring/logs/clear', { params: { days } });
+    return response.data;
+  },
+};
+
+// ============================================================
+// DATASET LIBRARY SERVICE
+// ============================================================
+
+export const datasetService = {
+  listDatasets: async () => {
+    const response = await api.get('/api/export/jobs-with-results');
+    return response.data;
+  },
+
+  getDatasetStats: async (jobId) => {
+    const response = await api.get(`/api/export/stats/${jobId}`);
+    return response.data;
+  },
+
+  previewRecords: async (jobId, limit = 500) => {
+    const response = await api.post(`/api/export/preview/${jobId}`, { limit });
+    return response.data;
+  },
+
+  deleteDataset: async (jobId) => {
+    const response = await api.delete(`/api/jobs/${jobId}`);
+    return response.data;
+  },
+
+  rerunDataset: async (jobId) => {
+    const response = await api.post(`/api/jobs/${jobId}/start`);
+    return response.data;
+  },
+
+  duplicateDataset: async (jobData) => {
+    const response = await api.post('/api/jobs', jobData);
+    return response.data;
+  },
+};
+
+
+
+// ============================================================
 // DEFAULT EXPORT
 // ============================================================
 
 // Attach all services to default export
+api.datasets = datasetService;
+api.monitoring = monitoringService;
 api.auth = authService;
 api.jobs = jobService;
 api.dashboard = dashboardService;

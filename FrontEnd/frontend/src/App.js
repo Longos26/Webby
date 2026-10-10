@@ -30,7 +30,8 @@ function App() {
           <Route path="/export"    element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
           <Route path="/settings"  element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
           <Route path="/models"    element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
-
+          <Route path="/monitoring" element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
+          <Route path="/datasets" element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
           {/* Other protected pages */}
           <Route path="/users"       element={<ProtectedRoutes><UserLists /></ProtectedRoutes>} />
           <Route path="/create-user" element={<ProtectedRoutes><CreateUser /></ProtectedRoutes>} />
