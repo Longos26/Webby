@@ -47,181 +47,184 @@ import {
 import logo from '../newlogo.png';
 
 // ============================================================
-// STYLES — matching homepage color palette
+// STYLES — unified with DatasetLibraryTab design system
 // ============================================================
 
 const globalStyles = `
-  :root {
-    --green-primary: #00ED64;
-    --green-dark: #00c951;
-    --bg-dark: #0D1117;
-    --bg-surface: #161B22;
-    --bg-elevated: #1F242E;
-    --border-default: #30363D;
-    --border-subtle: #21262D;
-    --text-primary: #F0F6FC;
-    --text-secondary: #8B949E;
-    --text-muted: #6E7681;
-    --success: #00ED64;
-    --warning: #D29922;
-    --error: #F85149;
-    --info: #58A6FF;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.2);
+  .doc-root {
+    /* ---- Canonical palette (same as DatasetLibraryTab) ---- */
+    --color-mdb-green: #00ED64;
+    --color-mdb-green-dark: #00C355;
+    --color-canvas: #0D1117;
+    --color-surface: #161B22;
+    --color-surface-elevated: #1C2128;
+    --color-border: #30363D;
+    --color-border-subtle: #21262D;
+    --color-text-primary: #F0F6FC;
+    --color-text-secondary: #9BA4B0;
+    --color-text-muted: #6E7681;
+    --color-success: #00ED64;
+    --color-warning: #D29922;
+    --color-error: #F85149;
+    --color-info: #58A6FF;
+
+    /* ---- Aliases kept for readability in content ---- */
+    --green-primary: var(--color-mdb-green);
+    --green-dark: var(--color-mdb-green-dark);
+    --bg-dark: var(--color-canvas);
+    --bg-surface: var(--color-surface);
+    --bg-elevated: var(--color-surface-elevated);
+    --border-default: var(--color-border);
+    --border-subtle: var(--color-border-subtle);
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-muted: var(--color-text-muted);
+    --success: var(--color-success);
+    --warning: var(--color-warning);
+    --error: var(--color-error);
+    --info: var(--color-info);
+
+    /* ---- Untitled-UI scale (shared with dlib-*) ---- */
+    --radius-xs: 4px;
     --radius-sm: 6px;
     --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-full: 9999px;
+
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.24);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.32), 0 1px 2px -1px rgba(0, 0, 0, 0.28);
+    --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.36), 0 2px 4px -2px rgba(0, 0, 0, 0.28);
+    --shadow-lg: 0 12px 16px -4px rgba(0, 0, 0, 0.42), 0 4px 6px -2px rgba(0, 0, 0, 0.28);
+    --shadow-xl: 0 20px 24px -4px rgba(0, 0, 0, 0.5), 0 8px 8px -4px rgba(0, 0, 0, 0.32);
+
     --font-sans: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
     --font-serif: "Georgia", "Times New Roman", serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Courier New", monospace;
-  }
 
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  body {
-    background-color: var(--bg-dark);
-    color: var(--text-primary);
     font-family: var(--font-sans);
-    font-size: 15px;
+    color: var(--color-text-primary);
+    background: var(--color-canvas);
+    font-size: 14px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
   }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: var(--bg-surface);
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--border-default);
-    border-radius: var(--radius-sm);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-  }
+  .doc-root * { margin: 0; padding: 0; box-sizing: border-box; }
+  .doc-root a { text-decoration: none; color: inherit; }
+  .doc-root button { cursor: pointer; font-family: inherit; }
 
-  *:focus-visible {
-    outline: 2px solid var(--green-primary);
-    outline-offset: 2px;
+  .doc-root *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 237, 100, 0.16), 0 0 0 1px var(--color-mdb-green);
     border-radius: var(--radius-sm);
   }
 
-  button {
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  a {
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .container {
+  .doc-root .container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 32px;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  .spin {
-    animation: spin 0.6s linear infinite;
-  }
+  @keyframes doc-spin { to { transform: rotate(360deg); } }
+  .doc-root .spin { animation: doc-spin 0.6s linear infinite; }
 
-  @keyframes fadeSlideIn {
+  @keyframes doc-fadeSlideIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  .fade-slide-in {
-    animation: fadeSlideIn 0.25s ease-out;
-  }
+  .doc-root .fade-slide-in { animation: doc-fadeSlideIn 0.25s ease-out; }
 
   @media (max-width: 768px) {
-    .container {
-      padding: 0 16px !important;
-    }
-    .paper-grid {
-      grid-template-columns: 1fr !important;
-    }
-    .paper-sidebar {
-      display: none !important;
-    }
-    .mobile-sidebar-toggle {
-      display: block !important;
-    }
-    nav .desktop-nav {
-      display: none !important;
-    }
-    .mobile-menu-btn {
-      display: block !important;
-    }
-    .paper-content {
-      padding: 16px !important;
-    }
-    .author-grid {
-      grid-template-columns: 1fr !important;
-    }
+    .doc-root .container { padding: 0 16px; }
+    .doc-root .paper-grid { grid-template-columns: 1fr !important; }
+    .doc-root .paper-sidebar { display: none !important; }
+    .doc-root .mobile-sidebar-toggle { display: block !important; }
+    .doc-root nav .desktop-nav { display: none !important; }
+    .doc-root .mobile-menu-btn { display: block !important; }
+    .doc-root .paper-content { padding: 16px !important; }
+    .doc-root .author-grid { grid-template-columns: 1fr !important; }
   }
 
   @media (min-width: 769px) {
-    .mobile-menu-btn {
-      display: none !important;
-    }
-    .mobile-sidebar-toggle {
-      display: none !important;
-    }
+    .doc-root .mobile-menu-btn { display: none !important; }
+    .doc-root .mobile-sidebar-toggle { display: none !important; }
+  }
+
+  @media print {
+    .doc-root nav { display: none !important; }
+    .doc-root .paper-sidebar { display: none !important; }
+    .doc-root .paper-grid { display: block !important; }
+    .doc-root .paper-content { border: none !important; padding: 20px !important; box-shadow: none !important; }
+    .doc-root .paper-grid { margin: 0 !important; }
   }
 `;
 
 // ============================================================
-// COMPONENTS — matching homepage style
+// COMPONENTS — Untitled-UI primitives (same as dlib-*)
 // ============================================================
 
-const PrimaryButton = ({ children, icon, onClick, to, className = '', disabled = false }) => {
-  const content = (
-    <>
-      {icon}
-      {children}
-    </>
-  );
-  const style = {
+const PrimaryButton = ({ children, icon, onClick, to, className = '', disabled = false, style: extraStyle = {} }) => {
+  const baseStyle = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
-    backgroundColor: disabled ? 'var(--text-muted)' : 'var(--green-primary)',
-    color: disabled ? 'var(--bg-dark)' : '#0D1117',
-    fontWeight: 600,
-    fontSize: '14px',
-    padding: '10px 20px',
-    borderRadius: 'var(--radius-md)',
-    border: 'none',
-    transition: 'background-color 0.2s ease',
-    cursor: disabled ? 'not-allowed' : 'pointer',
+    gap: '6px',
+    height: '38px',
+    padding: '0 14px',
+    backgroundColor: disabled ? 'var(--color-surface-elevated)' : 'var(--color-mdb-green)',
+    color: disabled ? 'var(--color-text-muted)' : '#0D1117',
+    fontWeight: 500,
+    fontSize: '13px',
     fontFamily: 'inherit',
+    borderRadius: 'var(--radius-lg)',
+    border: `1px solid ${disabled ? 'var(--color-border-subtle)' : 'var(--color-mdb-green)'}`,
+    transition: 'background-color var(--transition), border-color var(--transition)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    boxShadow: 'var(--shadow-xs)',
+    whiteSpace: 'nowrap',
     opacity: disabled ? 0.6 : 1,
+    ...extraStyle,
   };
+
+  const hover = (e) => {
+    if (!disabled) {
+      e.currentTarget.style.backgroundColor = 'var(--color-mdb-green-dark)';
+      e.currentTarget.style.borderColor = 'var(--color-mdb-green-dark)';
+    }
+  };
+  const leave = (e) => {
+    if (!disabled) {
+      e.currentTarget.style.backgroundColor = 'var(--color-mdb-green)';
+      e.currentTarget.style.borderColor = 'var(--color-mdb-green)';
+    }
+  };
+
+  const content = (<>{icon}{children}</>);
+
   if (to) {
     return (
-      <Link to={to} style={style} className={className}>
+      <Link
+        to={to}
+        style={baseStyle}
+        className={className}
+        onMouseEnter={hover}
+        onMouseLeave={leave}
+      >
         {content}
       </Link>
     );
   }
   return (
     <button
-      style={style}
+      style={baseStyle}
       className={className}
-      onMouseEnter={(e) => !disabled && (e.currentTarget.style.backgroundColor = 'var(--green-dark)')}
-      onMouseLeave={(e) => !disabled && (e.currentTarget.style.backgroundColor = 'var(--green-primary)')}
+      onMouseEnter={hover}
+      onMouseLeave={leave}
       onClick={onClick}
       disabled={disabled}
     >
@@ -230,40 +233,47 @@ const PrimaryButton = ({ children, icon, onClick, to, className = '', disabled =
   );
 };
 
-const SecondaryButton = ({ children, onClick, className = '', disabled = false }) => (
+const SecondaryButton = ({ children, icon, onClick, className = '', disabled = false, style: extraStyle = {} }) => (
   <button
     style={{
       display: 'inline-flex',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: '6px',
-      backgroundColor: 'transparent',
-      border: `1px solid ${disabled ? 'var(--border-subtle)' : 'var(--border-default)'}`,
-      color: disabled ? 'var(--text-muted)' : 'var(--text-secondary)',
+      height: '38px',
+      padding: '0 14px',
+      backgroundColor: 'var(--color-canvas)',
+      border: `1px solid ${disabled ? 'var(--color-border-subtle)' : 'var(--color-border)'}`,
+      color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
       fontWeight: 500,
-      fontSize: '14px',
-      padding: '10px 20px',
-      borderRadius: 'var(--radius-md)',
-      transition: 'border-color 0.2s ease, color 0.2s ease',
-      cursor: disabled ? 'not-allowed' : 'pointer',
+      fontSize: '13px',
       fontFamily: 'inherit',
+      borderRadius: 'var(--radius-lg)',
+      transition: 'background-color var(--transition), border-color var(--transition), color var(--transition)',
+      cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.5 : 1,
+      whiteSpace: 'nowrap',
+      ...extraStyle,
     }}
     className={className}
     onMouseEnter={(e) => {
       if (!disabled) {
-        e.currentTarget.style.borderColor = 'var(--text-secondary)';
-        e.currentTarget.style.color = 'var(--text-primary)';
+        e.currentTarget.style.backgroundColor = 'var(--color-surface-elevated)';
+        e.currentTarget.style.borderColor = '#484F58';
+        e.currentTarget.style.color = 'var(--color-text-primary)';
       }
     }}
     onMouseLeave={(e) => {
       if (!disabled) {
-        e.currentTarget.style.borderColor = 'var(--border-default)';
-        e.currentTarget.style.color = 'var(--text-secondary)';
+        e.currentTarget.style.backgroundColor = 'var(--color-canvas)';
+        e.currentTarget.style.borderColor = 'var(--color-border)';
+        e.currentTarget.style.color = 'var(--color-text-secondary)';
       }
     }}
     onClick={onClick}
     disabled={disabled}
   >
+    {icon}
     {children}
   </button>
 );
@@ -276,20 +286,21 @@ const Section = ({ title, children, icon, className = '' }) => (
         alignItems: 'center',
         gap: '10px',
         marginBottom: '16px',
-        borderBottom: '1px solid var(--border-subtle)',
+        borderBottom: '1px solid var(--color-border-subtle)',
         paddingBottom: '12px',
       }}>
-        {icon && <span style={{ color: 'var(--green-primary)' }}>{icon}</span>}
+        {icon && <span style={{ color: 'var(--color-mdb-green)' }}>{icon}</span>}
         <h2 style={{
-          fontSize: 'clamp(20px, 2vw, 24px)',
+          fontSize: 'clamp(18px, 1.8vw, 22px)',
           fontWeight: 600,
-          color: 'var(--text-primary)',
+          color: 'var(--color-text-primary)',
+          letterSpacing: '-0.01em',
         }}>
           {title}
         </h2>
       </div>
     )}
-    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+    <div style={{ color: 'var(--color-text-secondary)', lineHeight: 1.8 }}>
       {children}
     </div>
   </div>
@@ -297,17 +308,24 @@ const Section = ({ title, children, icon, className = '' }) => (
 
 const PaperCard = ({ title, description, icon, link }) => (
   <div style={{
-    backgroundColor: 'var(--bg-elevated)',
-    border: '1px solid var(--border-default)',
-    borderRadius: 'var(--radius-md)',
-    padding: '16px 20px',
-    transition: 'border-color 0.2s ease',
+    backgroundColor: 'var(--color-canvas)',
+    border: '1px solid var(--color-border-subtle)',
+    borderRadius: 'var(--radius-xl)',
+    padding: '16px 18px',
+    transition: 'border-color var(--transition), box-shadow var(--transition)',
     display: 'flex',
     alignItems: 'flex-start',
     gap: '14px',
+    boxShadow: 'var(--shadow-xs)',
   }}
-  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--green-primary)'}
-  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-default)'}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.borderColor = 'var(--color-border)';
+    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.borderColor = 'var(--color-border-subtle)';
+    e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
+  }}
   >
     <div style={{
       flexShrink: 0,
@@ -323,14 +341,14 @@ const PaperCard = ({ title, description, icon, link }) => (
       {icon}
     </div>
     <div>
-      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>{title}</div>
-      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{description}</div>
+      <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '2px', fontSize: '13px' }}>{title}</div>
+      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>{description}</div>
     </div>
   </div>
 );
 
 // ============================================================
-// RESEARCH PAPER CONTENT
+// RESEARCH PAPER CONTENT  (unchanged)
 // ============================================================
 
 const PAPER_SECTIONS = [
@@ -360,18 +378,19 @@ const DocumentationPage = () => {
         return (
           <div>
             <div style={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--color-canvas)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-xl)',
               padding: '20px 24px',
               marginBottom: '24px',
-              borderLeft: '3px solid var(--green-primary)',
+              borderLeft: '3px solid var(--color-mdb-green)',
+              boxShadow: 'var(--shadow-xs)',
             }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
-                <FileText size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+              <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', fontWeight: 500 }}>
+                <FileText size={13} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
                 Abstract
               </div>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+              <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', lineHeight: 1.8 }}>
                 The industry of data analytics and web data extraction has been gaining tremendous grounds bearing in mind that great volumes of information are constantly being produced throughout websites, blogs and digital platforms. However, most of this information is still in disorganized forms hence a challenge to the researchers, developers and organisations that desire to utilize it directly in analytics, machine learning and development of the systems. As the technologies of web automation like browsers, proxy management, and artificial intelligence have developed, now modern systems have the capability of automatically extracting and transforming web data into structured datasets that can be used in both practical and research uses.
               </p>
             </div>
@@ -422,15 +441,16 @@ const DocumentationPage = () => {
               <div style={{
                 marginTop: '16px',
                 padding: '16px',
-                backgroundColor: 'var(--bg-elevated)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--color-canvas)',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px solid var(--color-border-subtle)',
+                boxShadow: 'var(--shadow-xs)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <AlertCircle size={16} color="var(--warning)" />
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Key Challenge: Dynamic Content</span>
+                  <AlertCircle size={16} color="var(--color-warning)" />
+                  <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '13px' }}>Key Challenge: Dynamic Content</span>
                 </div>
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
                   Modern websites use JavaScript to load content dynamically. Traditional scrapers that only parse static HTML miss this content, leading to incomplete datasets.
                 </p>
               </div>
@@ -453,15 +473,16 @@ const DocumentationPage = () => {
                   { icon: <RefreshCw size={16} />, label: 'IP Blocking', desc: 'Proxy rotation' },
                 ].map((item, i) => (
                   <div key={i} style={{
-                    backgroundColor: 'var(--bg-dark)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
                     padding: '10px 12px',
                     textAlign: 'center',
+                    boxShadow: 'var(--shadow-xs)',
                   }}>
-                    <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>{item.icon}</div>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>{item.label}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.desc}</div>
+                    <div style={{ color: 'var(--color-text-muted)', marginBottom: '4px' }}>{item.icon}</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>{item.label}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{item.desc}</div>
                   </div>
                 ))}
               </div>
@@ -492,17 +513,18 @@ const DocumentationPage = () => {
                   { value: '24/7', label: 'Operation', desc: 'Automated scheduling' },
                 ].map((item, i) => (
                   <div key={i} style={{
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-xl)',
                     padding: '16px',
                     textAlign: 'center',
+                    boxShadow: 'var(--shadow-xs)',
                   }}>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green-primary)', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 700, color: 'var(--color-mdb-green)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
                       {item.value}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>{item.label}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.desc}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{item.label}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{item.desc}</div>
                   </div>
                 ))}
               </div>
@@ -526,20 +548,21 @@ const DocumentationPage = () => {
               marginBottom: '24px',
             }}>
               {[
-                { icon: <Globe size={20} />, title: 'Accept website URLs as input', color: 'var(--info)' },
-                { icon: <Play size={20} />, title: 'Automate browser navigation using Selenium', color: 'var(--green-primary)' },
-                { icon: <Database size={20} />, title: 'Extract data from dynamic web pages', color: 'var(--warning)' },
-                { icon: <Brain size={20} />, title: 'Process unstructured content using AI models', color: 'var(--info)' },
-                { icon: <Download size={20} />, title: 'Export structured datasets into CSV, Excel, or JSON formats', color: 'var(--success)' },
+                { icon: <Globe size={20} />, title: 'Accept website URLs as input', color: 'var(--color-info)' },
+                { icon: <Play size={20} />, title: 'Automate browser navigation using Selenium', color: 'var(--color-mdb-green)' },
+                { icon: <Database size={20} />, title: 'Extract data from dynamic web pages', color: 'var(--color-warning)' },
+                { icon: <Brain size={20} />, title: 'Process unstructured content using AI models', color: 'var(--color-info)' },
+                { icon: <Download size={20} />, title: 'Export structured datasets into CSV, Excel, or JSON formats', color: 'var(--color-success)' },
               ].map((item, i) => (
                 <div key={i} style={{
-                  backgroundColor: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border-subtle)',
+                  borderRadius: 'var(--radius-xl)',
                   padding: '16px',
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '12px',
+                  boxShadow: 'var(--shadow-xs)',
                 }}>
                   <div style={{
                     width: '32px',
@@ -551,11 +574,12 @@ const DocumentationPage = () => {
                     justifyContent: 'center',
                     flexShrink: 0,
                     border: '1px solid rgba(0, 237, 100, 0.15)',
+                    color: 'var(--color-mdb-green)',
                   }}>
                     {item.icon}
                   </div>
                   <div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{item.title}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>{item.title}</div>
                   </div>
                 </div>
               ))}
@@ -563,13 +587,14 @@ const DocumentationPage = () => {
 
             <Section title="Delimitations">
               <div style={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-canvas)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-xl)',
                 padding: '16px 20px',
-                borderLeft: '3px solid var(--warning)',
+                borderLeft: '3px solid var(--color-warning)',
+                boxShadow: 'var(--shadow-xs)',
               }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
                   The paper is restricted to the extraction of web data and the structuring of the data as well. The system is not a certainty of successful scraping of all web sites especially those that have high security measures or limited access. Also, the system must be connected to an internet and relies on the quality and functionality of AI models applied to process data.
                 </p>
               </div>
@@ -593,7 +618,7 @@ const DocumentationPage = () => {
               marginBottom: '24px',
             }}>
               {[
-                { 
+                {
                   title: 'Data Acquisition Layer',
                   icon: <Cloud size={20} color="#58A6FF" />,
                   desc: 'Handles HTTP requests, proxy management, and browser automation using Selenium for JavaScript-heavy websites.'
@@ -615,26 +640,28 @@ const DocumentationPage = () => {
                 }
               ].map((item, i) => (
                 <div key={i} style={{
-                  backgroundColor: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border-subtle)',
+                  borderRadius: 'var(--radius-xl)',
                   padding: '16px',
+                  boxShadow: 'var(--shadow-xs)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     {item.icon}
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.title}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '13px' }}>{item.title}</div>
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{item.desc}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>{item.desc}</div>
                 </div>
               ))}
             </div>
 
             <Section title="Data Flow">
               <div style={{
-                backgroundColor: 'var(--bg-dark)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-canvas)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-xl)',
                 padding: '20px',
+                boxShadow: 'var(--shadow-xs)',
               }}>
                 <div style={{
                   display: 'flex',
@@ -656,11 +683,11 @@ const DocumentationPage = () => {
                       alignItems: 'center',
                       gap: '6px',
                       padding: '6px 12px',
-                      backgroundColor: 'var(--bg-elevated)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--color-surface-elevated)',
+                      borderRadius: 'var(--radius-full)',
+                      border: '1px solid var(--color-border-subtle)',
                       fontSize: '12px',
-                      color: 'var(--text-secondary)',
+                      color: 'var(--color-text-secondary)',
                     }}>
                       {step.icon}
                       {step.label}
@@ -691,14 +718,15 @@ const DocumentationPage = () => {
                   { tech: 'MongoDB', purpose: 'Data Storage', color: '#47A248' },
                 ].map((item, i) => (
                   <div key={i} style={{
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
                     padding: '12px',
                     textAlign: 'center',
+                    boxShadow: 'var(--shadow-xs)',
                   }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.tech}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.purpose}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.tech}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{item.purpose}</div>
                   </div>
                 ))}
               </div>
@@ -706,20 +734,21 @@ const DocumentationPage = () => {
 
             <Section title="Code Example">
               <div style={{
-                backgroundColor: 'var(--bg-dark)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-canvas)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-xl)',
                 overflow: 'hidden',
+                boxShadow: 'var(--shadow-xs)',
               }}>
                 <div style={{
                   padding: '8px 16px',
-                  backgroundColor: 'var(--bg-elevated)',
-                  borderBottom: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--color-surface-elevated)',
+                  borderBottom: '1px solid var(--color-border-subtle)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                 }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
                     JavaScript / React
                   </span>
                 </div>
@@ -728,9 +757,9 @@ const DocumentationPage = () => {
                   margin: 0,
                   overflow: 'auto',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '13px',
+                  fontSize: '12.5px',
                   lineHeight: 1.7,
-                  color: 'var(--text-secondary)',
+                  color: 'var(--color-text-secondary)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                 }}>
@@ -791,17 +820,18 @@ const handleParse = async () => {
                   { value: '10+', label: 'Export Formats', desc: 'CSV, JSON, Excel, Parquet, and more' },
                 ].map((item, i) => (
                   <div key={i} style={{
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-xl)',
                     padding: '16px',
                     textAlign: 'center',
+                    boxShadow: 'var(--shadow-xs)',
                   }}>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--green-primary)', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 700, color: 'var(--color-mdb-green)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em' }}>
                       {item.value}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>{item.label}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.desc}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{item.label}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{item.desc}</div>
                   </div>
                 ))}
               </div>
@@ -809,12 +839,13 @@ const handleParse = async () => {
 
             <Section title="Performance Metrics">
               <div style={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-canvas)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-xl)',
                 padding: '16px',
+                boxShadow: 'var(--shadow-xs)',
               }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {[
                     { label: 'Average Response Time', value: '1.2s', progress: 85 },
                     { label: 'Success Rate', value: '99.8%', progress: 98 },
@@ -822,22 +853,23 @@ const handleParse = async () => {
                     { label: 'Throughput', value: '1,000+ pages/hour', progress: 75 },
                   ].map((item, i) => (
                     <div key={i}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
-                        <span style={{ color: 'var(--green-primary)', fontFamily: 'var(--font-mono)' }}>{item.value}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                        <span style={{ color: 'var(--color-text-secondary)' }}>{item.label}</span>
+                        <span style={{ color: 'var(--color-mdb-green)', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{item.value}</span>
                       </div>
                       <div style={{
                         height: '4px',
-                        backgroundColor: 'var(--border-subtle)',
-                        borderRadius: '2px',
+                        backgroundColor: 'var(--color-border-subtle)',
+                        borderRadius: 'var(--radius-full)',
                         overflow: 'hidden',
                       }}>
                         <div style={{
                           width: `${item.progress}%`,
                           height: '100%',
-                          backgroundColor: item.progress > 90 ? 'var(--green-primary)' : 
-                                          item.progress > 70 ? 'var(--info)' : 'var(--warning)',
-                          borderRadius: '2px',
+                          backgroundColor: item.progress > 90 ? 'var(--color-mdb-green)' :
+                                          item.progress > 70 ? 'var(--color-info)' : 'var(--color-warning)',
+                          borderRadius: 'var(--radius-full)',
+                          transition: 'width 0.4s ease',
                         }} />
                       </div>
                     </div>
@@ -864,8 +896,8 @@ const handleParse = async () => {
                 gap: '16px',
               }}>
                 {[
-                  { 
-                    icon: <Brain size={18} />, 
+                  {
+                    icon: <Brain size={18} />,
                     title: 'Advanced LLM Integration',
                     desc: 'Fine-tune models for specific domains and improve accuracy'
                   },
@@ -886,14 +918,15 @@ const handleParse = async () => {
                   },
                 ].map((item, i) => (
                   <div key={i} style={{
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-xl)',
                     padding: '16px',
+                    boxShadow: 'var(--shadow-xs)',
                   }}>
-                    <div style={{ color: 'var(--green-primary)', marginBottom: '8px' }}>{item.icon}</div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.title}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.desc}</div>
+                    <div style={{ color: 'var(--color-mdb-green)', marginBottom: '8px' }}>{item.icon}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '13px' }}>{item.title}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>{item.desc}</div>
                   </div>
                 ))}
               </div>
@@ -908,7 +941,7 @@ const handleParse = async () => {
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
+                gap: '10px',
               }}>
                 {[
                   '1. Selenium WebDriver Documentation. (2024). SeleniumHQ. https://www.selenium.dev/',
@@ -922,12 +955,13 @@ const handleParse = async () => {
                 ].map((ref, i) => (
                   <div key={i} style={{
                     padding: '10px 14px',
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '13px',
-                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
+                    fontSize: '12.5px',
+                    color: 'var(--color-text-secondary)',
                     lineHeight: 1.6,
+                    boxShadow: 'var(--shadow-xs)',
                   }}>
                     {ref}
                   </div>
@@ -949,15 +983,18 @@ const handleParse = async () => {
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-dark)', minHeight: '100vh' }}>
-      {/* Navigation — matches homepage style */}
+    <div className="doc-root" style={{ backgroundColor: 'var(--color-canvas)', minHeight: '100vh' }}>
+      <style>{globalStyles}</style>
+
+      {/* Navigation — same language as the app nav */}
       <nav style={{
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: 'var(--bg-dark)',
-        borderBottom: '1px solid var(--border-default)',
+        backgroundColor: 'var(--color-canvas)',
+        borderBottom: '1px solid var(--color-border-subtle)',
         padding: '0 16px',
+        boxShadow: 'var(--shadow-xs)',
       }}>
         <div style={{
           maxWidth: '1400px',
@@ -973,18 +1010,35 @@ const handleParse = async () => {
 
           <div className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
             <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
-              <Link to="/" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}>
-                <Home size={14} style={{ marginRight: '4px' }} /> Home
+              <Link
+                to="/"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  color: 'var(--color-text-secondary)', fontSize: '14px', fontWeight: 500,
+                  transition: 'color var(--transition)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+              >
+                <Home size={14} /> Home
               </Link>
-              <Link to="/docs" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}>
-                <BookOpen size={14} style={{ marginRight: '4px' }} /> Docs
+              <Link
+                to="/docs"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  color: 'var(--color-text-secondary)', fontSize: '14px', fontWeight: 500,
+                  transition: 'color var(--transition)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+              >
+                <BookOpen size={14} /> Docs
               </Link>
-              <span style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>
-                <GraduationCap size={14} style={{ marginRight: '4px' }} /> Research Paper
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                color: 'var(--color-text-primary)', fontSize: '14px', fontWeight: 600,
+              }}>
+                <GraduationCap size={14} /> Research Paper
               </span>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -999,10 +1053,11 @@ const handleParse = async () => {
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-primary)',
+              color: 'var(--color-text-primary)',
               display: 'none',
               cursor: 'pointer',
               padding: '8px',
+              borderRadius: 'var(--radius-md)',
             }}
             className="mobile-menu-btn"
           >
@@ -1015,22 +1070,46 @@ const handleParse = async () => {
             display: 'flex',
             flexDirection: 'column',
             padding: '16px',
-            backgroundColor: 'var(--bg-surface)',
-            borderTop: '1px solid var(--border-default)',
-            gap: '12px',
+            backgroundColor: 'var(--color-surface)',
+            borderTop: '1px solid var(--color-border-subtle)',
+            gap: '8px',
           }}>
-            <Link to="/" style={{ color: 'var(--text-secondary)', fontSize: '16px', fontWeight: 500, padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}
-              onClick={() => setMobileMenuOpen(false)}>
-              <Home size={14} style={{ marginRight: '8px' }} /> Home
+            <Link
+              to="/"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                color: 'var(--color-text-secondary)', fontSize: '15px', fontWeight: 500,
+                padding: '12px', borderRadius: 'var(--radius-md)',
+                borderBottom: '1px solid var(--color-border-subtle)',
+              }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Home size={14} /> Home
             </Link>
-            <Link to="/docs" style={{ color: 'var(--text-secondary)', fontSize: '16px', fontWeight: 500, padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}
-              onClick={() => setMobileMenuOpen(false)}>
-              <BookOpen size={14} style={{ marginRight: '8px' }} /> Documentation
+            <Link
+              to="/docs"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                color: 'var(--color-text-secondary)', fontSize: '15px', fontWeight: 500,
+                padding: '12px', borderRadius: 'var(--radius-md)',
+                borderBottom: '1px solid var(--color-border-subtle)',
+              }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <BookOpen size={14} /> Documentation
             </Link>
-            <span style={{ color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600, padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <GraduationCap size={14} style={{ marginRight: '8px' }} /> Research Paper
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              color: 'var(--color-text-primary)', fontSize: '15px', fontWeight: 600,
+              padding: '12px',
+            }}>
+              <GraduationCap size={14} /> Research Paper
             </span>
-            <PrimaryButton to="/login" icon={<ArrowRight size={16} />} style={{ width: '100%', justifyContent: 'center' }}>
+            <PrimaryButton
+              to="/login"
+              icon={<ArrowRight size={16} />}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
               Get started
             </PrimaryButton>
           </div>
@@ -1040,41 +1119,43 @@ const handleParse = async () => {
       {/* Research Paper Layout */}
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 16px' }}>
         <div style={{ padding: '24px 0' }}>
-          {/* Header — matches homepage card style */}
+          {/* Header — same card language as the rest of the app */}
           <div style={{
             marginBottom: '24px',
             padding: '24px 28px',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-xl)',
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--color-border-subtle)',
+            borderRadius: 'var(--radius-2xl)',
+            boxShadow: 'var(--shadow-sm)',
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              marginBottom: '12px',
+              marginBottom: '14px',
             }}>
-              <GraduationCap size={28} color="var(--green-primary)" />
+              <GraduationCap size={26} color="var(--color-mdb-green)" />
               <span style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
+                fontSize: '11px',
+                color: 'var(--color-text-muted)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.05em',
                 fontWeight: 500,
-                backgroundColor: 'var(--bg-elevated)',
-                padding: '2px 12px',
-                borderRadius: '20px',
-                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--color-canvas)',
+                padding: '3px 12px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid var(--color-border-subtle)',
               }}>
                 Research Paper
               </span>
             </div>
             <h1 style={{
-              fontSize: 'clamp(24px, 3.5vw, 36px)',
+              fontSize: 'clamp(22px, 3vw, 32px)',
               fontWeight: 700,
-              color: 'var(--text-primary)',
+              color: 'var(--color-text-primary)',
               lineHeight: 1.2,
-              marginBottom: '12px',
+              marginBottom: '16px',
+              letterSpacing: '-0.02em',
             }}>
               Webby: An AI-Enhanced Web Scraping System with Large Language Model for Automated Dataset Collection and Structuring
             </h1>
@@ -1082,33 +1163,33 @@ const handleParse = async () => {
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
-              gap: '24px',
-              marginBottom: '16px',
+              gap: '28px',
+              marginBottom: '20px',
             }}>
               <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <Users size={12} style={{ marginRight: '4px' }} />
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, fontWeight: 500 }}>
+                  <Users size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                   Authors
                 </div>
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
+                <div style={{ fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: '13px' }}>
                   Yuri Maverick Ibasco · Romar Longos
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <Calendar size={12} style={{ marginRight: '4px' }} />
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, fontWeight: 500 }}>
+                  <Calendar size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                   Published
                 </div>
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
+                <div style={{ fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: '13px' }}>
                   September 2026
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <Award size={12} style={{ marginRight: '4px' }} />
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, fontWeight: 500 }}>
+                  <Award size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
                   Category
                 </div>
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
+                <div style={{ fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: '13px' }}>
                   Data Science & AI
                 </div>
               </div>
@@ -1120,7 +1201,7 @@ const handleParse = async () => {
               flexWrap: 'wrap',
             }}>
               <PrimaryButton
-                icon={<Download size={16} />}
+                icon={<Download size={15} />}
                 onClick={() => window.print()}
               >
                 Download Paper
@@ -1142,14 +1223,17 @@ const handleParse = async () => {
               display: 'none',
               marginBottom: '16px',
               padding: '10px 16px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-secondary)',
-              fontSize: '14px',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              color: 'var(--color-text-secondary)',
+              fontSize: '13px',
               width: '100%',
               textAlign: 'left',
               fontFamily: 'var(--font-sans)',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
             <BookOpen size={14} style={{ marginRight: '8px' }} />
@@ -1161,108 +1245,112 @@ const handleParse = async () => {
             gridTemplateColumns: '260px 1fr',
             gap: '32px',
           }}>
-            {/* Sidebar — matches homepage elevated style */}
+            {/* Sidebar — same sticky-nav pattern as dlib-toolbar */}
             <div className="paper-sidebar" style={{
               position: 'sticky',
               top: '88px',
               height: 'fit-content',
               maxHeight: 'calc(100vh - 120px)',
               overflowY: 'auto',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '16px',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '12px',
+              boxShadow: 'var(--shadow-xs)',
             }}>
               <div style={{
                 fontSize: '11px',
-                color: 'var(--text-muted)',
+                color: 'var(--color-text-muted)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.05em',
                 fontWeight: 600,
-                marginBottom: '12px',
-                paddingBottom: '12px',
-                borderBottom: '1px solid var(--border-subtle)',
+                marginBottom: '10px',
+                padding: '6px 10px 12px',
+                borderBottom: '1px solid var(--color-border-subtle)',
               }}>
-                <FileText size={12} style={{ marginRight: '6px' }} />
+                <FileText size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
                 Sections
               </div>
-              {PAPER_SECTIONS.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => {
-                    setActiveSection(section.id);
-                    setMobileSidebarOpen(false);
-                  }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '8px 12px',
-                    background: 'none',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    color: activeSection === section.id ? 'var(--green-primary)' : 'var(--text-secondary)',
-                    fontSize: '13px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontWeight: activeSection === section.id ? 500 : 400,
-                    fontFamily: 'var(--font-sans)',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeSection !== section.id) {
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeSection !== section.id) {
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
-                >
-                  {activeSection === section.id && (
-                    <span style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '3px',
-                      height: '16px',
-                      borderRadius: '0 2px 2px 0',
-                      backgroundColor: 'var(--green-primary)',
-                    }} />
-                  )}
-                  <ChevronRight size={12} style={{
-                    marginRight: '8px',
-                    opacity: activeSection === section.id ? 1 : 0.3,
-                    verticalAlign: 'middle',
-                  }} />
-                  {section.title}
-                </button>
-              ))}
+              {PAPER_SECTIONS.map((section) => {
+                const isActive = activeSection === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setMobileSidebarOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      padding: '8px 10px',
+                      background: isActive ? 'rgba(0, 237, 100, 0.08)' : 'none',
+                      border: '1px solid ' + (isActive ? 'rgba(0, 237, 100, 0.15)' : 'transparent'),
+                      borderRadius: 'var(--radius-md)',
+                      color: isActive ? 'var(--color-mdb-green)' : 'var(--color-text-secondary)',
+                      fontSize: '13px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all var(--transition)',
+                      fontWeight: isActive ? 500 : 400,
+                      fontFamily: 'var(--font-sans)',
+                      marginBottom: 2,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = 'var(--color-text-primary)';
+                        e.currentTarget.style.backgroundColor = 'var(--color-surface-elevated)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <ChevronRight
+                      size={12}
+                      style={{
+                        opacity: isActive ? 1 : 0.4,
+                        flexShrink: 0,
+                        transition: 'transform var(--transition)',
+                        transform: isActive ? 'rotate(90deg)' : 'none',
+                      }}
+                    />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {section.title}
+                    </span>
+                  </button>
+                );
+              })}
 
               <div style={{
-                borderTop: '1px solid var(--border-default)',
-                paddingTop: '16px',
+                borderTop: '1px solid var(--color-border-subtle)',
+                paddingTop: '14px',
                 marginTop: '8px',
+                padding: '14px 10px 4px',
               }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
                   <Book size={12} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
                   Citation
                   <br />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                     Ibasco, Y.M. & Longos, R. (2026).
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Content — matches homepage card style */}
+            {/* Content — same card language */}
             <div className="paper-content" style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-2xl)',
               padding: '32px',
+              boxShadow: 'var(--shadow-sm)',
             }}>
               {getSectionContent(activeSection)}
             </div>
@@ -1273,7 +1361,7 @@ const handleParse = async () => {
       <style>
         {`
           @media (max-width: 768px) {
-            .paper-sidebar {
+            .doc-root .paper-sidebar {
               display: ${mobileSidebarOpen ? 'block' : 'none'} !important;
               position: fixed !important;
               top: 72px !important;
@@ -1284,20 +1372,21 @@ const handleParse = async () => {
               border-radius: 0 !important;
               z-index: 50 !important;
               padding: 16px !important;
-              background: var(--bg-dark) !important;
+              background: var(--color-canvas) !important;
               border: none !important;
-              border-top: 1px solid var(--border-default) !important;
+              border-top: 1px solid var(--color-border-subtle) !important;
+              box-shadow: var(--shadow-lg) !important;
             }
-            .mobile-sidebar-toggle {
+            .doc-root .mobile-sidebar-toggle {
               display: block !important;
             }
           }
           @media print {
-            nav { display: none !important; }
-            .paper-sidebar { display: none !important; }
-            .paper-grid { display: block !important; }
-            .paper-content { border: none !important; padding: 20px !important; }
-            .paper-grid { margin: 0 !important; }
+            .doc-root nav { display: none !important; }
+            .doc-root .paper-sidebar { display: none !important; }
+            .doc-root .paper-grid { display: block !important; }
+            .doc-root .paper-content { border: none !important; padding: 20px !important; box-shadow: none !important; }
+            .doc-root .paper-grid { margin: 0 !important; }
           }
         `}
       </style>

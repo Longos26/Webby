@@ -7,6 +7,7 @@ import Login    from './pages/Login';
 import SignIn   from './pages/SignIn';
 import HomePage from './pages/HomePage';
 import WebbyDocs from './pages/DocumentationPage';
+import PlaygroundPage from './pages/PlaygroundPage';
 import Dashboard from './tabs/Dashboard';
 
 import CreateUser      from './components/CreateUser';
@@ -19,10 +20,11 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
-          <Route path="/"       element={<HomePage />} />
-          <Route path="/login"  element={<Login />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/docs"   element={<WebbyDocs />} />
+          <Route path="/"           element={<HomePage />} />
+          <Route path="/playground" element={<PlaygroundPage />} />
+          <Route path="/login"      element={<Login />} />
+          <Route path="/signin"     element={<SignIn />} />
+          <Route path="/docs"       element={<WebbyDocs />} />
 
           {/* Protected — all handled inside Dashboard shell via sidebar tabs */}
           <Route path="/dashboard" element={<ProtectedRoutes><Dashboard /></ProtectedRoutes>} />
