@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import routers
-from routes import auth, jobs, scraping, dashboard, activity, export, llm, notifications, settings, parsing, enhanced_parsing, monitoring
+from routes import auth, jobs, scraping, dashboard, activity, export, llm, notifications, settings, parsing, enhanced_parsing, monitoring, admin
 from mongodb.database import connect_to_mongo, close_mongo_connection
 
 @asynccontextmanager
@@ -85,7 +85,8 @@ app.include_router(notifications.router)
 app.include_router(settings.router)
 app.include_router(parsing.router)
 app.include_router(enhanced_parsing.router) 
-app.include_router(monitoring.router)      
+app.include_router(monitoring.router)   
+app.include_router(admin.router)  
 @app.get("/")
 async def root():
     return {"name": "Webby Scraper API", "status": "operational"}

@@ -3,6 +3,18 @@ import { useSelector } from 'react-redux';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader } from 'lucide-react';
 
+const isAdminUser = (user) => {
+  if (!user) return false;
+  const role = (user.role || user.user_role || user.user_type || '').toLowerCase();
+  return (
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'super_admin' ||
+    user.is_admin === true ||
+    user.isAdmin === true
+  );
+};
+
 const ProtectedRoutes = ({ children, adminOnly = false }) => {
   const { currentUser, token, authChecked } = useSelector((s) => s.user);
   const location = useLocation();
@@ -23,7 +35,7 @@ const ProtectedRoutes = ({ children, adminOnly = false }) => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (adminOnly && currentUser.role !== 'admin') {
+  if (adminOnly && !isAdminUser(currentUser)) {
     return <Navigate to="/dashboard" replace />;
   }
 

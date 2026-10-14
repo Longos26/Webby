@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // ============================================================
-// COMPLETE API CONFIGURATION - ALL METHODS FIXED
+// COMPLETE API CONFIGURATION
 // ============================================================
 
 const getApiUrl = () => {
@@ -53,35 +53,29 @@ api.interceptors.response.use(
 );
 
 // ============================================================
-// NOTIFICATION SERVICE - FIXED
+// NOTIFICATION SERVICE
 // ============================================================
-
 export const notificationService = {
   getNotifications: async (limit = 50, offset = 0) => {
     const response = await api.get(`/notifications?limit=${limit}&offset=${offset}`);
     return response.data;
   },
-  
   getUnreadCount: async () => {
     const response = await api.get('/notifications/unread/count');
     return response.data;
   },
-  
   markAsRead: async (notificationId) => {
     const response = await api.put(`/notifications/${notificationId}/read`);
     return response.data;
   },
-  
   markAllAsRead: async () => {
     const response = await api.put('/notifications/read-all');
     return response.data;
   },
-  
   deleteNotification: async (notificationId) => {
     const response = await api.delete(`/notifications/${notificationId}`);
     return response.data;
   },
-  
   deleteAllNotifications: async () => {
     const response = await api.delete('/notifications/clear');
     return response.data;
@@ -91,7 +85,6 @@ export const notificationService = {
 // ============================================================
 // AUTH SERVICE
 // ============================================================
-
 export const authService = {
   login: async (email, password) => {
     const response = await api.post('/api/auth/login', { email, password });
@@ -101,22 +94,17 @@ export const authService = {
     }
     return response.data;
   },
-  
   signup: async (userData) => {
     const response = await api.post('/api/auth/signup', userData);
     return response.data;
   },
-  
   logout: async () => {
-    try {
-      await api.post('/api/auth/logout');
-    } catch (e) {}
+    try { await api.post('/api/auth/logout'); } catch (e) {}
     localStorage.removeItem('token');
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     return { success: true };
   },
-  
   getCurrentUser: async () => {
     const response = await api.get('/api/auth/me');
     return response.data;
@@ -126,39 +114,32 @@ export const authService = {
 // ============================================================
 // JOB SERVICE
 // ============================================================
-
 export const jobService = {
   getAllJobs: async (statusFilter = 'all') => {
     const params = statusFilter !== 'all' ? { status: statusFilter } : {};
     const response = await api.get('/api/jobs', { params });
     return response.data;
   },
-
   getJob: async (jobId) => {
     const response = await api.get(`/api/jobs/${jobId}`);
     return response.data;
   },
-
   createJob: async (jobData) => {
     const response = await api.post('/api/jobs', jobData);
     return response.data;
   },
-
   updateJob: async (jobId, updateData) => {
     const response = await api.put(`/api/jobs/${jobId}`, updateData);
     return response.data;
   },
-
   deleteJob: async (jobId) => {
     const response = await api.delete(`/api/jobs/${jobId}`);
     return response.data;
   },
-
   startJob: async (jobId) => {
     const response = await api.post(`/api/jobs/${jobId}/start`);
     return response.data;
   },
-
   pauseJob: async (jobId) => {
     const response = await api.post(`/api/jobs/${jobId}/pause`);
     return response.data;
@@ -168,23 +149,19 @@ export const jobService = {
 // ============================================================
 // DASHBOARD SERVICE
 // ============================================================
-
 export const dashboardService = {
   getSuccessRate: async (days = 7) => {
     const response = await api.get(`/api/dashboard/success-rate?days=${days}`);
     return response.data;
   },
-
   getRealtimeMetrics: async () => {
     const response = await api.get('/api/dashboard/realtime');
     return response.data;
   },
-
   getRecentJobs: async (limit = 10) => {
     const response = await api.get(`/api/dashboard/recent?limit=${limit}`);
     return response.data;
   },
-
   getPerformanceMetrics: async () => {
     const response = await api.get('/api/dashboard/performance');
     return response.data;
@@ -194,7 +171,6 @@ export const dashboardService = {
 // ============================================================
 // ACTIVITY SERVICE
 // ============================================================
-
 export const activityService = {
   getRecentActivities: async (limit = 10) => {
     const response = await api.get(`/api/activity/recent?limit=${limit}`);
@@ -205,33 +181,27 @@ export const activityService = {
 // ============================================================
 // EXPORT SERVICE
 // ============================================================
-
 export const exportService = {
-  // This endpoint is now GET, not POST
   getJobsWithResults: async () => {
-    const response = await api.get('/api/export/jobs-with-results');  // Changed to GET
+    const response = await api.get('/api/export/jobs-with-results');
     return response.data;
   },
-
   generateExport: async (exportConfig) => {
     const response = await api.post('/api/export/generate', exportConfig, {
       responseType: 'blob',
     });
     return response;
   },
-
   previewExport: async (jobId, limit = 10) => {
     const response = await api.post(`/api/export/preview/${jobId}`, { limit });
     return response.data;
   },
-
   bulkExport: async (bulkConfig) => {
     const response = await api.post('/api/export/bulk', bulkConfig, {
       responseType: 'blob',
     });
     return response;
   },
-
   getExportStats: async (jobId) => {
     const response = await api.get(`/api/export/stats/${jobId}`);
     return response.data;
@@ -241,13 +211,11 @@ export const exportService = {
 // ============================================================
 // LLM SERVICE
 // ============================================================
-
 export const llmService = {
   getProviders: async () => {
     const response = await api.get('/api/llm/providers');
     return response.data;
   },
-
   parseContent: async (domContent, parseDescription, provider = 'openrouter', model = null) => {
     const response = await api.post('/api/llm/parse', {
       dom_content: domContent,
@@ -257,27 +225,20 @@ export const llmService = {
     });
     return response.data;
   },
-
   testConnection: async (provider, model, apiKey = null, baseUrl = null) => {
     const response = await api.post('/api/llm/test', {
-      provider,
-      model,
-      api_key: apiKey,
-      base_url: baseUrl,
+      provider, model, api_key: apiKey, base_url: baseUrl,
     });
     return response.data;
   },
-
   getConfig: async (provider) => {
     const response = await api.get(`/api/llm/config/${provider}`);
     return response.data;
   },
-
   saveConfig: async (provider, config) => {
     const response = await api.post(`/api/llm/config/${provider}`, config);
     return response.data;
   },
-
   getStats: async (provider = null) => {
     const params = provider ? { provider } : {};
     const response = await api.get('/api/llm/stats', { params });
@@ -288,48 +249,39 @@ export const llmService = {
 // ============================================================
 // SETTINGS SERVICE
 // ============================================================
-
 export const settingsService = {
   getProfile: async () => {
     const response = await api.get('/api/settings/profile');
     return response.data;
   },
-
   updateProfile: async (profileData) => {
     const response = await api.put('/api/settings/profile', profileData);
     return response.data;
   },
-
   updatePassword: async (passwordData) => {
     const response = await api.put('/api/settings/password', passwordData);
     return response.data;
   },
-
   getNotificationPreferences: async () => {
     const response = await api.get('/api/settings/notifications');
     return response.data;
   },
-
   updateNotificationPreferences: async (preferences) => {
     const response = await api.put('/api/settings/notifications', preferences);
     return response.data;
   },
-
   getApiKeys: async () => {
     const response = await api.get('/api/settings/api-keys');
     return response.data;
   },
-
   createApiKey: async (name, scopes) => {
     const response = await api.post('/api/settings/api-keys', { name, scopes });
     return response.data;
   },
-
   deleteApiKey: async (keyId) => {
     const response = await api.delete(`/api/settings/api-keys/${keyId}`);
     return response.data;
   },
-
   getApiUsage: async () => {
     const response = await api.get('/api/settings/api-keys/usage');
     return response.data;
@@ -339,38 +291,31 @@ export const settingsService = {
 // ============================================================
 // MONITORING SERVICE
 // ============================================================
-
 export const monitoringService = {
   getLiveJobs: async () => {
     const response = await api.get('/api/monitoring/live-jobs');
     return response.data;
   },
-
   getExecutionLogs: async (params = {}) => {
     const response = await api.get('/api/monitoring/logs', { params });
     return response.data;
   },
-
   getErrors: async (params = {}) => {
     const response = await api.get('/api/monitoring/errors', { params });
     return response.data;
   },
-
   retryJob: async (jobId) => {
     const response = await api.post(`/api/monitoring/retry/${jobId}`);
     return response.data;
   },
-
   cancelJob: async (jobId) => {
     const response = await api.post(`/api/monitoring/cancel/${jobId}`);
     return response.data;
   },
-
   getStats: async () => {
     const response = await api.get('/api/monitoring/stats');
     return response.data;
   },
-
   clearOldLogs: async (days = 30) => {
     const response = await api.delete('/api/monitoring/logs/clear', { params: { days } });
     return response.data;
@@ -380,46 +325,91 @@ export const monitoringService = {
 // ============================================================
 // DATASET LIBRARY SERVICE
 // ============================================================
-
 export const datasetService = {
   listDatasets: async () => {
     const response = await api.get('/api/export/jobs-with-results');
     return response.data;
   },
-
   getDatasetStats: async (jobId) => {
     const response = await api.get(`/api/export/stats/${jobId}`);
     return response.data;
   },
-
   previewRecords: async (jobId, limit = 500) => {
     const response = await api.post(`/api/export/preview/${jobId}`, { limit });
     return response.data;
   },
-
   deleteDataset: async (jobId) => {
     const response = await api.delete(`/api/jobs/${jobId}`);
     return response.data;
   },
-
   rerunDataset: async (jobId) => {
     const response = await api.post(`/api/jobs/${jobId}/start`);
     return response.data;
   },
-
   duplicateDataset: async (jobData) => {
     const response = await api.post('/api/jobs', jobData);
     return response.data;
   },
 };
 
+// ============================================================
+// ADMIN SERVICE
+// ============================================================
+export const adminService = {
+  listUsers: async ({ skip = 0, limit = 50, search = '', role = '' } = {}) => {
+    const params = new URLSearchParams();
+    params.append('skip', skip);
+    params.append('limit', limit);
+    if (search) params.append('search', search);
+    if (role) params.append('role', role);
+    const response = await api.get(`/api/admin/users?${params.toString()}`);
+    return response.data;
+  },
 
+  getUser: async (userId) => {
+    const response = await api.get(`/api/admin/users/${userId}`);
+    return response.data;
+  },
+
+  updateUserRole: async (userId, role) => {
+    const response = await api.put(`/api/admin/users/${userId}/role`, { role });
+    return response.data;
+  },
+
+  updateUserPlan: async (userId, plan) => {
+    const response = await api.put(`/api/admin/users/${userId}/plan`, { plan });
+    return response.data;
+  },
+
+  updateUser: async (userId, data) => {
+    const response = await api.put(`/api/admin/users/${userId}`, data);
+    return response.data;
+  },
+
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/api/admin/users/${userId}`);
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/api/admin/stats');
+    return response.data;
+  },
+
+  getUserActivity: async (userId, { limit = 100, type } = {}) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    if (type) params.set('type', type);
+    const response = await api.get(
+      `/api/admin/users/${userId}/activity?${params.toString()}`
+    );
+    return response.data;
+  },
+};
 
 // ============================================================
-// DEFAULT EXPORT
+// ATTACH SERVICES TO DEFAULT EXPORT
 // ============================================================
-
-// Attach all services to default export
 api.datasets = datasetService;
 api.monitoring = monitoringService;
 api.auth = authService;
@@ -430,5 +420,6 @@ api.export = exportService;
 api.llm = llmService;
 api.settings = settingsService;
 api.notifications = notificationService;
+api.admin = adminService;
 
 export default api;

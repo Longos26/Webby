@@ -1284,7 +1284,7 @@ const HomePage = () => {
   });
 
   const navItems = [
-    { label: 'Playground', path: '/playground' },
+
     { label: 'Documentation', path: '/docs' },
   ];
 
@@ -1364,11 +1364,6 @@ const HomePage = () => {
               <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>
                 Get started
               </PrimaryButton>
-              <Link to="/playground">
-                <SecondaryButton>
-                  <Zap size={14} /> Try Playground
-                </SecondaryButton>
-              </Link>
             </div>
           </div>
           <div>

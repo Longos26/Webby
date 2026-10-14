@@ -1,7 +1,7 @@
 // frontend/src/components/AuthBootstrap.jsx
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { signInSuccess, signInFailure } from '../redux/user/userSlice';
+import { signInSuccess, signInFailure, authCheckComplete } from '../redux/user/userSlice';
 import api from '../api';
 
 const AuthBootstrap = ({ children }) => {
@@ -12,7 +12,7 @@ const AuthBootstrap = ({ children }) => {
     const userStr = localStorage.getItem('user');
 
     if (!token) {
-      dispatch(signInFailure(null));
+      dispatch(authCheckComplete());
       return;
     }
 
@@ -34,13 +34,26 @@ const AuthBootstrap = ({ children }) => {
       try {
         const { data } = await api.get('/api/auth/me');
         const freshUser = data.user ?? data;
-        dispatch(signInSuccess({ user: freshUser, token }));
-        localStorage.setItem('user', JSON.stringify(freshUser));
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        delete api.defaults.headers.common['Authorization'];
-        dispatch(signInFailure(null));
+
+        // Merge so we never lose fields the /me endpoint omits (like role)
+        const mergedUser = { ...(cachedUser || {}), ...freshUser };
+
+        dispatch(signInSuccess({ user: mergedUser, token }));
+        localStorage.setItem('user', JSON.stringify(mergedUser));
+      } catch (err) {
+        const status = err?.response?.status;
+
+        // Only wipe auth on a real auth failure. Transient network/5xx errors
+        // should NOT log the user out or downgrade their role.
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          delete api.defaults.headers.common['Authorization'];
+          dispatch(signInFailure(null));
+        } else {
+          // Keep cached user (with role) so admin stays admin
+          dispatch(authCheckComplete());
+        }
       }
     })();
   }, [dispatch]);

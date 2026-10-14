@@ -11,7 +11,6 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import HomePage from './pages/HomePage';
 import WebbyDocs from './pages/DocumentationPage';
-import PlaygroundPage from './pages/PlaygroundPage';
 import Dashboard from './tabs/Dashboard';
 
 import CreateUser from './components/CreateUser';
@@ -25,7 +24,6 @@ function App() {
           <Routes>
             {/* ---------- Public ---------- */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/playground" element={<PlaygroundPage />} />
             <Route path="/docs" element={<WebbyDocs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

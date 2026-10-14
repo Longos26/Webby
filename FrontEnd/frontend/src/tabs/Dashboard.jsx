@@ -43,6 +43,7 @@ import SettingsPage from './SettingsTab';
 import MonitoringTab from './MonitoringTab';
 import DatasetLibraryTab from './DatasetLibraryTab';
 import ModelsTab from './ModelsTab';
+import Admin from './Admin';
 import React from 'react';
 import logo from '../newlogo.png';
 
@@ -931,11 +932,12 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
   // All available nav items. adminOnly items are hidden from regular users.
   const ALL_NAV_ITEMS = [
     { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard, adminOnly: true },
-    { id: 'jobs',       label: 'Jobs',       icon: Briefcase,       adminOnly: true },
+    { id: 'jobs',       label: 'Jobs',       icon: Briefcase,       adminOnly: false },
     { id: 'datasets',   label: 'Library',    icon: Library,         adminOnly: true },
     { id: 'monitoring', label: 'Monitoring', icon: Server,          adminOnly: true },
     { id: 'export',     label: 'Export',     icon: Download,        adminOnly: false },
     { id: 'models',     label: 'Models',     icon: Bot,             adminOnly: false },
+    { id: 'admin',      label: 'Admin',      icon: Shield,          adminOnly: true },
     { id: 'settings',   label: 'Settings',   icon: Settings,        adminOnly: false },
   ];
 
@@ -1024,6 +1026,7 @@ function Topbar({ activeTab, open, setOpen }) {
     monitoring: { title: 'Monitoring & Logs', subtitle: 'Live operations, execution logs and errors' },
     export:     { title: 'Export',          subtitle: 'Download and deliver your data' },
     models:     { title: 'Models',          subtitle: 'LLM configuration and management' },
+    admin:      { title: 'Admin Console',   subtitle: 'Manage users, roles, and plans' },
     settings:   { title: 'Settings',        subtitle: 'Account and system preferences' },
   };
 
@@ -1644,8 +1647,8 @@ function DashboardTab() {
 // MAIN APP SHELL COMPONENT
 // ============================================================
 
-const ADMIN_TABS = ['dashboard', 'jobs', 'datasets', 'monitoring'];
-const USER_TABS  = ['export', 'models', 'settings'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'datasets', 'monitoring', 'admin'];
+const USER_TABS  = ['export', 'models', 'settings', 'jobs'];
 const VALID_TABS = [...ADMIN_TABS, ...USER_TABS];
 
 export default function AppShell() {
@@ -1656,7 +1659,7 @@ export default function AppShell() {
   const isAdmin = isAdminUser(currentUser);
 
   const allowedTabs = isAdmin ? VALID_TABS : USER_TABS;
-  const defaultTab  = isAdmin ? 'dashboard' : 'export';
+  const defaultTab  = isAdmin ? 'dashboard' : 'jobs';
 
   // Derive current tab from URL
   const pathTab = location.pathname.replace(/^\//, '').split('/')[0] || defaultTab;
@@ -1715,6 +1718,7 @@ export default function AppShell() {
     monitoring: <MonitoringTab />,
     export:     <ExportTab />,
     models:     <ModelsTab />,
+    admin:      <Admin />,
     settings:   <SettingsPage />,
   };
 
