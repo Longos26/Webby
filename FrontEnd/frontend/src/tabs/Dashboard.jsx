@@ -874,6 +874,22 @@ const globalStyles = `
 `;
 
 // ============================================================
+// ROLE HELPERS
+// ============================================================
+
+function isAdminUser(user) {
+  if (!user) return false;
+  const role = (user.role || user.user_role || user.user_type || '').toLowerCase();
+  return (
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'super_admin' ||
+    user.is_admin === true ||
+    user.isAdmin === true
+  );
+}
+
+// ============================================================
 // STATUS BADGE
 // ============================================================
 
@@ -910,15 +926,22 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
     ? user.first_name.charAt(0).toUpperCase() + (user.last_name?.charAt(0).toUpperCase() || '')
     : user?.name?.charAt(0).toUpperCase() || 'U';
 
-  const navItems = [
-    { id: 'dashboard',  label: 'Dashboard',        icon: LayoutDashboard },
-    { id: 'jobs',       label: 'Jobs',             icon: Briefcase },
-    { id: 'datasets',   label: 'Library',  icon: Library },
-    { id: 'monitoring', label: 'Monitoring',       icon: Server },
-    { id: 'export',     label: 'Export',           icon: Download },
-    { id: 'models',     label: 'Models',           icon: Bot },
-    { id: 'settings',   label: 'Settings',         icon: Settings },
+  const isAdmin = isAdminUser(user);
+
+  // All available nav items. adminOnly items are hidden from regular users.
+  const ALL_NAV_ITEMS = [
+    { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard, adminOnly: true },
+    { id: 'jobs',       label: 'Jobs',       icon: Briefcase,       adminOnly: true },
+    { id: 'datasets',   label: 'Library',    icon: Library,         adminOnly: true },
+    { id: 'monitoring', label: 'Monitoring', icon: Server,          adminOnly: true },
+    { id: 'export',     label: 'Export',     icon: Download,        adminOnly: false },
+    { id: 'models',     label: 'Models',     icon: Bot,             adminOnly: false },
+    { id: 'settings',   label: 'Settings',   icon: Settings,        adminOnly: false },
   ];
+
+  const navItems = isAdmin
+    ? ALL_NAV_ITEMS
+    : ALL_NAV_ITEMS.filter(item => !item.adminOnly);
 
   return (
     <>
@@ -1621,17 +1644,30 @@ function DashboardTab() {
 // MAIN APP SHELL COMPONENT
 // ============================================================
 
-const VALID_TABS = ['dashboard', 'jobs', 'datasets', 'monitoring', 'export', 'models', 'settings'];
+const ADMIN_TABS = ['dashboard', 'jobs', 'datasets', 'monitoring'];
+const USER_TABS  = ['export', 'models', 'settings'];
+const VALID_TABS = [...ADMIN_TABS, ...USER_TABS];
 
 export default function AppShell() {
   const { currentUser, token } = useSelector(s => s.user);
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isAdmin = isAdminUser(currentUser);
+
+  const allowedTabs = isAdmin ? VALID_TABS : USER_TABS;
+  const defaultTab  = isAdmin ? 'dashboard' : 'export';
+
   // Derive current tab from URL
-  const pathTab = location.pathname.replace(/^\//, '').split('/')[0] || 'dashboard';
-  const initialTab = VALID_TABS.includes(pathTab) ? pathTab : 'dashboard';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const pathTab = location.pathname.replace(/^\//, '').split('/')[0] || defaultTab;
+
+  // If a non-admin tries to hit an admin URL, force them back to their default tab.
+  const safeTab =
+    VALID_TABS.includes(pathTab) && allowedTabs.includes(pathTab)
+      ? pathTab
+      : defaultTab;
+
+  const [activeTab, setActiveTab] = useState(safeTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Auth guard
@@ -1641,11 +1677,9 @@ export default function AppShell() {
 
   // Sync activeTab when URL changes (browser back/forward, deep links)
   useEffect(() => {
-    if (VALID_TABS.includes(pathTab) && pathTab !== activeTab) {
-      setActiveTab(pathTab);
-    }
+    if (safeTab !== activeTab) setActiveTab(safeTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathTab]);
+  }, [pathTab, isAdmin]);
 
   // Push URL when activeTab changes via sidebar click
   useEffect(() => {
@@ -1696,7 +1730,7 @@ export default function AppShell() {
       <div className="main-content">
         <Topbar activeTab={activeTab} open={sidebarOpen} setOpen={setSidebarOpen} />
         <main style={{ padding: '28px' }}>
-          {tabComponents[activeTab] || <DashboardTab />}
+          {tabComponents[activeTab] || tabComponents[defaultTab]}
         </main>
       </div>
     </div>

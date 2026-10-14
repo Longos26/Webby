@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import api from '../api';
 import logo from '../newlogo.png';
+import ExportGateModal from '../components/ExportGateModal';
+import { useAuth } from '../hooks/useAuth';
 
 // ============================================================
 // STYLES
@@ -575,7 +577,15 @@ function injectStyles(id, css) {
 // SHARED COMPONENTS
 // ============================================================
 
-const PrimaryButton = ({ children, icon, onClick, to, disabled = false, loading = false, fullWidth = false }) => {
+const PrimaryButton = ({
+  children,
+  icon,
+  onClick,
+  to,
+  disabled = false,
+  loading = false,
+  fullWidth = false,
+}) => {
   const cls = `home-btn home-btn-primary`;
   const content = (
     <>
@@ -592,7 +602,12 @@ const PrimaryButton = ({ children, icon, onClick, to, disabled = false, loading 
     );
   }
   return (
-    <button className={cls} style={style} onClick={onClick} disabled={disabled || loading}>
+    <button
+      className={cls}
+      style={style}
+      onClick={onClick}
+      disabled={disabled || loading}
+    >
       {content}
     </button>
   );
@@ -617,7 +632,9 @@ const StatusBadge = ({ status }) => {
   const label = config[key] || 'Queued';
   const cls = ['running', 'success', 'failed', 'paused'].includes(key)
     ? key
-    : (key === 'completed' ? 'success' : 'queued');
+    : key === 'completed'
+      ? 'success'
+      : 'queued';
   return (
     <span className={`home-badge ${cls}`}>
       <span className="home-badge-dot" />
@@ -627,10 +644,18 @@ const StatusBadge = ({ status }) => {
 };
 
 // ============================================================
+// GUEST SESSION KEY
+// ============================================================
+
+const GUEST_KEY = 'webby_playground_session';
+
+// ============================================================
 // PLAYGROUND COMPONENT
 // ============================================================
 
 const Playground = ({ onJobCreated }) => {
+  const { isAuthenticated } = useAuth();
+
   const [jobName, setJobName] = useState('');
   const [url, setUrl] = useState('');
   const [parseDescription, setParseDescription] = useState('');
@@ -648,8 +673,51 @@ const Playground = ({ onJobCreated }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [showFullContent, setShowFullContent] = useState(false);
   const [createdJobId, setCreatedJobId] = useState(null);
+  const [exportGateOpen, setExportGateOpen] = useState(false);
 
+  // --- Restore guest session on mount ---
+  useEffect(() => {
+    const saved = sessionStorage.getItem(GUEST_KEY);
+    if (!saved) return;
+    try {
+      const s = JSON.parse(saved);
+      if (s.url) setUrl(s.url);
+      if (s.jobName) setJobName(s.jobName);
+      if (s.scrapedContent) setScrapedContent(s.scrapedContent);
+      if (s.parsedResult) setParsedResult(s.parsedResult);
+      if (s.parseDescription) setParseDescription(s.parseDescription);
+      if (s.createdJobId) setCreatedJobId(s.createdJobId);
+    } catch {
+      /* ignore corrupt session */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- Persist session whenever any of these change ---
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        GUEST_KEY,
+        JSON.stringify({
+          url,
+          jobName,
+          scrapedContent,
+          parsedResult,
+          parseDescription,
+          createdJobId,
+        })
+      );
+    } catch {
+      /* quota exceeded — ignore */
+    }
+  }, [url, jobName, scrapedContent, parsedResult, parseDescription, createdJobId]);
+
+  // --- Load recent jobs (only when authenticated) ---
   const loadRecentJobs = useCallback(async () => {
+    if (!isAuthenticated) {
+      setRecentJobs([]);
+      return;
+    }
     setLoadingJobs(true);
     try {
       const response = await api.get('/api/jobs?limit=5');
@@ -660,12 +728,13 @@ const Playground = ({ onJobCreated }) => {
     } finally {
       setLoadingJobs(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     loadRecentJobs();
   }, [loadRecentJobs]);
 
+  // ---------- Handlers ----------
   const handleScrape = async () => {
     if (!url.trim()) {
       setError('Please enter a URL to scrape');
@@ -681,12 +750,14 @@ const Playground = ({ onJobCreated }) => {
     try {
       const response = await api.post('/api/scraping/scrape', {
         url: url.trim(),
-        use_selenium: false
+        use_selenium: false,
       });
 
       if (response.data?.success) {
         setScrapedContent(response.data.cleaned_content || '');
-        setSuccess(`Scraped ${response.data.content_length?.toLocaleString() || '0'} characters from ${url}`);
+        setSuccess(
+          `Scraped ${response.data.content_length?.toLocaleString() || '0'} characters from ${url}`
+        );
         setActiveTab('parse');
       } else {
         setError(response.data?.message || 'Failed to scrape the URL');
@@ -715,7 +786,7 @@ const Playground = ({ onJobCreated }) => {
     try {
       const response = await api.post('/api/scraping/parse', {
         dom_content: scrapedContent,
-        parse_description: parseDescription.trim()
+        parse_description: parseDescription.trim(),
       });
 
       if (response.data?.success) {
@@ -733,9 +804,23 @@ const Playground = ({ onJobCreated }) => {
   };
 
   const handleCreateJob = async () => {
-    if (!jobName.trim()) { setError('Please enter a job name'); return; }
-    if (!url.trim()) { setError('Please enter a URL'); return; }
-    if (!scrapedContent) { setError('Please scrape the URL first before creating a job'); return; }
+    // Guests must authenticate before saving a job
+    if (!isAuthenticated) {
+      setExportGateOpen(true);
+      return;
+    }
+    if (!jobName.trim()) {
+      setError('Please enter a job name');
+      return;
+    }
+    if (!url.trim()) {
+      setError('Please enter a URL');
+      return;
+    }
+    if (!scrapedContent) {
+      setError('Please scrape the URL first before creating a job');
+      return;
+    }
 
     setIsCreatingJob(true);
     setError(null);
@@ -745,7 +830,7 @@ const Playground = ({ onJobCreated }) => {
       const createResponse = await api.post('/api/jobs', {
         name: jobName.trim(),
         url: url.trim(),
-        frequency: 'one-time'
+        frequency: 'one-time',
       });
 
       const jobData = createResponse.data;
@@ -756,13 +841,15 @@ const Playground = ({ onJobCreated }) => {
         scraped_at: new Date().toISOString(),
         status: 'success',
         progress: 100,
-        records: parsedResult ? parsedResult.split(/\s+/).length : scrapedContent.split(/\s+/).length
+        records: parsedResult
+          ? parsedResult.split(/\s+/).length
+          : scrapedContent.split(/\s+/).length,
       });
 
       if (parsedResult) {
         await api.post(`/api/scraping/jobs/${jobId}/parse`, {
           dom_content: scrapedContent,
-          parse_description: parseDescription.trim()
+          parse_description: parseDescription.trim(),
         });
       }
 
@@ -772,6 +859,9 @@ const Playground = ({ onJobCreated }) => {
       if (onJobCreated) onJobCreated();
 
       await loadRecentJobs();
+
+      // Clear session since job is now stored server-side
+      sessionStorage.removeItem(GUEST_KEY);
 
       setJobName('');
       setUrl('');
@@ -789,18 +879,18 @@ const Playground = ({ onJobCreated }) => {
     }
   };
 
-  const handleExportCSV = async () => {
-    if (!parsedResult && !scrapedContent) { setError('No data to export'); return; }
+  // ---------- Export (gated for guests) ----------
+  const actuallyExportCSV = async () => {
     setIsExporting(true);
     try {
       const dataToExport = parsedResult || scrapedContent;
       const blob = new Blob([dataToExport], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
       a.download = `playground_export_${Date.now()}.csv`;
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       setSuccess('Exported successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -810,24 +900,27 @@ const Playground = ({ onJobCreated }) => {
     }
   };
 
-  const handleExportJSON = async () => {
-    if (!parsedResult && !scrapedContent) { setError('No data to export'); return; }
+  const actuallyExportJSON = async () => {
     setIsExporting(true);
     try {
       const dataToExport = parsedResult || scrapedContent;
-      const jsonData = JSON.stringify({
-        content: dataToExport,
-        exported_at: new Date().toISOString(),
-        url: url || 'manual',
-        job_name: jobName || 'untitled'
-      }, null, 2);
+      const jsonData = JSON.stringify(
+        {
+          content: dataToExport,
+          exported_at: new Date().toISOString(),
+          url: url || 'manual',
+          job_name: jobName || 'untitled',
+        },
+        null,
+        2
+      );
       const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
       a.download = `playground_export_${Date.now()}.json`;
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       setSuccess('Exported successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -836,6 +929,21 @@ const Playground = ({ onJobCreated }) => {
       setIsExporting(false);
     }
   };
+
+  const requireAuthOrGate = (fn) => () => {
+    if (!parsedResult && !scrapedContent) {
+      setError('No data to export');
+      return;
+    }
+    if (!isAuthenticated) {
+      setExportGateOpen(true);
+      return;
+    }
+    fn();
+  };
+
+  const handleExportCSV = requireAuthOrGate(actuallyExportCSV);
+  const handleExportJSON = requireAuthOrGate(actuallyExportJSON);
 
   const handleClear = () => {
     setScrapedContent('');
@@ -846,6 +954,7 @@ const Playground = ({ onJobCreated }) => {
     setSuccess(null);
     setActiveTab('scrape');
     setCreatedJobId(null);
+    sessionStorage.removeItem(GUEST_KEY);
   };
 
   const handleLoadJob = (job) => {
@@ -882,7 +991,7 @@ const Playground = ({ onJobCreated }) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {createdJobId && (
+          {createdJobId && isAuthenticated && (
             <Link to="/jobs" className="home-btn-green">
               <Briefcase size={12} /> View in Jobs
             </Link>
@@ -898,14 +1007,18 @@ const Playground = ({ onJobCreated }) => {
         <div className="pg-alert error">
           <AlertCircle size={16} />
           <span style={{ flex: 1 }}>{error}</span>
-          <button className="pg-alert-close" onClick={() => setError(null)}><X size={14} /></button>
+          <button className="pg-alert-close" onClick={() => setError(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
       {success && (
         <div className="pg-alert success">
           <CheckCircle size={16} />
           <span style={{ flex: 1 }}>{success}</span>
-          <button className="pg-alert-close" onClick={() => setSuccess(null)}><X size={14} /></button>
+          <button className="pg-alert-close" onClick={() => setSuccess(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -936,7 +1049,9 @@ const Playground = ({ onJobCreated }) => {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://example.com/page-to-scrape"
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleScrape(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleScrape();
+                  }}
                 />
                 <PrimaryButton
                   onClick={handleScrape}
@@ -961,7 +1076,9 @@ const Playground = ({ onJobCreated }) => {
                   value={parseDescription}
                   onChange={(e) => setParseDescription(e.target.value)}
                   placeholder="e.g., Extract all product names and prices"
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleParse(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleParse();
+                  }}
                 />
                 <PrimaryButton
                   onClick={handleParse}
@@ -1010,16 +1127,39 @@ const Playground = ({ onJobCreated }) => {
               <div className="pg-field">
                 <PrimaryButton
                   onClick={handleCreateJob}
-                  disabled={isCreatingJob || !jobName.trim() || !url.trim() || !scrapedContent}
+                  disabled={
+                    isCreatingJob || !jobName.trim() || !url.trim() || !scrapedContent
+                  }
                   loading={isCreatingJob}
                   icon={<Briefcase size={16} />}
                   fullWidth
                 >
-                  {isCreatingJob ? 'Saving…' : `Save as Job: ${jobName.trim() || 'Untitled'}`}
+                  {isCreatingJob
+                    ? 'Saving…'
+                    : `Save as Job: ${jobName.trim() || 'Untitled'}`}
                 </PrimaryButton>
                 {!jobName.trim() && scrapedContent && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, textAlign: 'center' }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      marginTop: 6,
+                      textAlign: 'center',
+                    }}
+                  >
                     ⚠️ Enter a job name above to save
+                  </div>
+                )}
+                {!isAuthenticated && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      marginTop: 6,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Sign in to save jobs to your account
                   </div>
                 )}
               </div>
@@ -1047,7 +1187,11 @@ const Playground = ({ onJobCreated }) => {
             <div className="pg-preview-wrap">
               <div className="pg-preview-header">
                 <span className="pg-preview-title">
-                  {parsedResult ? 'Extracted Data' : scrapedContent ? 'Scraped Content' : 'Ready'}
+                  {parsedResult
+                    ? 'Extracted Data'
+                    : scrapedContent
+                      ? 'Scraped Content'
+                      : 'Ready'}
                 </span>
                 {(parsedResult || scrapedContent) && (
                   <span className="pg-preview-meta">
@@ -1057,14 +1201,22 @@ const Playground = ({ onJobCreated }) => {
               </div>
               <div className="pg-preview-content">
                 {parsedResult ? (
-                  showFullContent ? parsedResult : truncatedContent(parsedResult, 1000)
+                  showFullContent
+                    ? parsedResult
+                    : truncatedContent(parsedResult, 1000)
                 ) : scrapedContent ? (
-                  showFullContent ? scrapedContent : truncatedContent(scrapedContent, 1000)
+                  showFullContent
+                    ? scrapedContent
+                    : truncatedContent(scrapedContent, 1000)
                 ) : (
                   <div className="pg-preview-empty">
                     <Globe size={32} opacity={0.3} />
-                    <div className="pg-preview-empty-title">Enter a URL and click Scrape</div>
-                    <div className="pg-preview-empty-sub">Then describe what to extract</div>
+                    <div className="pg-preview-empty-title">
+                      Enter a URL and click Scrape
+                    </div>
+                    <div className="pg-preview-empty-sub">
+                      Then describe what to extract
+                    </div>
                   </div>
                 )}
               </div>
@@ -1072,53 +1224,71 @@ const Playground = ({ onJobCreated }) => {
           </div>
         </div>
 
-        {/* Recent Jobs */}
-        <div className="pg-recent">
-          <div className="pg-recent-header">
-            <span className="pg-recent-title">Recent Jobs</span>
-            <button className="pg-recent-refresh" onClick={loadRecentJobs}>
-              <RefreshCw size={12} className={loadingJobs ? 'spin' : ''} />
-              Refresh
-            </button>
-          </div>
-          <div className="pg-recent-table-wrap">
-            {loadingJobs ? (
-              <div className="pg-recent-empty">
-                <Loader size={20} className="spin" />
-              </div>
-            ) : recentJobs.length === 0 ? (
-              <div className="pg-recent-empty">No recent jobs. Start scraping above!</div>
-            ) : (
-              <div style={{ overflow: 'auto' }}>
-                <table className="pg-table">
-                  <thead>
-                    <tr>
-                      <th>Job Name</th>
-                      <th>Status</th>
-                      <th>Records</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentJobs.map((job) => (
-                      <tr key={job.id}>
-                        <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{job.name}</td>
-                        <td><StatusBadge status={job.status} /></td>
-                        <td>{job.records?.toLocaleString() || '0'}</td>
-                        <td>
-                          <button className="pg-table-load-btn" onClick={() => handleLoadJob(job)}>
-                            Load
-                          </button>
-                        </td>
+        {/* Recent Jobs (authenticated only) */}
+        {isAuthenticated && (
+          <div className="pg-recent">
+            <div className="pg-recent-header">
+              <span className="pg-recent-title">Recent Jobs</span>
+              <button className="pg-recent-refresh" onClick={loadRecentJobs}>
+                <RefreshCw size={12} className={loadingJobs ? 'spin' : ''} />
+                Refresh
+              </button>
+            </div>
+            <div className="pg-recent-table-wrap">
+              {loadingJobs ? (
+                <div className="pg-recent-empty">
+                  <Loader size={20} className="spin" />
+                </div>
+              ) : recentJobs.length === 0 ? (
+                <div className="pg-recent-empty">
+                  No recent jobs. Start scraping above!
+                </div>
+              ) : (
+                <div style={{ overflow: 'auto' }}>
+                  <table className="pg-table">
+                    <thead>
+                      <tr>
+                        <th>Job Name</th>
+                        <th>Status</th>
+                        <th>Records</th>
+                        <th>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {recentJobs.map((job) => (
+                        <tr key={job.id}>
+                          <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                            {job.name}
+                          </td>
+                          <td>
+                            <StatusBadge status={job.status} />
+                          </td>
+                          <td>{job.records?.toLocaleString() || '0'}</td>
+                          <td>
+                            <button
+                              className="pg-table-load-btn"
+                              onClick={() => handleLoadJob(job)}
+                            >
+                              Load
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Export gate modal for guests */}
+      <ExportGateModal
+        open={exportGateOpen}
+        onClose={() => setExportGateOpen(false)}
+        onContinueExploring={() => setExportGateOpen(false)}
+      />
     </div>
   );
 };
@@ -1137,7 +1307,10 @@ const PlaygroundPage = () => {
       {/* Nav */}
       <nav className="pg-page-nav">
         <div className="pg-page-nav-inner">
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Link
+            to="/"
+            style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+          >
             <img
               src={logo}
               alt="Webby"
@@ -1154,7 +1327,8 @@ const PlaygroundPage = () => {
           <div className="pg-page-header-label">Try it now</div>
           <h1 className="pg-page-header-title">Webby Playground</h1>
           <p className="pg-page-header-desc">
-            Enter a URL, describe what to extract, and see results instantly — then save as a job for later use.
+            Enter a URL, describe what to extract, and see results instantly — then
+            save as a job for later use.
           </p>
         </div>
 

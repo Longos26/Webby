@@ -1,17 +1,17 @@
-// src/pages/Login.jsx - CLEAN ENTERPRISE DESIGN
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   signInStart,
   signInSuccess,
   signInFailure,
 } from '../redux/user/userSlice';
-import { ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../api';
 import { authService } from '../api';
 import React from 'react';
 import logo from '../newlogo.png';
+
 
 // ============================================================
 // STYLES - CLEAN UNTITLED UI AESTHETIC
@@ -389,6 +389,7 @@ const Login = () => {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -553,7 +554,7 @@ const Login = () => {
         {/* Footer */}
         <div className="login-footer">
           Don't have an account?{' '}
-          <Link to="/signin">Create one free →</Link>
+          <Link to="/register">Create one free →</Link>
         </div>
 
         <div className="login-copyright">

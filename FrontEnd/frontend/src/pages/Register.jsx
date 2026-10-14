@@ -8,7 +8,6 @@ import {
   signInFailure,
 } from '../redux/user/userSlice';
 import { Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react';
-import api from '../api';
 import { authService } from '../api';
 import React from 'react';
 import logo from '../newlogo.png';
@@ -466,7 +465,7 @@ const SignUpSkeleton = () => (
 // MAIN COMPONENT
 // ============================================================
 
-const SignUp = () => {
+const Register = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -540,20 +539,31 @@ const SignUp = () => {
     setErrorMessage(null);
 
     try {
-      dispatch(signInStart());
       const data = await authService.signup({
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
         password: formData.password,
       });
-      if (data.access_token) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
-        dispatch(signInSuccess({ user: data.user, token: data.access_token }));
-        navigate('/dashboard');
+
+      if (data?.access_token) {
+        // Do NOT auto-login. Do NOT save token. Do NOT set axios header.
+        // Send the user to the login page with a success hint + prefilled email.
+        navigate('/login', {
+          replace: true,
+          state: {
+            justRegistered: true,
+            email: formData.email,
+          },
+        });
+        return;
       }
+
+      // Fallback if backend didn't return a token for some reason
+      navigate('/login', {
+        replace: true,
+        state: { justRegistered: true, email: formData.email },
+      });
     } catch (error) {
       console.error('Signup error:', error);
       let errorMsg = 'Registration failed. Please try again.';
@@ -566,10 +576,6 @@ const SignUp = () => {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return <SignUpSkeleton />;
-  }
 
   return (
     <div className="signup-root">
@@ -767,4 +773,4 @@ const SignUp = () => {
   );
 };
 
-export default SignUp;
+export default Register;
