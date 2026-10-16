@@ -1,4 +1,5 @@
 // src/pages/HomePage.jsx - CLEAN ENTERPRISE DESIGN
+// Recent jobs section now mirrors the Dataset Library exactly.
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -586,6 +587,27 @@ const STYLES = `
     font-size: 14px;
   }
 
+  .home-recent-viewall {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green-primary);
+    text-decoration: none;
+    padding: 8px 14px;
+    border: 1px solid rgba(0, 237, 100, 0.24);
+    background: rgba(0, 237, 100, 0.06);
+    border-radius: var(--radius-md);
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+    white-space: nowrap;
+  }
+
+  .home-recent-viewall:hover {
+    background: rgba(0, 237, 100, 0.12);
+    border-color: rgba(0, 237, 100, 0.4);
+  }
+
   .home-table-wrap {
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
@@ -1070,7 +1092,7 @@ const HomePage = () => {
       const [analyticsResponse, realtimeResponse, recentJobsResponse, performanceResponse, exportStatsResponse] = await Promise.allSettled([
         api.get('/api/jobs/analytics/dashboard'),
         api.get('/api/dashboard/realtime'),
-        api.get('/api/dashboard/recent?limit=5'),
+        api.get('/api/export/jobs-with-results'),   // ← SAME SOURCE AS THE LIBRARY
         api.get('/api/dashboard/performance'),
         api.get('/api/dashboard/export-stats')
       ]);
@@ -1134,32 +1156,46 @@ const HomePage = () => {
         });
       }
 
+      // ============================================================
+      // RECENT JOBS — ONLY DATASETS THAT EXIST IN THE LIBRARY
+      // ============================================================
       if (recentJobsResponse.status === 'fulfilled' && recentJobsResponse.value?.data) {
-        const jobs = recentJobsResponse.value.data;
-        setRecentJobs(jobs.map(job => ({
-          id: job.id,
-          name: job.name,
-          status: job.status,
-          records: job.records || 0,
-          url: job.url || job.target,
-          scraped_content: job.scraped_content || '',
-          created_at: job.created_at,
-          completed: formatRelativeTime(job.created_at)
-        })));
-      } else {
-        try {
-          const jobsResponse = await api.get('/api/jobs?limit=5');
-          const jobs = jobsResponse.data?.jobs || [];
-          setRecentJobs(jobs.map(job => ({
+        const jobs = recentJobsResponse.value.data.jobs || [];
+        const libraryJobs = jobs
+          .filter(job => (job.parsed_count ?? job.record_count ?? 0) > 0)
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5)
+          .map(job => ({
             id: job.id,
             name: job.name,
             status: job.status,
-            records: job.records || 0,
+            records: job.parsed_count ?? job.record_count ?? 0,
             url: job.url || job.target,
             scraped_content: job.scraped_content || '',
             created_at: job.created_at,
             completed: formatRelativeTime(job.created_at)
-          })));
+          }));
+        setRecentJobs(libraryJobs);
+      } else {
+        // Fallback — hit the Library endpoint directly
+        try {
+          const res = await api.get('/api/export/jobs-with-results');
+          const jobs = res.data?.jobs || [];
+          const libraryJobs = jobs
+            .filter(job => (job.parsed_count ?? job.record_count ?? 0) > 0)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 5)
+            .map(job => ({
+              id: job.id,
+              name: job.name,
+              status: job.status,
+              records: job.parsed_count ?? job.record_count ?? 0,
+              url: job.url || job.target,
+              scraped_content: job.scraped_content || '',
+              created_at: job.created_at,
+              completed: formatRelativeTime(job.created_at)
+            }));
+          setRecentJobs(libraryJobs);
         } catch (e) {
           setRecentJobs([]);
         }
@@ -1284,7 +1320,6 @@ const HomePage = () => {
   });
 
   const navItems = [
-
     { label: 'Documentation', path: '/docs' },
   ];
 
@@ -1372,8 +1407,6 @@ const HomePage = () => {
         </div>
       </section>
 
-      
-
       {/* Stats */}
       <div className="home-stats-band">
         <div className="home-stats-grid">
@@ -1414,22 +1447,26 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Recent Jobs */}
+      {/* Recent Jobs — ONLY LIBRARY DATASETS */}
       <section className="home-recent">
         <div className="home-recent-header">
           <div>
             <h2 className="home-recent-title">Recent extraction jobs</h2>
             <p className="home-recent-sub">
-              {realtimeMetrics.active_jobs} active jobs · {performanceMetrics.today_total_jobs} today
+              {realtimeMetrics.active_jobs} active jobs · {performanceMetrics.today_total_jobs} today · showing only datasets in your library
             </p>
           </div>
+          <Link to="/library" className="home-recent-viewall">
+            View all in Library
+            <ArrowRight size={14} />
+          </Link>
         </div>
         <div className="home-table-wrap">
           {recentJobs.length === 0 ? (
             <div className="home-empty">
               <div className="home-empty-icon"><Briefcase size={32} /></div>
-              <div className="home-empty-title">No jobs yet</div>
-              <div className="home-empty-desc">Start scraping in the playground to create your first job</div>
+              <div className="home-empty-title">No datasets in your library yet</div>
+              <div className="home-empty-desc">Start scraping in the playground to create your first dataset</div>
             </div>
           ) : (
             <table className="home-table">
@@ -1450,7 +1487,7 @@ const HomePage = () => {
                     <td>{job.records ? job.records.toLocaleString() : '—'}</td>
                     <td>{job.completed || 'Unknown'}</td>
                     <td>
-                      <Link to="/jobs" style={{ color: 'var(--text-muted)', display: 'inline-flex' }}>
+                      <Link to="/library" style={{ color: 'var(--text-muted)', display: 'inline-flex' }}>
                         <ExternalLink size={14} />
                       </Link>
                     </td>

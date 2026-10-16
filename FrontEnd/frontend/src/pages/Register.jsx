@@ -1,5 +1,5 @@
-// src/pages/SignUp.jsx - CLEAN ENTERPRISE DESIGN
-import { useState } from 'react';
+// src/pages/SignUp.jsx - CLEAN ENTERPRISE DESIGN + TERMS MODAL
+import { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -7,7 +7,7 @@ import {
   signInSuccess,
   signInFailure,
 } from '../redux/user/userSlice';
-import { Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, UserPlus, X, FileText, Check } from 'lucide-react';
 import { authService } from '../api';
 import React from 'react';
 import logo from '../newlogo.png';
@@ -66,6 +66,16 @@ const STYLES = `
   @keyframes pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 0.8; }
+  }
+
+  @keyframes termsFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes termsSlideUp {
+    from { opacity: 0; transform: translateY(16px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   .signup-container {
@@ -254,16 +264,19 @@ const STYLES = `
     color: var(--text-secondary);
     line-height: 1.5;
     cursor: pointer;
+    user-select: none;
   }
 
-  .signup-terms a {
+  .signup-terms .terms-link {
     color: var(--text-link);
     text-decoration: none;
     transition: color var(--transition);
+    cursor: pointer;
   }
 
-  .signup-terms a:hover {
+  .signup-terms .terms-link:hover {
     color: #79B8FF;
+    text-decoration: underline;
   }
 
   .signup-terms-error {
@@ -374,6 +387,227 @@ const STYLES = `
     animation: pulse 1.6s ease-in-out infinite;
   }
 
+  /* ============================================================
+     TERMS MODAL STYLES
+     ============================================================ */
+
+  .terms-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+    animation: termsFadeIn 0.2s ease;
+  }
+
+  .terms-modal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 16px;
+    max-width: 680px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.02);
+    animation: termsSlideUp 0.25s ease;
+  }
+
+  .terms-modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .terms-modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+  }
+
+  .terms-modal-header h3 svg {
+    color: var(--accent-green);
+    flex-shrink: 0;
+  }
+
+  .terms-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition), background var(--transition);
+  }
+
+  .terms-modal-close:hover {
+    color: var(--text-primary);
+    background: var(--border-subtle);
+  }
+
+  .terms-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) var(--bg-surface);
+  }
+
+  .terms-modal-body::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .terms-modal-body::-webkit-scrollbar-track {
+    background: var(--bg-surface);
+  }
+
+  .terms-modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: 8px;
+  }
+
+  .terms-modal-body h4 {
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 600;
+    margin: 20px 0 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .terms-modal-body h4:first-of-type {
+    margin-top: 0;
+  }
+
+  .terms-modal-body p {
+    margin-bottom: 12px;
+  }
+
+  .terms-modal-body ul {
+    margin: 8px 0 16px 20px;
+  }
+
+  .terms-modal-body li {
+    margin-bottom: 6px;
+  }
+
+  .terms-modal-body strong {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .terms-modal-body a {
+    color: var(--text-link);
+    text-decoration: none;
+  }
+
+  .terms-modal-body a:hover {
+    text-decoration: underline;
+  }
+
+  .terms-modal-divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 24px 0 16px;
+    border: none;
+  }
+
+  .terms-modal-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .terms-modal-agree {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1.4;
+    user-select: none;
+  }
+
+  .terms-modal-agree input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-green);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .terms-modal-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .terms-btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+  }
+
+  .terms-btn-secondary:hover {
+    background: var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .terms-btn-primary {
+    background: var(--accent-green);
+    color: #0D1117;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background var(--transition);
+    white-space: nowrap;
+  }
+
+  .terms-btn-primary:hover:not(:disabled) {
+    background: var(--accent-green-dark);
+  }
+
+  .terms-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   @media (max-width: 480px) {
     .signup-root {
       padding: 32px 20px;
@@ -394,6 +628,44 @@ const STYLES = `
 
     .signup-name-grid > div {
       margin-bottom: 20px;
+    }
+
+    .terms-modal-overlay {
+      padding: 16px;
+    }
+
+    .terms-modal-card {
+      max-height: 92vh;
+      border-radius: 12px;
+    }
+
+    .terms-modal-header {
+      padding: 16px 18px 12px;
+    }
+
+    .terms-modal-body {
+      padding: 18px;
+      font-size: 13px;
+    }
+
+    .terms-modal-footer {
+      padding: 14px 18px 18px;
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+
+    .terms-modal-agree {
+      justify-content: center;
+    }
+
+    .terms-modal-actions {
+      flex-direction: column-reverse;
+    }
+
+    .terms-btn-primary,
+    .terms-btn-secondary {
+      width: 100%;
+      justify-content: center;
     }
   }
 `;
@@ -462,6 +734,224 @@ const SignUpSkeleton = () => (
 );
 
 // ============================================================
+// TERMS MODAL COMPONENT
+// ============================================================
+
+const TermsModal = ({ isOpen, onClose, onAccept }) => {
+  const [agreed, setAgreed] = useState(false);
+  const modalBodyRef = useRef(null);
+
+  // Reset checkbox + scroll to top when opening
+  useEffect(() => {
+    if (isOpen) {
+      setAgreed(false);
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTop = 0;
+      }
+    }
+  }, [isOpen]);
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const handleAccept = () => {
+    if (!agreed) return;
+    onAccept();
+  };
+
+  return (
+    <div
+      className="terms-modal-overlay"
+      onClick={handleOverlayClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="terms-modal-title"
+    >
+      <div className="terms-modal-card">
+        {/* Header */}
+        <div className="terms-modal-header">
+          <h3 id="terms-modal-title">
+            <FileText size={20} />
+            Terms of Service &amp; Privacy Policy
+          </h3>
+          <button
+            type="button"
+            className="terms-modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="terms-modal-body" ref={modalBodyRef}>
+          <h4>1. Acceptance of Terms</h4>
+          <p>
+            By creating a Webby account, accessing our platform, or using any of
+            our services, you agree to be bound by these Terms of Service and our
+            Privacy Policy. If you do not agree to these terms, you must not use
+            our services.
+          </p>
+
+          <h4>2. Description of Service</h4>
+          <p>
+            Webby provides enterprise web intelligence tools, analytics, and
+            related services. We reserve the right to modify, suspend, or
+            discontinue any part of the service at any time without prior notice.
+          </p>
+
+          <h4>3. Account Responsibilities</h4>
+          <ul>
+            <li>You must provide accurate and complete registration information.</li>
+            <li>
+              You are responsible for maintaining the confidentiality of your
+              account credentials.
+            </li>
+            <li>
+              You agree to notify us immediately of any unauthorized use of your
+              account.
+            </li>
+            <li>
+              You may not use the service for any illegal or unauthorized purpose.
+            </li>
+          </ul>
+
+          <h4>4. Data Collection &amp; Privacy</h4>
+          <p>
+            We collect information you provide directly, such as your name, email
+            address, and usage data. This information is used to operate,
+            maintain, and improve our services, and to communicate with you.
+          </p>
+          <p>
+            <strong>We do not sell your personal data.</strong> We may share
+            anonymized, aggregated data for analytics and business purposes. For
+            full details, please review our full Privacy Policy.
+          </p>
+
+          <h4>5. Cookies &amp; Tracking</h4>
+          <p>
+            Webby uses cookies and similar tracking technologies to enhance your
+            experience, analyze trends, and administer the platform. You can
+            control cookie preferences through your browser settings.
+          </p>
+
+          <h4>6. Intellectual Property</h4>
+          <p>
+            All content, trademarks, logos, and software associated with Webby are
+            the property of Webby or its licensors. You may not reproduce,
+            distribute, or create derivative works without express written
+            permission.
+          </p>
+
+          <h4>7. Limitation of Liability</h4>
+          <p>
+            To the maximum extent permitted by law, Webby shall not be liable for
+            any indirect, incidental, special, consequential, or punitive damages
+            arising out of or relating to your use of the service.
+          </p>
+
+          <h4>8. Termination</h4>
+          <p>
+            We reserve the right to suspend or terminate your account at our sole
+            discretion, without notice, for conduct that we believe violates these
+            terms or is harmful to other users, us, or third parties.
+          </p>
+
+          <h4>9. Changes to Terms</h4>
+          <p>
+            We may update these terms from time to time. We will notify you of any
+            material changes by posting the new terms on this page or via email.
+            Your continued use of the service after changes constitutes
+            acceptance.
+          </p>
+
+          <hr className="terms-modal-divider" />
+
+          <h4>Privacy Policy Summary</h4>
+          <p>
+            <strong>What we collect:</strong> Name, email, usage data, and
+            technical information (IP address, browser type).
+            <br />
+            <strong>How we use it:</strong> To provide and improve the service,
+            communicate with you, and ensure security.
+            <br />
+            <strong>Your rights:</strong> You may request access, correction, or
+            deletion of your personal data at any time by contacting
+            privacy@webby.com.
+            <br />
+            <strong>Data retention:</strong> We retain your data as long as your
+            account is active or as needed to comply with legal obligations.
+          </p>
+          <p>
+            For the complete Privacy Policy, please visit{' '}
+            <a href="/privacy" onClick={(e) => e.preventDefault()}>
+              webby.com/privacy
+            </a>
+            .
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="terms-modal-footer">
+          <label className="terms-modal-agree">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+            />
+            I have read and agree to the Terms of Service and Privacy Policy
+          </label>
+
+          <div className="terms-modal-actions">
+            <button
+              type="button"
+              className="terms-btn-secondary"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="terms-btn-primary"
+              disabled={!agreed}
+              onClick={handleAccept}
+            >
+              Accept &amp; Continue
+              <Check size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 
@@ -477,6 +967,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
@@ -726,13 +1217,32 @@ const Register = () => {
               type="checkbox"
               id="terms"
               checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
+              readOnly
+              onClick={() => setShowTermsModal(true)}
             />
-            <label htmlFor="terms">
+            <label htmlFor="terms" onClick={() => setShowTermsModal(true)}>
               I agree to Webby's{' '}
-              <Link to="/terms">Terms of Service</Link>
+              <span
+                className="terms-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowTermsModal(true);
+                }}
+              >
+                Terms of Service
+              </span>
               {' '}and{' '}
-              <Link to="/privacy">Privacy Policy</Link>
+              <span
+                className="terms-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowTermsModal(true);
+                }}
+              >
+                Privacy Policy
+              </span>
             </label>
           </div>
           {validationErrors.terms && (
@@ -769,6 +1279,17 @@ const Register = () => {
           © 2026 Webby · Enterprise Web Intelligence
         </div>
       </div>
+
+      {/* Terms & Privacy Modal */}
+      <TermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={() => {
+          setAgreed(true);
+          setShowTermsModal(false);
+          setValidationErrors(prev => ({ ...prev, terms: '' }));
+        }}
+      />
     </div>
   );
 };

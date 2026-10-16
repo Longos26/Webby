@@ -243,6 +243,31 @@ const globalStyles = `
     width: auto;
   }
 
+  /* ---------- Sidebar Nav Groups (NEW) ---------- */
+  .sidebar-nav {
+    padding: 12px 0 16px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .nav-group {
+    margin-bottom: 6px;
+  }
+
+  .nav-group:last-child {
+    margin-bottom: 0;
+  }
+
+  .nav-group-label {
+    padding: 12px 20px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    user-select: none;
+  }
+
   .nav-item {
     display: flex;
     align-items: center;
@@ -820,6 +845,11 @@ const globalStyles = `
       width: calc(100% - 16px);
     }
 
+    .nav-group-label {
+      padding: 10px 16px 4px;
+      font-size: 9px;
+    }
+
     .data-table th,
     .data-table td {
       padding: 8px 10px;
@@ -929,21 +959,48 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
 
   const isAdmin = isAdminUser(user);
 
-  // All available nav items. adminOnly items are hidden from regular users.
-  const ALL_NAV_ITEMS = [
-    { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard, adminOnly: true },
-    { id: 'jobs',       label: 'Jobs',       icon: Briefcase,       adminOnly: false },
-    { id: 'datasets',   label: 'Library',    icon: Library,         adminOnly: true },
-    { id: 'monitoring', label: 'Monitoring', icon: Server,          adminOnly: true },
-    { id: 'export',     label: 'Export',     icon: Download,        adminOnly: false },
-    { id: 'models',     label: 'Models',     icon: Bot,             adminOnly: false },
-    { id: 'admin',      label: 'Admin',      icon: Shield,          adminOnly: true },
-    { id: 'settings',   label: 'Settings',   icon: Settings,        adminOnly: false },
+  // ------------------------------------------------------------
+  // NAV GROUPS — items keep the exact same shape as before
+  // (id, label, icon, adminOnly) so all filtering/logic is intact.
+  // ------------------------------------------------------------
+  const NAV_GROUPS = [
+    {
+      label: 'Workspace',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
+        { id: 'jobs',      label: 'Jobs',      icon: Briefcase,       adminOnly: false },
+      ],
+    },
+    {
+      label: 'Data Management',
+      items: [
+        { id: 'datasets', label: 'Library', icon: Library,  adminOnly: true },
+        { id: 'export',   label: 'Export',  icon: Download, adminOnly: false },
+      ],
+    },
+    {
+      label: 'Configuration',
+      items: [
+        { id: 'models',     label: 'Models',     icon: Bot,      adminOnly: false },
+        { id: 'monitoring', label: 'Monitoring', icon: Server,   adminOnly: true },
+        { id: 'settings',   label: 'Settings',   icon: Settings, adminOnly: false },
+      ],
+    },
+    {
+      label: 'Administration',
+      items: [
+        { id: 'admin', label: 'Admin Panel', icon: Shield, adminOnly: true },
+      ],
+    },
   ];
 
-  const navItems = isAdmin
-    ? ALL_NAV_ITEMS
-    : ALL_NAV_ITEMS.filter(item => !item.adminOnly);
+  // Filter each group's items by role, then drop empty groups.
+  const visibleGroups = NAV_GROUPS
+    .map(group => ({
+      ...group,
+      items: isAdmin ? group.items : group.items.filter(item => !item.adminOnly),
+    }))
+    .filter(group => group.items.length > 0);
 
   return (
     <>
@@ -955,25 +1012,30 @@ function Sidebar({ activeTab, setActiveTab, open, setOpen, user }) {
           </Link>
         </div>
 
-        <div style={{ padding: '16px 0', flex: 1, overflowY: 'auto' }}>
-          {navItems.map(item => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setOpen(false);
-                  navigate(`/${item.id}`);
-                }}
-              >
-                <Icon size={17} />
-                {item.label}
-              </button>
-            );
-          })}
+        <div className="sidebar-nav">
+          {visibleGroups.map(group => (
+            <div key={group.label} className="nav-group">
+              <div className="nav-group-label">{group.label}</div>
+              {group.items.map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    className={`nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setOpen(false);
+                      navigate(`/${item.id}`);
+                    }}
+                  >
+                    <Icon size={17} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-default)' }}>
@@ -1117,8 +1179,7 @@ function DashboardTab() {
         hourlyActivityRes,
         modelUsageRes,
         topSitesRes,
-        exportStatsRes
-      ] = await Promise.all([
+        exportStatsRes      ] = await Promise.all([
         api.get('/api/dashboard/success-rate?days=7').catch(() => ({ data: { daily_stats: [], overall_success_rate: 0 } })),
         api.get('/api/dashboard/realtime').catch(() => ({ data: { active_jobs: 0, today_jobs: 0, today_records: 0 } })),
         api.get('/api/dashboard/recent?limit=10').catch(() => ({ data: [] })),
