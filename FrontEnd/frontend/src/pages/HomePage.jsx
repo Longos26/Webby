@@ -1,7 +1,7 @@
-// src/pages/HomePage.jsx - CLEAN ENTERPRISE DESIGN
-// Recent jobs section now mirrors the Dataset Library exactly.
+// src/pages/HomePage.jsx - WEB SCRAPING ENTERPRISE DESIGN
+// Recent jobs section mirrors the Dataset Library exactly.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -17,12 +17,21 @@ import {
   Brain,
   Briefcase,
   BookOpen,
+  Globe,
+  Code2,
+  Terminal,
+  Cpu,
+  Layers,
+  GitBranch,
+  CheckCircle2,
+  Circle,
+  Loader2,
 } from 'lucide-react';
 import logo from '../newlogo.png';
 import api from '../api';
 
 // ============================================================
-// STYLES - CLEAN UNTITLED UI AESTHETIC
+// STYLES
 // ============================================================
 
 const STYLES = `
@@ -50,11 +59,7 @@ const STYLES = `
     --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .home-root * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  .home-root * { margin: 0; padding: 0; box-sizing: border-box; }
 
   .home-root {
     background-color: var(--bg-dark);
@@ -68,846 +73,460 @@ const STYLES = `
 
   .home-root ::-webkit-scrollbar { width: 8px; height: 8px; }
   .home-root ::-webkit-scrollbar-track { background: transparent; }
-  .home-root ::-webkit-scrollbar-thumb {
-    background: var(--border-default);
-    border-radius: var(--radius-sm);
-  }
+  .home-root ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: var(--radius-sm); }
   .home-root ::-webkit-scrollbar-thumb:hover { background: #484F58; }
-
-  .home-root *:focus-visible {
-    outline: 2px solid var(--green-primary);
-    outline-offset: 2px;
-    border-radius: var(--radius-sm);
-  }
+  .home-root *:focus-visible { outline: 2px solid var(--green-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
 
   @keyframes spin { to { transform: rotate(360deg); } }
   .spin { animation: spin 0.7s linear infinite; }
 
-  @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   .fade-slide-in { animation: fadeSlideIn 0.2s ease-out; }
 
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  @keyframes skeletonPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }
+  .skeleton { background: var(--bg-surface); border-radius: var(--radius-sm); animation: skeletonPulse 1.6s ease-in-out infinite; }
+
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(400%); }
   }
 
-  @keyframes skeletonPulse {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 0.8; }
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
   }
 
-  .skeleton {
-    background: var(--bg-surface);
-    border-radius: var(--radius-sm);
-    animation: skeletonPulse 1.6s ease-in-out infinite;
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  @keyframes dataFlow {
+    0% { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  @keyframes gridPulse {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 0.3; }
   }
 
   /* ---------- Nav ---------- */
   .home-nav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    position: sticky; top: 0; z-index: 100;
     background: rgba(13, 17, 23, 0.9);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-default);
     padding: 0 16px;
   }
-
-  .home-nav-inner {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 72px;
-  }
-
-  .home-nav-links {
-    display: flex;
-    align-items: center;
-    gap: 28px;
-  }
-
-  .home-nav-link {
-    color: var(--text-secondary);
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: color var(--transition);
-  }
-
-  .home-nav-link:hover {
-    color: var(--text-primary);
-  }
-
-  .home-mobile-menu-btn {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    display: none;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: var(--radius-md);
-  }
-
-  .home-mobile-menu-btn:hover {
-    background: var(--bg-surface);
-  }
-
-  .home-mobile-menu {
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border-default);
-    gap: 4px;
-  }
-
-  .home-mobile-menu a {
-    color: var(--text-secondary);
-    font-size: 15px;
-    font-weight: 500;
-    padding: 12px;
-    text-decoration: none;
-    border-radius: var(--radius-md);
-    transition: background var(--transition), color var(--transition);
-  }
-
-  .home-mobile-menu a:hover {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-  }
+  .home-nav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 72px; }
+  .home-nav-links { display: flex; align-items: center; gap: 28px; }
+  .home-nav-link { color: var(--text-secondary); font-size: 14px; font-weight: 500; text-decoration: none; transition: color var(--transition); }
+  .home-nav-link:hover { color: var(--text-primary); }
+  .home-mobile-menu-btn { background: none; border: none; color: var(--text-primary); display: none; cursor: pointer; padding: 8px; border-radius: var(--radius-md); }
+  .home-mobile-menu-btn:hover { background: var(--bg-surface); }
+  .home-mobile-menu { display: flex; flex-direction: column; padding: 16px; background: var(--bg-surface); border-top: 1px solid var(--border-default); gap: 4px; }
+  .home-mobile-menu a { color: var(--text-secondary); font-size: 15px; font-weight: 500; padding: 12px; text-decoration: none; border-radius: var(--radius-md); transition: background var(--transition), color var(--transition); }
+  .home-mobile-menu a:hover { background: var(--bg-elevated); color: var(--text-primary); }
 
   /* ---------- Section ---------- */
-  .home-section {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 16px;
-  }
+  .home-section { max-width: 1400px; margin: 0 auto; padding: 0 16px; }
 
-  .home-hero {
-    padding: 48px 16px 56px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
+  .home-hero { padding: 48px 16px 56px; max-width: 1400px; margin: 0 auto; position: relative; overflow: hidden; }
+  .home-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; position: relative; z-index: 2; }
+  .home-hero h1 { font-size: clamp(32px, 5vw, 52px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 20px; color: var(--text-primary); }
+  .home-hero h1 .accent { color: var(--green-primary); }
+  .home-hero p { font-size: clamp(15px, 1.5vw, 17px); color: var(--text-secondary); line-height: 1.6; max-width: 540px; margin-bottom: 32px; }
 
-  .home-hero-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 48px;
-    align-items: center;
-  }
+  .home-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 9999px; padding: 5px 14px; margin-bottom: 24px; }
+  .home-eyebrow-dot { width: 8px; height: 8px; background: var(--green-primary); border-radius: 50%; display: inline-block; animation: pulse-dot 1.5s ease-in-out infinite; }
+  .home-eyebrow-text { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 
-  .home-hero h1 {
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-    margin-bottom: 20px;
-    color: var(--text-primary);
-  }
+  .home-section-label { font-size: 13px; font-weight: 600; color: var(--green-primary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .home-section-title { font-size: clamp(24px, 3vw, 32px); font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em; margin-bottom: 10px; }
+  .home-section-desc { font-size: clamp(15px, 1.2vw, 16px); color: var(--text-secondary); max-width: 640px; }
 
-  .home-hero p {
-    font-size: clamp(15px, 1.5vw, 17px);
-    color: var(--text-secondary);
-    line-height: 1.6;
-    max-width: 540px;
-    margin-bottom: 32px;
-  }
-
-  .home-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: 9999px;
-    padding: 5px 14px;
-    margin-bottom: 24px;
-  }
-
-  .home-eyebrow-dot {
-    width: 8px;
-    height: 8px;
-    background: var(--green-primary);
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  .home-eyebrow-text {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  .home-section-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--green-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 10px;
-  }
-
-  .home-section-title {
-    font-size: clamp(24px, 3vw, 32px);
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: -0.01em;
-    margin-bottom: 10px;
-  }
-
-  .home-section-desc {
-    font-size: clamp(15px, 1.2vw, 16px);
-    color: var(--text-secondary);
-    max-width: 640px;
+  /* ---------- Hero Background Grid ---------- */
+  .home-hero-bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(48, 54, 61, 0.25) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(48, 54, 61, 0.25) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 40%, transparent 100%);
+    animation: gridPulse 6s ease-in-out infinite;
+    pointer-events: none;
   }
 
   /* ---------- Buttons ---------- */
-  .home-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 14px;
-    padding: 10px 20px;
-    border-radius: var(--radius-md);
-    border: none;
-    transition: background var(--transition), border-color var(--transition), color var(--transition);
-    cursor: pointer;
-    font-family: inherit;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .home-btn-primary {
-    background: var(--green-primary);
-    color: #0D1117;
-  }
-
-  .home-btn-primary:hover:not(:disabled) {
-    background: var(--green-dark);
-  }
-
-  .home-btn-primary:disabled {
-    background: var(--text-muted);
-    color: var(--bg-dark);
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .home-btn-secondary {
-    background: transparent;
-    border: 1px solid var(--border-default);
-    color: var(--text-secondary);
-    font-weight: 500;
-  }
-
-  .home-btn-secondary:hover:not(:disabled) {
-    border-color: #484F58;
-    color: var(--text-primary);
-  }
-
-  .home-btn-secondary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  .home-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; padding: 10px 20px; border-radius: var(--radius-md); border: none; transition: background var(--transition), border-color var(--transition), color var(--transition); cursor: pointer; font-family: inherit; text-decoration: none; white-space: nowrap; }
+  .home-btn-primary { background: var(--green-primary); color: #0D1117; }
+  .home-btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+  .home-btn-primary:disabled { background: var(--text-muted); color: var(--bg-dark); opacity: 0.6; cursor: not-allowed; }
+  .home-btn-secondary { background: transparent; border: 1px solid var(--border-default); color: var(--text-secondary); font-weight: 500; }
+  .home-btn-secondary:hover:not(:disabled) { border-color: #484F58; color: var(--text-primary); }
+  .home-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* ---------- Card ---------- */
-  .home-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    transition: border-color var(--transition);
-  }
-
-  .home-card.hoverable:hover {
-    border-color: #484F58;
-  }
+  .home-card { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 24px; transition: border-color var(--transition); }
+  .home-card.hoverable:hover { border-color: #484F58; }
 
   /* ---------- Status Badge ---------- */
-  .home-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .home-badge-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-
-  .home-badge.running {
-    background: rgba(88, 166, 255, 0.1);
-    color: #79B8FF;
-    border: 1px solid rgba(88, 166, 255, 0.2);
-  }
-  .home-badge.running .home-badge-dot {
-    background: #58A6FF;
-    animation: pulse-dot 1.5s ease-in-out infinite;
-  }
-
-  .home-badge.success {
-    background: rgba(0, 237, 100, 0.1);
-    color: #56D364;
-    border: 1px solid rgba(0, 237, 100, 0.2);
-  }
+  .home-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .home-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .home-badge.running { background: rgba(88, 166, 255, 0.1); color: #79B8FF; border: 1px solid rgba(88, 166, 255, 0.2); }
+  .home-badge.running .home-badge-dot { background: #58A6FF; animation: pulse-dot 1.5s ease-in-out infinite; }
+  .home-badge.success { background: rgba(0, 237, 100, 0.1); color: #56D364; border: 1px solid rgba(0, 237, 100, 0.2); }
   .home-badge.success .home-badge-dot { background: #00ED64; }
-
-  .home-badge.failed {
-    background: rgba(248, 81, 73, 0.1);
-    color: #FF7B72;
-    border: 1px solid rgba(248, 81, 73, 0.2);
-  }
+  .home-badge.failed { background: rgba(248, 81, 73, 0.1); color: #FF7B72; border: 1px solid rgba(248, 81, 73, 0.2); }
   .home-badge.failed .home-badge-dot { background: #F85149; }
-
-  .home-badge.paused {
-    background: rgba(210, 153, 34, 0.1);
-    color: #E3B341;
-    border: 1px solid rgba(210, 153, 34, 0.2);
-  }
+  .home-badge.paused { background: rgba(210, 153, 34, 0.1); color: #E3B341; border: 1px solid rgba(210, 153, 34, 0.2); }
   .home-badge.paused .home-badge-dot { background: #D29922; }
-
-  .home-badge.queued {
-    background: rgba(110, 118, 129, 0.1);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-default);
-  }
+  .home-badge.queued { background: rgba(110, 118, 129, 0.1); color: var(--text-secondary); border: 1px solid var(--border-default); }
   .home-badge.queued .home-badge-dot { background: var(--text-muted); }
 
-  /* ---------- Hero Graphic ---------- */
-  .home-hero-graphic {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .home-hero-card {
+  /* ---------- Terminal Card (Hero) ---------- */
+  .home-terminal {
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-xl);
-    padding: 32px 28px;
-    width: 100%;
-    max-width: 480px;
-    text-align: center;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 237, 100, 0.05);
   }
-
-  .home-hero-logo {
-    width: 200px;
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 0 auto 20px;
+  .home-terminal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 237, 100, 0.04), transparent 40%);
+    pointer-events: none;
   }
+  .home-terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-default);
+  }
+  .home-terminal-dots { display: flex; gap: 6px; }
+  .home-terminal-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .home-terminal-title {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .home-terminal-status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--green-primary);
+    background: rgba(0, 237, 100, 0.08);
+    border: 1px solid rgba(0, 237, 100, 0.2);
+    padding: 3px 8px;
+    border-radius: 9999px;
+  }
+  .home-terminal-body {
+    padding: 18px 20px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.9;
+    position: relative;
+    overflow: hidden;
+  }
+  .home-terminal-scanline {
+    position: absolute;
+    left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(180deg, transparent, rgba(0, 237, 100, 0.06), transparent);
+    animation: scanline 4s linear infinite;
+    pointer-events: none;
+  }
+  .term-line { display: flex; gap: 10px; align-items: flex-start; }
+  .term-prompt { color: var(--green-primary); user-select: none; flex-shrink: 0; }
+  .term-text { color: var(--text-secondary); word-break: break-all; }
+  .term-text .url { color: #79B8FF; }
+  .term-text .field { color: var(--green-primary); }
+  .term-text .value { color: #E3B341; }
+  .term-text .muted { color: var(--text-muted); }
+  .term-cursor { display: inline-block; width: 7px; height: 14px; background: var(--green-primary); animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 2px; }
 
-  .home-hero-metric {
+  /* ---------- Hero Metrics Strip ---------- */
+  .home-hero-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .home-hero-metric-mini {
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    padding: 16px;
-    margin-top: 16px;
+    padding: 10px 12px;
   }
+  .home-hero-metric-mini-label {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .home-hero-metric-mini-value {
+    font-size: 16px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .home-hero-metric-mini-value.green { color: var(--green-primary); }
 
-  .home-hero-metric-row {
+  /* ---------- Trusted Domains Marquee ---------- */
+  .home-marquee-wrap {
+    border-top: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-surface);
+    padding: 20px 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .home-marquee-wrap::before,
+  .home-marquee-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 120px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .home-marquee-wrap::before { left: 0; background: linear-gradient(90deg, var(--bg-surface), transparent); }
+  .home-marquee-wrap::after { right: 0; background: linear-gradient(-90deg, var(--bg-surface), transparent); }
+  .home-marquee-label {
+    text-align: center;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+  }
+  .home-marquee {
     display: flex;
+    gap: 40px;
+    width: max-content;
+    animation: marquee 30s linear infinite;
+  }
+  .home-marquee-item {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-
-  .home-hero-metric-label {
-    font-size: 13px;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 14px;
     font-weight: 500;
-    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    transition: color var(--transition);
   }
+  .home-marquee-item:hover { color: var(--text-secondary); }
 
-  .home-hero-metric-value {
-    margin-left: auto;
-    font-size: 13px;
+  /* ---------- Pipeline Visual ---------- */
+  .home-pipeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+  }
+  .home-pipeline-step {
+    padding: 28px 22px;
+    border-right: 1px solid var(--border-subtle);
+    position: relative;
+    transition: background var(--transition);
+  }
+  .home-pipeline-step:last-child { border-right: none; }
+  .home-pipeline-step:hover { background: var(--bg-elevated); }
+  .home-pipeline-step-num {
+    font-size: 11px;
     font-family: var(--font-mono);
     color: var(--green-primary);
+    margin-bottom: 14px;
+    letter-spacing: 0.1em;
   }
-
-  .home-hero-progress {
-    height: 4px;
-    background: var(--border-subtle);
-    border-radius: 2px;
-    overflow: hidden;
+  .home-pipeline-step-icon {
+    width: 40px; height: 40px;
+    background: rgba(0, 237, 100, 0.06);
+    border: 1px solid rgba(0, 237, 100, 0.16);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green-primary);
+    margin-bottom: 16px;
   }
-
-  .home-hero-progress-fill {
-    height: 100%;
-    background: var(--green-primary);
-    border-radius: 2px;
+  .home-pipeline-step-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
   }
+  .home-pipeline-step-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .home-pipeline-step-connector {
+    position: absolute;
+    top: 44px;
+    right: -6px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--bg-dark);
+    border: 2px solid var(--green-primary);
+    z-index: 2;
+  }
+  .home-pipeline-step:last-child .home-pipeline-step-connector { display: none; }
 
-  .home-hero-metric-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 12px;
-    font-size: 12px;
+  /* ---------- Features ---------- */
+  .home-features { padding: 64px 16px; max-width: 1400px; margin: 0 auto; }
+  .home-features-header { margin-bottom: 40px; text-align: center; }
+  .home-features-header .home-section-desc { margin: 0 auto; }
+  .home-features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .home-feature-icon { width: 44px; height: 44px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--green-primary); }
+  .home-feature-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--text-primary); }
+  .home-feature-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+  .home-feature-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-family: var(--font-mono);
     color: var(--text-muted);
+    margin-top: 14px;
+    padding: 3px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
   }
 
   /* ---------- Stats ---------- */
-  .home-stats-band {
-    border-top: 1px solid var(--border-default);
-    border-bottom: 1px solid var(--border-default);
-    background: var(--bg-surface);
-  }
-
-  .home-stats-grid {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 32px 16px;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-  }
-
-  .home-stat-value {
-    font-size: clamp(24px, 4vw, 40px);
-    font-weight: 700;
-    font-family: var(--font-mono);
-    letter-spacing: -0.02em;
-    color: var(--text-primary);
-    margin-bottom: 6px;
-    line-height: 1.1;
-  }
-
-  .home-stat-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-
-  .home-stat-meta {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
-
-  .home-stat-change {
-    color: var(--green-primary);
-  }
-
-  .home-stat-subtext {
-    color: var(--text-muted);
-  }
-
-  /* ---------- Features ---------- */
-  .home-features {
-    padding: 64px 16px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  .home-features-header {
-    margin-bottom: 40px;
-    text-align: center;
-  }
-
-  .home-features-header .home-section-desc {
-    margin: 0 auto;
-  }
-
-  .home-features-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-  }
-
-  .home-feature-icon {
-    width: 44px;
-    height: 44px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-    color: var(--green-primary);
-  }
-
-  .home-feature-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: var(--text-primary);
-  }
-
-  .home-feature-desc {
-    font-size: 14px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-  }
+  .home-stats-band { border-top: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); background: var(--bg-surface); }
+  .home-stats-grid { max-width: 1400px; margin: 0 auto; padding: 32px 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .home-stat-value { font-size: clamp(24px, 4vw, 40px); font-weight: 700; font-family: var(--font-mono); letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 6px; line-height: 1.1; }
+  .home-stat-label { font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+  .home-stat-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+  .home-stat-change { color: var(--green-primary); }
+  .home-stat-subtext { color: var(--text-muted); }
 
   /* ---------- Recent Jobs ---------- */
-  .home-recent {
-    padding: 0 16px 64px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  .home-recent-header {
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .home-recent-title {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--text-primary);
-  }
-
-  .home-recent-sub {
-    color: var(--text-secondary);
-    font-size: 14px;
-  }
-
-  .home-recent-viewall {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--green-primary);
-    text-decoration: none;
-    padding: 8px 14px;
-    border: 1px solid rgba(0, 237, 100, 0.24);
-    background: rgba(0, 237, 100, 0.06);
-    border-radius: var(--radius-md);
-    transition: background var(--transition), border-color var(--transition), color var(--transition);
-    white-space: nowrap;
-  }
-
-  .home-recent-viewall:hover {
-    background: rgba(0, 237, 100, 0.12);
-    border-color: rgba(0, 237, 100, 0.4);
-  }
-
-  .home-table-wrap {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
-    overflow: auto;
-  }
-
-  .home-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    min-width: 600px;
-  }
-
-  .home-table th {
-    text-align: left;
-    padding: 16px 20px;
-    font-weight: 500;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border-default);
-    background: var(--bg-elevated);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .home-table td {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-subtle);
-    color: var(--text-secondary);
-  }
-
-  .home-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .home-table tr {
-    transition: background var(--transition);
-  }
-
-  .home-table tr:hover td {
-    background: var(--bg-elevated);
-  }
-
-  .home-table .job-name-cell {
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .home-empty {
-    padding: 48px 20px;
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .home-empty-icon {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .home-empty-title {
-    font-size: 15px;
-    font-weight: 500;
-    margin-bottom: 4px;
-    color: var(--text-secondary);
-  }
-
-  .home-empty-desc {
-    font-size: 13px;
-  }
+  .home-recent { padding: 0 16px 64px; max-width: 1400px; margin: 0 auto; }
+  .home-recent-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .home-recent-title { font-size: 22px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary); }
+  .home-recent-sub { color: var(--text-secondary); font-size: 14px; }
+  .home-recent-viewall { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--green-primary); text-decoration: none; padding: 8px 14px; border: 1px solid rgba(0, 237, 100, 0.24); background: rgba(0, 237, 100, 0.06); border-radius: var(--radius-md); transition: background var(--transition), border-color var(--transition), color var(--transition); white-space: nowrap; }
+  .home-recent-viewall:hover { background: rgba(0, 237, 100, 0.12); border-color: rgba(0, 237, 100, 0.4); }
+  .home-table-wrap { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); overflow: auto; }
+  .home-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; }
+  .home-table th { text-align: left; padding: 16px 20px; font-weight: 500; color: var(--text-muted); border-bottom: 1px solid var(--border-default); background: var(--bg-elevated); font-size: 12px; white-space: nowrap; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+  .home-table td { padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  .home-table tr:last-child td { border-bottom: none; }
+  .home-table tr { transition: background var(--transition); }
+  .home-table tr:hover td { background: var(--bg-elevated); }
+  .home-table .job-name-cell { font-weight: 500; color: var(--text-primary); }
+  .home-table .job-url-cell { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+  .home-empty { padding: 48px 20px; text-align: center; color: var(--text-muted); }
+  .home-empty-icon { display: flex; justify-content: center; margin-bottom: 12px; opacity: 0.5; }
+  .home-empty-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; color: var(--text-secondary); }
+  .home-empty-desc { font-size: 13px; }
 
   /* ---------- CTA ---------- */
-  .home-cta-wrap {
-    padding: 0 16px 64px;
-    max-width: 1400px;
-    margin: 0 auto;
+  .home-cta-wrap { padding: 0 16px 64px; max-width: 1400px; margin: 0 auto; }
+  .home-cta { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); padding: 48px 24px; text-align: center; position: relative; overflow: hidden; }
+  .home-cta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(48, 54, 61, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(48, 54, 61, 0.15) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse 60% 80% at 50% 50%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 60% 80% at 50% 50%, black 30%, transparent 80%);
+    pointer-events: none;
   }
-
-  .home-cta {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-xl);
-    padding: 48px 24px;
-    text-align: center;
-  }
-
-  .home-cta h2 {
-    font-size: clamp(24px, 3vw, 32px);
-    font-weight: 600;
-    margin-bottom: 16px;
-    color: var(--text-primary);
-    letter-spacing: -0.01em;
-  }
-
-  .home-cta p {
-    font-size: 16px;
-    color: var(--text-secondary);
-    max-width: 520px;
-    margin: 0 auto 32px;
-    line-height: 1.6;
-  }
-
-  .home-cta-actions {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+  .home-cta > * { position: relative; z-index: 2; }
+  .home-cta h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 600; margin-bottom: 16px; color: var(--text-primary); letter-spacing: -0.01em; }
+  .home-cta p { font-size: 16px; color: var(--text-secondary); max-width: 520px; margin: 0 auto 32px; line-height: 1.6; }
+  .home-cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 
   /* ---------- Footer ---------- */
-  .home-footer {
-    border-top: 1px solid var(--border-default);
-    padding: 32px 16px;
-    background: var(--bg-dark);
-  }
-
-  .home-footer-inner {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 24px;
-  }
-
-  .home-footer-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .home-footer-brand span {
-    font-weight: 600;
-    font-size: 16px;
-    color: var(--text-primary);
-  }
-
-  .home-footer-copy {
-    font-size: 13px;
-    color: var(--text-muted);
-  }
-
-  .home-footer-badges {
-    display: flex;
-    gap: 12px;
-    margin-top: 16px;
-    flex-wrap: wrap;
-  }
-
-  .home-footer-badge {
-    font-size: 11px;
-    border: 1px solid var(--border-subtle);
-    padding: 3px 10px;
-    border-radius: 9999px;
-    color: var(--text-muted);
-  }
-
-  .home-footer-links {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-  }
-
-  .home-footer-link {
-    font-size: 13px;
-    color: var(--text-muted);
-    text-decoration: none;
-    transition: color var(--transition);
-  }
-
-  .home-footer-link:hover {
-    color: var(--text-primary);
-  }
+  .home-footer { border-top: 1px solid var(--border-default); padding: 32px 16px; background: var(--bg-dark); }
+  .home-footer-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 24px; }
+  .home-footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .home-footer-brand span { font-weight: 600; font-size: 16px; color: var(--text-primary); }
+  .home-footer-copy { font-size: 13px; color: var(--text-muted); }
+  .home-footer-badges { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .home-footer-badge { font-size: 11px; border: 1px solid var(--border-subtle); padding: 3px 10px; border-radius: 9999px; color: var(--text-muted); }
+  .home-footer-links { display: flex; gap: 32px; flex-wrap: wrap; }
+  .home-footer-link { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color var(--transition); }
+  .home-footer-link:hover { color: var(--text-primary); }
 
   /* ---------- Skeleton ---------- */
-  .home-skeleton-nav {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 72px;
-  }
+  .home-skeleton-nav { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 72px; }
 
   /* ---------- Playground CTA ---------- */
-  .home-playground-cta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-xl);
-    padding: 32px;
-    flex-wrap: wrap;
-  }
-
-  .home-playground-cta-content {
-    flex: 1;
-    min-width: 240px;
-  }
-
-  .home-playground-cta-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(0, 237, 100, 0.1);
-    border: 1px solid rgba(0, 237, 100, 0.2);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--green-primary);
-    margin-bottom: 16px;
-  }
-
-  .home-playground-cta-title {
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-  }
-
-  .home-playground-cta-desc {
-    font-size: 14px;
-    color: var(--text-secondary);
-    max-width: 480px;
-    line-height: 1.6;
-  }
+  .home-playground-cta { display: flex; align-items: center; justify-content: space-between; gap: 24px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); padding: 32px; flex-wrap: wrap; }
+  .home-playground-cta-content { flex: 1; min-width: 240px; }
+  .home-playground-cta-icon { width: 48px; height: 48px; background: rgba(0, 237, 100, 0.1); border: 1px solid rgba(0, 237, 100, 0.2); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--green-primary); margin-bottom: 16px; }
+  .home-playground-cta-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+  .home-playground-cta-desc { font-size: 14px; color: var(--text-secondary); max-width: 480px; line-height: 1.6; }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 1024px) {
-    .home-features-grid {
-      grid-template-columns: 1fr;
-    }
+    .home-features-grid { grid-template-columns: 1fr; }
+    .home-pipeline { grid-template-columns: repeat(2, 1fr); }
+    .home-pipeline-step:nth-child(2) { border-right: none; }
+    .home-pipeline-step:nth-child(1),
+    .home-pipeline-step:nth-child(2) { border-bottom: 1px solid var(--border-subtle); }
   }
 
   @media (max-width: 768px) {
-    .home-hero {
-      padding: 32px 16px 40px;
-    }
-
-    .home-hero-grid {
-      grid-template-columns: 1fr;
-      gap: 32px;
-      text-align: center;
-    }
-
-    .home-hero p {
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .home-hero > * + * {
-      margin-left: auto;
-    }
-
-    .home-hero .home-btn {
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .home-nav-links {
-      display: none;
-    }
-
-    .home-mobile-menu-btn {
-      display: block;
-    }
-
-    .home-stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-
-    .home-card {
-      padding: 20px;
-    }
-
-    .home-playground-cta {
-      flex-direction: column;
-      align-items: flex-start;
-    }
+    .home-hero { padding: 32px 16px 40px; }
+    .home-hero-grid { grid-template-columns: 1fr; gap: 32px; text-align: center; }
+    .home-hero p { margin-left: auto; margin-right: auto; }
+    .home-hero .home-btn { margin-left: auto; margin-right: auto; }
+    .home-nav-links { display: none; }
+    .home-mobile-menu-btn { display: block; }
+    .home-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .home-card { padding: 20px; }
+    .home-playground-cta { flex-direction: column; align-items: flex-start; }
+    .home-pipeline { grid-template-columns: 1fr; }
+    .home-pipeline-step { border-right: none; border-bottom: 1px solid var(--border-subtle); }
+    .home-pipeline-step:last-child { border-bottom: none; }
+    .home-pipeline-step-connector { display: none; }
+    .home-hero-metrics { grid-template-columns: repeat(3, 1fr); }
   }
 
   @media (max-width: 480px) {
-    .home-stats-grid {
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-
-    .home-stat-value {
-      font-size: 24px;
-    }
-
-    .home-cta-actions .home-btn {
-      width: 100%;
-    }
+    .home-stats-grid { grid-template-columns: 1fr; gap: 10px; }
+    .home-stat-value { font-size: 24px; }
+    .home-cta-actions .home-btn { width: 100%; }
+    .home-hero-metrics { grid-template-columns: 1fr; }
   }
 `;
 
@@ -932,17 +551,13 @@ const PrimaryButton = ({ children, icon, onClick, to, disabled = false, loading 
   const cls = `home-btn home-btn-primary`;
   const content = (
     <>
-      {loading ? <span className="spin" style={{ display: 'inline-flex' }}>⟳</span> : icon}
+      {loading ? <Loader2 size={16} className="spin" /> : icon}
       {children}
     </>
   );
   const style = fullWidth ? { width: '100%' } : undefined;
   if (to) {
-    return (
-      <Link to={to} className={cls} style={style}>
-        {content}
-      </Link>
-    );
+    return <Link to={to} className={cls} style={style}>{content}</Link>;
   }
   return (
     <button className={cls} style={style} onClick={onClick} disabled={disabled || loading}>
@@ -959,18 +574,9 @@ const SecondaryButton = ({ children, onClick, disabled = false }) => (
 
 const StatusBadge = ({ status }) => {
   const key = (status || 'queued').toLowerCase();
-  const config = {
-    running: 'Running',
-    success: 'Success',
-    completed: 'Completed',
-    failed: 'Failed',
-    paused: 'Paused',
-    queued: 'Queued',
-  };
+  const config = { running: 'Running', success: 'Success', completed: 'Completed', failed: 'Failed', paused: 'Paused', queued: 'Queued' };
   const label = config[key] || 'Queued';
-  const cls = ['running', 'success', 'failed', 'paused'].includes(key)
-    ? key
-    : (key === 'completed' ? 'success' : 'queued');
+  const cls = ['running', 'success', 'failed', 'paused'].includes(key) ? key : (key === 'completed' ? 'success' : 'queued');
   return (
     <span className={`home-badge ${cls}`}>
       <span className="home-badge-dot" />
@@ -980,33 +586,123 @@ const StatusBadge = ({ status }) => {
 };
 
 // ============================================================
-// HERO GRAPHIC
+// HERO TERMINAL — Live scraping visualization
 // ============================================================
 
-const HeroGraphic = ({ stats }) => (
-  <div className="home-hero-graphic">
-    <div className="home-hero-card">
-      <img src={logo} alt="Webby" className="home-hero-logo" />
-      <div className="home-hero-metric">
-        <div className="home-hero-metric-row">
-          <Activity size={18} color="var(--green-primary)" />
-          <span className="home-hero-metric-label">Active pipelines</span>
-          <span className="home-hero-metric-value">{stats.active_jobs || 0} active</span>
-        </div>
-        <div className="home-hero-progress">
-          <div
-            className="home-hero-progress-fill"
-            style={{ width: `${stats.success_rate || 99.87}%` }}
-          />
-        </div>
-        <div className="home-hero-metric-footer">
-          <span>Success rate</span>
-          <span style={{ color: 'var(--green-primary)' }}>{stats.success_rate || 99.87}%</span>
-        </div>
+const TerminalLine = ({ children }) => (
+  <div className="term-line">
+    <span className="term-prompt">$</span>
+    <span className="term-text">{children}</span>
+  </div>
+);
+
+const HeroTerminal = ({ stats }) => (
+  <div className="home-terminal">
+    <div className="home-terminal-header">
+      <div className="home-terminal-dots">
+        <span className="home-terminal-dot" style={{ background: '#F85149' }} />
+        <span className="home-terminal-dot" style={{ background: '#D29922' }} />
+        <span className="home-terminal-dot" style={{ background: '#00ED64' }} />
+      </div>
+      <div className="home-terminal-title">
+        <Terminal size={12} />
+        scraper --live
+      </div>
+      <div className="home-terminal-status">
+        <Activity size={10} />
+        {stats.active_jobs || 0} active
+      </div>
+    </div>
+    <div className="home-terminal-body">
+      <div className="home-terminal-scanline" />
+      <TerminalLine>
+        <span className="muted">init</span> <span className="url">target=https://example.com/products</span>
+      </TerminalLine>
+      <TerminalLine>
+        <span className="muted">proxy</span> <span className="field">rotating</span> <span className="muted">→</span> <span className="value">us-east-3</span>
+      </TerminalLine>
+      <TerminalLine>
+        <span className="muted">parse</span> <span className="field">detected</span> <span className="url">12 fields</span> <span className="value">✓</span>
+      </TerminalLine>
+      <TerminalLine>
+        <span className="muted">record</span> <span className="field">{'{'}</span><span className="url">title</span><span className="muted">:</span> <span className="value">"..."</span><span className="field">{'}'}</span>
+      </TerminalLine>
+      <TerminalLine>
+        <span className="muted">export</span> <span className="value">json</span> <span className="muted">+</span> <span className="value">csv</span> <span className="muted">→</span> <span className="field">delivered</span>
+      </TerminalLine>
+      <TerminalLine>
+        <span className="muted">watching for new pages</span>
+        <span className="term-cursor" />
+      </TerminalLine>
+    </div>
+    <div className="home-hero-metrics" style={{ padding: '0 20px 20px' }}>
+      <div className="home-hero-metric-mini">
+        <div className="home-hero-metric-mini-label">Pages / min</div>
+        <div className="home-hero-metric-mini-value green">{stats.pages_per_min || 1247}</div>
+      </div>
+      <div className="home-hero-metric-mini">
+        <div className="home-hero-metric-mini-label">Success</div>
+        <div className="home-hero-metric-mini-value green">{stats.success_rate || 99.87}%</div>
+      </div>
+      <div className="home-hero-metric-mini">
+        <div className="home-hero-metric-mini-label">Uptime</div>
+        <div className="home-hero-metric-mini-value">99.99%</div>
       </div>
     </div>
   </div>
 );
+
+// ============================================================
+// TRUSTED DOMAINS MARQUEE
+// ============================================================
+
+const TRUSTED_DOMAINS = [
+  'amazon.com', 'linkedin.com', 'zillow.com', 'indeed.com',
+  'shopify.com', 'etsy.com', 'reddit.com', 'twitter.com',
+  'yelp.com', 'booking.com', 'airbnb.com', 'glassdoor.com',
+];
+
+const DomainMarquee = () => (
+  <div className="home-marquee-wrap">
+    <div className="home-marquee-label">Trusted for extraction across the web</div>
+    <div className="home-marquee">
+      {[...TRUSTED_DOMAINS, ...TRUSTED_DOMAINS].map((domain, i) => (
+        <span key={i} className="home-marquee-item">
+          <Globe size={14} />
+          {domain}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
+// ============================================================
+// PIPELINE VISUAL
+// ============================================================
+
+const Pipeline = () => {
+  const steps = [
+    { icon: Globe, title: 'Target', desc: 'Point at any URL. Schedule crawls or run on-demand with full rendering.' },
+    { icon: Shield, title: 'Bypass', desc: 'Automatic proxy rotation, CAPTCHA solving, and anti-bot evasion.' },
+    { icon: Brain, title: 'Parse', desc: 'AI extracts structured fields — no selectors, no maintenance.' },
+    { icon: Database, title: 'Deliver', desc: 'Push to CSV, JSON, Parquet, webhooks, or your warehouse.' },
+  ];
+  return (
+    <div className="home-pipeline">
+      {steps.map((step, i) => (
+        <div key={i} className="home-pipeline-step">
+          <div className="home-pipeline-step-num">STEP {String(i + 1).padStart(2, '0')}</div>
+          <div className="home-pipeline-step-icon">
+            <step.icon size={20} strokeWidth={1.8} />
+          </div>
+          <div className="home-pipeline-step-title">{step.title}</div>
+          <div className="home-pipeline-step-desc">{step.desc}</div>
+          <div className="home-pipeline-step-connector" />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // ============================================================
 // SKELETON
@@ -1032,11 +728,10 @@ const HomePageSkeleton = () => (
           <div className="skeleton" style={{ width: '70%', height: 16, marginBottom: 36 }} />
           <div style={{ display: 'flex', gap: 16 }}>
             <div className="skeleton" style={{ width: 140, height: 44 }} />
-            <div className="skeleton" style={{ width: 140, height: 44 }} />
           </div>
         </div>
         <div>
-          <div className="skeleton" style={{ padding: 32, borderRadius: 16, height: 320 }} />
+          <div className="skeleton" style={{ padding: 32, borderRadius: 16, height: 380 }} />
         </div>
       </div>
     </section>
@@ -1079,10 +774,7 @@ const HomePage = () => {
     last_7_days_total_jobs: 0
   });
 
-  const [exportStats, setExportStats] = useState({
-    total_exports: 0,
-    total_rows_exported: 0
-  });
+  const [exportStats, setExportStats] = useState({ total_exports: 0, total_rows_exported: 0 });
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -1092,7 +784,7 @@ const HomePage = () => {
       const [analyticsResponse, realtimeResponse, recentJobsResponse, performanceResponse, exportStatsResponse] = await Promise.allSettled([
         api.get('/api/jobs/analytics/dashboard'),
         api.get('/api/dashboard/realtime'),
-        api.get('/api/export/jobs-with-results'),   // ← SAME SOURCE AS THE LIBRARY
+        api.get('/api/export/jobs-with-results'),
         api.get('/api/dashboard/performance'),
         api.get('/api/dashboard/export-stats')
       ]);
@@ -1116,7 +808,6 @@ const HomePage = () => {
           const failed = jobs.filter(j => j.status === 'failed').length;
           const running = jobs.filter(j => j.status === 'running').length;
           const total = jobs.length;
-
           setStats({
             total_jobs: total,
             completed_jobs: completed,
@@ -1127,15 +818,7 @@ const HomePage = () => {
             unique_urls: jobs.length
           });
         } catch (e) {
-          setStats({
-            total_jobs: 0,
-            completed_jobs: 0,
-            failed_jobs: 0,
-            running_jobs: 0,
-            success_rate: 99.97,
-            total_pages_scraped: 0,
-            unique_urls: 0
-          });
+          setStats({ total_jobs: 0, completed_jobs: 0, failed_jobs: 0, running_jobs: 0, success_rate: 99.97, total_pages_scraped: 0, unique_urls: 0 });
         }
       }
 
@@ -1156,9 +839,6 @@ const HomePage = () => {
         });
       }
 
-      // ============================================================
-      // RECENT JOBS — ONLY DATASETS THAT EXIST IN THE LIBRARY
-      // ============================================================
       if (recentJobsResponse.status === 'fulfilled' && recentJobsResponse.value?.data) {
         const jobs = recentJobsResponse.value.data.jobs || [];
         const libraryJobs = jobs
@@ -1177,7 +857,6 @@ const HomePage = () => {
           }));
         setRecentJobs(libraryJobs);
       } else {
-        // Fallback — hit the Library endpoint directly
         try {
           const res = await api.get('/api/export/jobs-with-results');
           const jobs = res.data?.jobs || [];
@@ -1211,28 +890,15 @@ const HomePage = () => {
           last_7_days_total_jobs: data.last_7_days_total_jobs || 0
         });
       } else {
-        setPerformanceMetrics({
-          average_job_duration_seconds: 0,
-          success_rate_7d: 0,
-          today_success_rate: 0,
-          today_total_jobs: 0,
-          last_7_days_total_jobs: 0
-        });
+        setPerformanceMetrics({ average_job_duration_seconds: 0, success_rate_7d: 0, today_success_rate: 0, today_total_jobs: 0, last_7_days_total_jobs: 0 });
       }
 
       if (exportStatsResponse.status === 'fulfilled' && exportStatsResponse.value?.data) {
         const data = exportStatsResponse.value.data;
-        setExportStats({
-          total_exports: data.total_exports || 0,
-          total_rows_exported: data.total_rows_exported || 0
-        });
+        setExportStats({ total_exports: data.total_exports || 0, total_rows_exported: data.total_rows_exported || 0 });
       } else {
-        setExportStats({
-          total_exports: 0,
-          total_rows_exported: 0
-        });
+        setExportStats({ total_exports: 0, total_rows_exported: 0 });
       }
-
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load dashboard data. Please refresh the page.');
@@ -1250,19 +916,11 @@ const HomePage = () => {
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
-
       if (diffMins < 1) return 'Just now';
       if (diffMins < 60) return `${diffMins} min ago`;
       if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
       return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    } catch {
-      return 'Unknown';
-    }
-  };
-
-  const handleJobCreated = () => {
-    setRefreshTrigger(prev => prev + 1);
-    fetchDashboardData();
+    } catch { return 'Unknown'; }
   };
 
   useEffect(() => {
@@ -1271,9 +929,7 @@ const HomePage = () => {
     return () => clearInterval(interval);
   }, [refreshTrigger]);
 
-  useEffect(() => {
-    injectStyles('home-styles', STYLES);
-  }, []);
+  useEffect(() => { injectStyles('home-styles', STYLES); }, []);
 
   const dashboardStats = [
     { value: formatNumber(stats.total_jobs), label: 'Jobs processed', change: `+${performanceMetrics.today_total_jobs} today`, subtext: 'Total jobs' },
@@ -1285,23 +941,27 @@ const HomePage = () => {
   const features = [
     {
       title: 'AI-powered parsing',
-      description: 'Intelligent field detection and entity recognition without manual selectors. Adapts to layout changes automatically.',
-      icon: Zap,
+      description: 'Intelligent field detection and entity recognition without manual selectors. Adapts to layout changes automatically — no re-scraping required.',
+      icon: Brain,
+      tag: 'No selectors needed',
     },
     {
       title: 'Proxy rotation & bypass',
-      description: 'Automatic residential/datacenter rotation, CAPTCHA solving, and geo-targeting with real-time ban detection.',
+      description: 'Automatic residential/datacenter rotation, CAPTCHA solving, and geo-targeting with real-time ban detection and adaptive retry logic.',
       icon: Shield,
+      tag: '50M+ IP pool',
     },
     {
       title: 'Multi-format delivery',
-      description: 'Export to CSV, JSON, Parquet, or direct database sync. Webhooks and scheduled pipelines included.',
+      description: 'Export to CSV, JSON, Parquet, or direct database sync. Webhooks and scheduled pipelines included — deliver data where you need it.',
       icon: Database,
+      tag: 'CSV · JSON · Parquet',
     },
     {
       title: 'Observability suite',
-      description: 'Granular metrics, logs, and alerts. Monitor every job, proxy health, and data volume in real time.',
+      description: 'Granular metrics, logs, and alerts. Monitor every job, proxy health, and data volume in real time with full audit trails.',
       icon: BarChart3,
+      tag: 'Real-time metrics',
     },
   ];
 
@@ -1319,10 +979,7 @@ const HomePage = () => {
     transition: { duration: 0.35, delay, ease: [0.2, 0.65, 0.3, 0.9] },
   });
 
-  const navItems = [
-    { label: 'Documentation', path: '/docs' },
-  ];
-
+  const navItems = [{ label: 'Documentation', path: '/docs' }];
   const footerLinks = [
     { label: 'Privacy', path: '/privacy' },
     { label: 'Terms', path: '/terms' },
@@ -1330,9 +987,7 @@ const HomePage = () => {
     { label: 'Status', path: '/status' },
   ];
 
-  if (loading) {
-    return <HomePageSkeleton />;
-  }
+  if (loading) return <HomePageSkeleton />;
 
   return (
     <div className="home-root">
@@ -1348,64 +1003,60 @@ const HomePage = () => {
           <Link to="/" style={{ display: 'flex', alignItems: 'center' }}>
             <img src={logo} alt="Webby" style={{ height: 70, width: 'auto', display: 'block' }} />
           </Link>
-
           <div className="home-nav-links">
             {navItems.map((item) => (
-              <Link key={item.label} to={item.path} className="home-nav-link">
-                {item.label}
-              </Link>
+              <Link key={item.label} to={item.path} className="home-nav-link">{item.label}</Link>
             ))}
-            <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>
-              Get started
-            </PrimaryButton>
+            <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>Get started</PrimaryButton>
           </div>
-
           <button className="home-mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
-
         {mobileMenuOpen && (
           <div className="home-mobile-menu">
             {navItems.map((item) => (
-              <Link key={item.label} to={item.path} onClick={() => setMobileMenuOpen(false)}>
-                {item.label}
-              </Link>
+              <Link key={item.label} to={item.path} onClick={() => setMobileMenuOpen(false)}>{item.label}</Link>
             ))}
-            <PrimaryButton to="/login" icon={<ArrowRight size={16} />} fullWidth>
-              Get started
-            </PrimaryButton>
+            <PrimaryButton to="/login" icon={<ArrowRight size={16} />} fullWidth>Get started</PrimaryButton>
           </div>
         )}
       </nav>
 
       {/* Hero */}
       <section className="home-hero">
+        <div className="home-hero-bg-grid" />
         <div className="home-hero-grid">
           <div>
             <div className="home-eyebrow">
               <span className="home-eyebrow-dot" />
               <span className="home-eyebrow-text">
-                Production ready · {stats.completed_jobs.toLocaleString()} jobs completed
+                Live · {stats.completed_jobs.toLocaleString()} jobs completed · {realtimeMetrics.active_jobs} running now
               </span>
             </div>
             <h1>
-              Web data extraction <br /> at enterprise scale
+              Turn any website into <span className="accent">structured data</span> at scale
             </h1>
             <p>
-              The platform engineering teams trust for high-volume scraping, intelligent parsing, and reliable data delivery — without the ops overhead.
+              The scraping platform engineering teams trust for high-volume extraction, intelligent parsing, and reliable delivery — without the proxy infrastructure, CAPTCHA headaches, or selector maintenance.
             </p>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>
-                Get started
-              </PrimaryButton>
+              <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>Start scraping free</PrimaryButton>
+              <Link to="/docs">
+                <SecondaryButton>
+                  <Code2 size={14} /> View API docs
+                </SecondaryButton>
+              </Link>
             </div>
           </div>
           <div>
-            <HeroGraphic stats={{ active_jobs: realtimeMetrics.active_jobs, success_rate: stats.success_rate }} />
+            <HeroTerminal stats={{ active_jobs: realtimeMetrics.active_jobs, success_rate: stats.success_rate }} />
           </div>
         </div>
       </section>
+
+      {/* Trusted Domains Marquee */}
+      <DomainMarquee />
 
       {/* Stats */}
       <div className="home-stats-band">
@@ -1422,6 +1073,18 @@ const HomePage = () => {
           ))}
         </div>
       </div>
+
+      {/* Pipeline */}
+      <section className="home-features" style={{ paddingBottom: 32 }}>
+        <div className="home-features-header">
+          <div className="home-section-label">How it works</div>
+          <h2 className="home-section-title">From URL to structured data in four steps</h2>
+          <p className="home-section-desc">
+            A fully managed pipeline that handles the hard parts — so your team focuses on the data, not the infrastructure.
+          </p>
+        </div>
+        <Pipeline />
+      </section>
 
       {/* Features */}
       <section className="home-features">
@@ -1441,13 +1104,19 @@ const HomePage = () => {
                 </div>
                 <h3 className="home-feature-title">{feat.title}</h3>
                 <p className="home-feature-desc">{feat.description}</p>
+                {feat.tag && (
+                  <div className="home-feature-tag">
+                    <CheckCircle2 size={11} />
+                    {feat.tag}
+                  </div>
+                )}
               </Card>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Recent Jobs — ONLY LIBRARY DATASETS */}
+      {/* Recent Jobs — mirrors library */}
       <section className="home-recent">
         <div className="home-recent-header">
           <div>
@@ -1457,8 +1126,7 @@ const HomePage = () => {
             </p>
           </div>
           <Link to="/library" className="home-recent-viewall">
-            View all in Library
-            <ArrowRight size={14} />
+            View all in Library <ArrowRight size={14} />
           </Link>
         </div>
         <div className="home-table-wrap">
@@ -1473,6 +1141,7 @@ const HomePage = () => {
               <thead>
                 <tr>
                   <th>Job name</th>
+                  <th>Source</th>
                   <th>Status</th>
                   <th>Records</th>
                   <th>Completed</th>
@@ -1483,6 +1152,11 @@ const HomePage = () => {
                 {recentJobs.map((job) => (
                   <tr key={job.id}>
                     <td className="job-name-cell">{job.name || 'Untitled'}</td>
+                    <td className="job-url-cell">
+                      {job.url ? (() => {
+                        try { return new URL(job.url).hostname; } catch { return job.url.slice(0, 30); }
+                      })() : '—'}
+                    </td>
                     <td><StatusBadge status={job.status} /></td>
                     <td>{job.records ? job.records.toLocaleString() : '—'}</td>
                     <td>{job.completed || 'Unknown'}</td>
@@ -1507,9 +1181,7 @@ const HomePage = () => {
             Join leading organizations extracting clean, structured data at enterprise volume.
           </p>
           <div className="home-cta-actions">
-            <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>
-              Get started
-            </PrimaryButton>
+            <PrimaryButton to="/login" icon={<ArrowRight size={16} />}>Get started</PrimaryButton>
             <Link to="/docs">
               <SecondaryButton>
                 <BookOpen size={14} /> View Docs
@@ -1535,9 +1207,7 @@ const HomePage = () => {
           </div>
           <div className="home-footer-links">
             {footerLinks.map((item) => (
-              <Link key={item.label} to={item.path} className="home-footer-link">
-                {item.label}
-              </Link>
+              <Link key={item.label} to={item.path} className="home-footer-link">{item.label}</Link>
             ))}
           </div>
         </div>
