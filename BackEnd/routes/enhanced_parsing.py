@@ -41,9 +41,9 @@ router = APIRouter(prefix="/api/enhanced-parsing", tags=["Enhanced_Parsing"])
 # ============================================================
 # MODEL CONFIGURATION — SINGLE SOURCE OF TRUTH
 # ============================================================
-DEFAULT_MODEL = "meta-llama/llama-3.2-3b-instruct:free"
+DEFAULT_MODEL = "nvidia/nemotron-3.5-lightning:free"
 FALLBACK_MODELS = [
-    "meta-llama/llama-3.2-3b-instruct:free",
+    "nvidia/nemotron-3.5-lightning:free",
     "google/gemma-2-9b-it:free",
     "mistralai/mistral-7b-instruct:free",
 ]
